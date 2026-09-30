@@ -5,7 +5,7 @@ const SaarthiApp = (() => {
   const status = $('#presenceText');
   const liveDate = $('#liveDate');
   const liveDay = $('#liveDay');
-  const liveTime = $('#liveTime');
+  const topClock = $('#topClock');
   const liveLocation = $('#liveLocation');
   const liveWeather = $('#liveWeather');
   const liveTemp = $('#liveTemp');
@@ -104,7 +104,7 @@ const SaarthiApp = (() => {
     const day = new Intl.DateTimeFormat('en-IN', { weekday: 'long' }).format(now);
     const hour = now.getHours();
 
-    if (liveTime) liveTime.textContent = time;
+    if (topClock) topClock.textContent = time;
     if (liveDate) liveDate.textContent = date;
     if (liveDay) liveDay.textContent = day + ' · local time';
     if (greeting) {
