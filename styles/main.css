@@ -236,3 +236,15 @@ body{
   .chat-strip{border-radius:16px}
   .rail-card{border-radius:16px}
 }
+
+
+/* Home information hierarchy: one focused surface */
+.dashboard{grid-template-columns:minmax(0,1fr)}
+.home-live-context{margin-bottom:12px}
+.live-context-grid{grid-template-columns:1fr 1.5fr}
+.live-tile{min-height:56px}
+@media(max-width:1080px){.dashboard{grid-template-columns:1fr}}
+@media(max-width:720px){
+  .live-context-grid{grid-template-columns:1fr}
+  .home-live-context{margin-bottom:9px}
+}
