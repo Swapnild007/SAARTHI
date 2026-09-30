@@ -241,9 +241,12 @@ const SaarthiApp = (() => {
       // location is unavailable or denied. Weather is based on approximate IP location.
       await loadApproximateContext();
     }, {
-      enableHighAccuracy: false,
-      maximumAge: 300000,
-      timeout: 10000
+      // Request the device's precise GPS/network position. Using false here
+      // can cause Android Chrome to return a coarse locality such as Haveli
+      // even when Android's "Use precise location" switch is enabled.
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 15000
     });
   };
 
