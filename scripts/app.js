@@ -3,6 +3,13 @@ const SaarthiApp = (() => {
   const activity = $('#activityStream');
   const command = $('#saarthiCommand');
   const status = $('#presenceText');
+  const liveDate = $('#liveDate');
+  const liveDay = $('#liveDay');
+  const liveTime = $('#liveTime');
+  const liveLocation = $('#liveLocation');
+  const liveWeather = $('#liveWeather');
+  const liveTemp = $('#liveTemp');
+  const greeting = $('#greeting');
 
   // Menu architecture is intentionally separated from presentation.
   // The visible navigation remains unchanged; these IDs define capabilities.
@@ -48,6 +55,163 @@ const SaarthiApp = (() => {
     '/settings': 'settings',
     '/voice': 'voice'
   });
+
+
+  const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+
+  const weatherDescription = code => {
+    const map = {
+      0: 'Clear sky',
+      1: 'Mainly clear',
+      2: 'Partly cloudy',
+      3: 'Overcast',
+      45: 'Fog',
+      48: 'Rime fog',
+      51: 'Light drizzle',
+      53: 'Drizzle',
+      55: 'Heavy drizzle',
+      56: 'Freezing drizzle',
+      57: 'Heavy freezing drizzle',
+      61: 'Light rain',
+      63: 'Rain',
+      65: 'Heavy rain',
+      66: 'Freezing rain',
+      67: 'Heavy freezing rain',
+      71: 'Light snow',
+      73: 'Snow',
+      75: 'Heavy snow',
+      77: 'Snow grains',
+      80: 'Light showers',
+      81: 'Showers',
+      82: 'Heavy showers',
+      85: 'Snow showers',
+      86: 'Heavy snow showers',
+      95: 'Thunderstorm',
+      96: 'Thunderstorm with hail',
+      99: 'Thunderstorm with heavy hail'
+    };
+    return map[code] || 'Weather available';
+  };
+
+  const updateClock = () => {
+    const now = new Date();
+    const time = new Intl.DateTimeFormat('en-IN', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).format(now);
+    const date = new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    }).format(now);
+    const day = new Intl.DateTimeFormat('en-IN', { weekday: 'long' }).format(now);
+    const hour = now.getHours();
+
+    if (liveTime) liveTime.textContent = time;
+    if (liveDate) liveDate.textContent = date;
+    if (liveDay) liveDay.textContent = day + ' · local time';
+    if (greeting) {
+      const part = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night';
+      greeting.textContent = 'Good ' + part + ', Swapnil';
+    }
+  };
+
+  const formatLocation = location => {
+    const parts = [
+      location?.city,
+      location?.locality,
+      location?.principalSubdivision
+    ].filter(Boolean);
+    const unique = [...new Set(parts)];
+    return unique.slice(0, 2).join(', ') || 'Current location';
+  };
+
+  const fetchWeather = async (latitude, longitude) => {
+    const url = new URL(WEATHER_URL);
+    url.searchParams.set('latitude', latitude.toFixed(5));
+    url.searchParams.set('longitude', longitude.toFixed(5));
+    url.searchParams.set('timezone', 'auto');
+    url.searchParams.set('current', [
+      'temperature_2m',
+      'relative_humidity_2m',
+      'apparent_temperature',
+      'weather_code',
+      'wind_speed_10m'
+    ].join(','));
+    url.searchParams.set('hourly', 'precipitation_probability');
+    url.searchParams.set('forecast_days', '1');
+
+    const response = await fetch(url.toString(), { cache: 'no-store' });
+    if (!response.ok) throw new Error('Weather API ' + response.status);
+    return response.json();
+  };
+
+  const reverseGeocode = async (latitude, longitude) => {
+    try {
+      const url = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
+      url.searchParams.set('latitude', latitude);
+      url.searchParams.set('longitude', longitude);
+      url.searchParams.set('localityLanguage', 'en');
+      const response = await fetch(url.toString(), { cache: 'no-store' });
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
+  const loadLiveContext = async () => {
+    if (!navigator.geolocation) {
+      if (liveLocation) liveLocation.textContent = 'Location unavailable';
+      if (liveWeather) liveWeather.textContent = 'Browser location is not supported.';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async position => {
+      const { latitude, longitude } = position.coords;
+
+      try {
+        const [weather, location] = await Promise.all([
+          fetchWeather(latitude, longitude),
+          reverseGeocode(latitude, longitude)
+        ]);
+
+        const current = weather.current || {};
+        const humidity = current.relative_humidity_2m;
+        const apparent = current.apparent_temperature;
+        const condition = weatherDescription(current.weather_code);
+        const wind = current.wind_speed_10m;
+        const hourly = weather.hourly?.precipitation_probability || [];
+        const currentHour = new Date().getHours();
+        const rainChance = Number.isFinite(hourly[currentHour]) ? hourly[currentHour] : null;
+
+        if (liveLocation) liveLocation.textContent = formatLocation(location);
+        if (liveTemp) liveTemp.textContent = Math.round(current.temperature_2m) + '°';
+        if (liveWeather) {
+          const details = [
+            condition,
+            Number.isFinite(apparent) ? 'feels ' + Math.round(apparent) + '°' : null,
+            Number.isFinite(humidity) ? humidity + '% humidity' : null,
+            Number.isFinite(wind) ? Math.round(wind) + ' km/h wind' : null,
+            Number.isFinite(rainChance) ? rainChance + '% rain' : null
+          ].filter(Boolean);
+          liveWeather.textContent = details.join(' · ');
+        }
+      } catch {
+        if (liveWeather) liveWeather.textContent = 'Weather service temporarily unavailable.';
+        if (liveLocation) liveLocation.textContent = 'Current location';
+      }
+    }, () => {
+      if (liveLocation) liveLocation.textContent = 'Location permission needed';
+      if (liveWeather) liveWeather.textContent = 'Allow location access for local weather.';
+    }, {
+      enableHighAccuracy: false,
+      maximumAge: 300000,
+      timeout: 10000
+    });
+  };
+
+  updateClock();
+  setInterval(updateClock, 1000);
+  loadLiveContext();
+  setInterval(loadLiveContext, 15 * 60 * 1000);
 
   const addActivity = (title, detail) => {
     if (!activity) return;
