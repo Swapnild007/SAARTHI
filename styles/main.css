@@ -288,3 +288,36 @@ body{
   .live-weather-copy span{font-size:7.5px}
   .live-widget-weather>strong{font-size:15px}
 }
+
+/* Native-style weather widget inspired by mobile OS weather tiles */
+.home-live-context{background:transparent;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0;margin-bottom:14px}
+.home-live-context .live-context-head{padding:0 5px 9px}
+.weather-widget{
+  position:relative;overflow:hidden;min-height:220px;padding:18px 18px 14px;border-radius:25px;
+  color:#fff;background:linear-gradient(180deg,#1682df 0%,#4da4e8 42%,#9fd2ee 76%,#d9e9e8 100%);
+  border:1px solid rgba(255,255,255,.55);
+  box-shadow:0 12px 34px rgba(29,91,133,.13),inset 0 1px 0 rgba(255,255,255,.35);
+}
+.weather-widget:before{content:"";position:absolute;inset:auto -12% -25% -12%;height:55%;background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.78),rgba(255,255,255,.18) 48%,transparent 72%);filter:blur(8px);opacity:.8}
+.weather-widget:after{content:"";position:absolute;inset:0;background:linear-gradient(125deg,rgba(255,255,255,.12),transparent 38%,rgba(255,255,255,.06));pointer-events:none}
+.weather-widget>*{position:relative;z-index:1}
+.weather-widget-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.weather-location{display:flex;align-items:center;gap:8px;min-width:0}
+.weather-location b{font-size:14px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,54,96,.18)}
+.weather-location .pin{font-size:11px;color:#fff;opacity:.95}
+.weather-symbol{font-size:38px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,55,100,.16))}
+.weather-main{display:flex;align-items:flex-end;gap:14px;margin-top:10px}
+.weather-main>strong{font-size:72px;line-height:.86;font-weight:350;letter-spacing:-.065em;text-shadow:0 2px 4px rgba(0,58,100,.12)}
+.weather-copy{padding-bottom:3px;min-width:0}
+.weather-copy b{display:block;font-size:15px;font-weight:450;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,54,96,.14)}
+.weather-copy span{display:block;font-size:9px;margin-top:4px;opacity:.82}
+.weather-footer{display:flex;align-items:center;justify-content:space-between;margin-top:38px;padding-top:10px;border-top:1px solid rgba(255,255,255,.26);font-size:9px;color:rgba(255,255,255,.86)}
+.weather-footer strong{font-size:11px;font-weight:550;color:#fff}
+@media(max-width:720px){
+  .home-live-context{margin-bottom:10px}
+  .home-live-context .live-context-head{padding:0 4px 8px}
+  .weather-widget{min-height:210px;padding:17px 16px 13px;border-radius:23px}
+  .weather-symbol{font-size:34px}
+  .weather-main>strong{font-size:68px}
+  .weather-footer{margin-top:35px}
+}
