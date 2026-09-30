@@ -24,6 +24,17 @@ const SaarthiApp = (() => {
     '/settings':'settings','/voice':'voice'
   });
   const WEATHER_URL='https://api.open-meteo.com/v1/forecast';
+  let API_BASE='';
+  const loadRuntimeConfig=async()=>{
+    try{
+      const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
+      if(response.ok){
+        const config=await response.json();
+        API_BASE=String(config.api_base_url||'').replace(/\\/$/,'');
+      }
+    }catch{}
+  };
+  const apiUrl=path=>API_BASE+(path.startsWith('/')?path:'/'+path);
 
   const weatherDescription=code=>({
     0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',
@@ -130,7 +141,7 @@ const SaarthiApp = (() => {
 
   const apiCommand=async(value,mode)=>{
     const context={client_time:new Date().toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',locale:navigator.language||'en-IN'};
-    const response=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,context})});
+    const response=await fetch(apiUrl('/api/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,context})});
     if(!response.ok)throw new Error('API '+response.status);return response.json();
   };
 
@@ -171,7 +182,7 @@ const SaarthiApp = (() => {
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
-  updateClock();setInterval(updateClock,1000);loadLiveContext();setInterval(loadLiveContext,15*60*1000);
+  updateClock();setInterval(updateClock,1000);loadRuntimeConfig().then(loadLiveContext);setInterval(loadLiveContext,15*60*1000);
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-nav]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.nav)));
   $('#settingsButton')?.addEventListener('click',()=>selectMenu('settings'));$('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
