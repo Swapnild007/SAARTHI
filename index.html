@@ -56,165 +56,191 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.m
   if(!canvas||!splash) return;
 
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:"high-performance"});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
-  renderer.setSize(canvas.clientWidth,canvas.clientHeight,false);
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.75));
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.22;
-  renderer.shadowMap.enabled=true;
-  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMappingExposure=1.12;
 
   const scene=new THREE.Scene();
-  const camera=new THREE.PerspectiveCamera(31,1,.1,2000);
-  camera.position.set(0,0,760);
+  const camera=new THREE.PerspectiveCamera(27,1,.1,1600);
+  camera.position.set(0,0,820);
 
   const root=new THREE.Group();
-  const wheel=new THREE.Group();
-  const energy=new THREE.Group();
-  const blades=new THREE.Group();
-  const spokes=new THREE.Group();
-  const ornament=new THREE.Group();
-  root.add(wheel);
-  wheel.add(energy,blades,spokes,ornament);
   scene.add(root);
 
-  const gold=new THREE.MeshPhysicalMaterial({color:0xd49a2f,metalness:.92,roughness:.2,clearcoat:.55,clearcoatRoughness:.18});
-  const brightGold=new THREE.MeshPhysicalMaterial({color:0xf2c95c,metalness:.95,roughness:.16,clearcoat:.75,clearcoatRoughness:.14});
-  const darkGold=new THREE.MeshPhysicalMaterial({color:0x6e3b07,metalness:.88,roughness:.27});
-  const blue=new THREE.MeshPhysicalMaterial({color:0x06344b,metalness:.4,roughness:.2,clearcoat:.6});
-  const glowGold=new THREE.MeshBasicMaterial({color:0xf0b83e,transparent:true,opacity:.2,side:THREE.DoubleSide});
+  const gold=new THREE.MeshPhysicalMaterial({color:0xd59b2f,metalness:.96,roughness:.18,clearcoat:.75,clearcoatRoughness:.12});
+  const lightGold=new THREE.MeshPhysicalMaterial({color:0xf4cf65,metalness:.98,roughness:.13,clearcoat:.9,clearcoatRoughness:.1});
+  const edgeGold=new THREE.MeshPhysicalMaterial({color:0x8b510d,metalness:.92,roughness:.22});
+  const blue=new THREE.MeshPhysicalMaterial({color:0x06384d,metalness:.35,roughness:.22,clearcoat:.65});
+  const teal=new THREE.MeshPhysicalMaterial({color:0x078b82,metalness:.45,roughness:.16,emissive:0x033d3b,emissiveIntensity:.35,clearcoat:.8});
+  const glow=new THREE.MeshBasicMaterial({color:0xffc94f,transparent:true,opacity:.13,side:THREE.DoubleSide});
 
-  const torus=(radius,tube,material,z=0,segments=128)=>{
-    const m=new THREE.Mesh(new THREE.TorusGeometry(radius,tube,16,segments),material);
+  const torus=(r,t,z,mat,seg=160)=>{
+    const m=new THREE.Mesh(new THREE.TorusGeometry(r,t,20,seg),mat);
     m.position.z=z;
-    m.castShadow=true;m.receiveShadow=true;
+    m.castShadow=true;
     return m;
   };
 
-  // Deep recessed body and stepped metallic rims.
-  wheel.add(new THREE.Mesh(new THREE.CylinderGeometry(262,262,24,128),darkGold));
-  const face=new THREE.Mesh(new THREE.CylinderGeometry(250,250,10,128),blue);
-  face.rotation.x=Math.PI/2; face.castShadow=true; face.receiveShadow=true; wheel.add(face);
-  wheel.add(torus(260,10,brightGold,14));
-  wheel.add(torus(244,5,gold,18));
-  wheel.add(torus(226,8,darkGold,10));
-  wheel.add(torus(220,4,brightGold,15));
-  wheel.add(torus(203,2,brightGold,20));
+  // The Chakra is built in the XY plane; every solid has its thickness along Z.
+  // This avoids the previous edge-on cylinder and overlapping spoke errors.
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(258,258,30,160),edgeGold);
+  base.rotation.x=Math.PI/2;
+  base.castShadow=true;
+  root.add(base);
 
-  // 16 broad curved flame/blade forms. These are deliberately volumetric, not flat SVG rays.
-  function makeBlade(){
-    const s=new THREE.Shape();
-    s.moveTo(112,-18);
-    s.quadraticCurveTo(160,-31,214,-27);
-    s.quadraticCurveTo(248,-24,267,0);
-    s.quadraticCurveTo(248,24,214,27);
-    s.quadraticCurveTo(160,31,112,18);
-    s.quadraticCurveTo(126,0,112,-18);
-    const g=new THREE.ExtrudeGeometry(s,{depth:18,bevelEnabled:true,bevelSegments:4,steps:2,bevelSize:4,bevelThickness:3,curveSegments:16});
-    g.center();
-    const m=new THREE.Mesh(g,brightGold);
-    m.castShadow=true;m.receiveShadow=true;
-    return m;
-  }
+  const face=new THREE.Mesh(new THREE.CylinderGeometry(246,246,12,160),blue);
+  face.rotation.x=Math.PI/2;
+  face.position.z=16;
+  face.castShadow=true;
+  root.add(face);
+
+  root.add(torus(258,11,31,lightGold));
+  root.add(torus(246,4,39,gold));
+  root.add(torus(224,7,29,edgeGold));
+  root.add(torus(214,3,38,lightGold));
+
+  // 16 broad, curved blade petals. Each is a real beveled 3D extrusion.
+  const bladeShape=new THREE.Shape();
+  bladeShape.moveTo(0,-17);
+  bladeShape.quadraticCurveTo(42,-34,102,-31);
+  bladeShape.quadraticCurveTo(160,-27,205,-7);
+  bladeShape.quadraticCurveTo(220,0,205,7);
+  bladeShape.quadraticCurveTo(160,27,102,31);
+  bladeShape.quadraticCurveTo(42,34,0,17);
+  bladeShape.quadraticCurveTo(22,0,0,-17);
+
+  const bladeGeo=new THREE.ExtrudeGeometry(bladeShape,{
+    depth:16,steps:2,bevelEnabled:true,bevelSegments:4,bevelSize:4,bevelThickness:3,curveSegments:18
+  });
+  bladeGeo.center();
+
+  const blades=new THREE.Group();
   for(let i=0;i<16;i++){
-    const b=makeBlade();
-    b.rotation.z=i*Math.PI*2/16;
-    b.position.z=8;
+    const a=i*Math.PI*2/16;
+    const b=new THREE.Mesh(bladeGeo,lightGold);
+    b.position.set(Math.cos(a)*126,Math.sin(a)*126,34);
+    b.rotation.z=a;
+    b.castShadow=true;
+    b.receiveShadow=true;
     blades.add(b);
   }
+  root.add(blades);
 
-  // 16 structural spokes with real depth and bevel.
+  // 16 radial structural spokes. Positioned at their midpoint instead of
+  // rotating around a fixed off-center point.
+  const spokes=new THREE.Group();
+  const spokeGeo=new THREE.BoxGeometry(158,10,15);
   for(let i=0;i<16;i++){
-    const g=new THREE.BoxGeometry(150,14,20,1,1,1);
-    const m=new THREE.Mesh(g,gold);
-    m.position.x=130;
-    m.position.z=4;
-    m.rotation.z=i*Math.PI*2/16;
-    m.castShadow=true;m.receiveShadow=true;
-    spokes.add(m);
+    const a=i*Math.PI*2/16;
+    const sp=new THREE.Mesh(spokeGeo,gold);
+    sp.position.set(Math.cos(a)*79,Math.sin(a)*79,27);
+    sp.rotation.z=a;
+    sp.castShadow=true;
+    spokes.add(sp);
   }
+  root.add(spokes);
 
-  // Serrated cutting rim: 108 individually beveled teeth, layered behind the curved blades.
-  const toothGeo=new THREE.ConeGeometry(5.2,18,4);
+  // 108 small 3D cutting teeth, arranged on the outside circumference.
+  const teeth=new THREE.Group();
+  const toothGeo=new THREE.ConeGeometry(6.2,19,4);
   for(let i=0;i<108;i++){
     const a=i*Math.PI*2/108;
-    const tooth=new THREE.Mesh(toothGeo,brightGold);
-    tooth.position.set(Math.cos(a)*271,Math.sin(a)*271,0);
-    tooth.rotation.z=a+Math.PI/2;
+    const tooth=new THREE.Mesh(toothGeo,lightGold);
+    tooth.position.set(Math.cos(a)*270,Math.sin(a)*270,34);
     tooth.rotation.x=Math.PI/2;
-    tooth.scale.set(1,1,1.25);
+    tooth.rotation.z=a;
+    tooth.scale.set(1,.9,1.35);
     tooth.castShadow=true;
-    energy.add(tooth);
+    teeth.add(tooth);
   }
-  energy.add(torus(273,3,gold,0,160));
+  root.add(teeth);
 
-  // Inner ornamental lotus/flame ring, 16 dimensional petals.
+  // Inner ornamental lotus ring.
+  const petals=new THREE.Group();
   const petalShape=new THREE.Shape();
   petalShape.moveTo(0,0);
-  petalShape.quadraticCurveTo(22,8,28,0);
-  petalShape.quadraticCurveTo(22,-8,0,0);
+  petalShape.quadraticCurveTo(18,15,34,0);
+  petalShape.quadraticCurveTo(18,-15,0,0);
+  const petalGeo=new THREE.ExtrudeGeometry(petalShape,{depth:10,bevelEnabled:true,bevelSegments:3,bevelSize:2.5,bevelThickness:2});
+  petalGeo.center();
   for(let i=0;i<16;i++){
-    const g=new THREE.ExtrudeGeometry(petalShape,{depth:9,bevelEnabled:true,bevelSegments:3,bevelSize:2,bevelThickness:2});
-    const p=new THREE.Mesh(g,brightGold);
     const a=i*Math.PI*2/16;
-    p.position.set(Math.cos(a)*173,Math.sin(a)*173,24);
+    const p=new THREE.Mesh(petalGeo,lightGold);
+    p.position.set(Math.cos(a)*176,Math.sin(a)*176,42);
     p.rotation.z=a;
-    p.scale.set(1.45,2.4,1);
-    p.castShadow=true; ornament.add(p);
+    p.scale.set(1.15,1.0,1);
+    p.castShadow=true;
+    petals.add(p);
   }
-  ornament.add(torus(150,5,brightGold,26));
+  root.add(petals);
+  root.add(torus(164,4,43,lightGold));
+  root.add(torus(145,7,39,edgeGold));
 
-  // Central 3D hub: stepped rings, recessed blue core and luminous center.
-  wheel.add(torus(98,11,darkGold,28));
-  wheel.add(torus(88,6,brightGold,34));
-  const hub=new THREE.Mesh(new THREE.CylinderGeometry(76,82,28,96),blue);
-  hub.rotation.x=Math.PI/2;hub.position.z=32;hub.castShadow=true;wheel.add(hub);
-  wheel.add(torus(62,3,brightGold,48));
-  const core=new THREE.Mesh(new THREE.SphereGeometry(42,64,32),new THREE.MeshPhysicalMaterial({color:0x087f7a,metalness:.55,roughness:.14,emissive:0x053b46,emissiveIntensity:.55,clearcoat:.9}));
-  core.position.z=47;core.castShadow=true;wheel.add(core);
-  const halo=new THREE.Mesh(new THREE.SphereGeometry(54,48,24),glowGold);
-  halo.position.z=48;wheel.add(halo);
+  // Stepped central boss and luminous teal core.
+  root.add(torus(102,10,44,edgeGold));
+  root.add(torus(92,5,50,lightGold));
 
-  // Studio lighting for metallic depth.
-  const hemi=new THREE.HemisphereLight(0x9bd7e4,0x081522,2.4);scene.add(hemi);
-  const key=new THREE.DirectionalLight(0xffe0a0,5.2);key.position.set(-280,330,520);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
-  const rim=new THREE.DirectionalLight(0x2ad5cf,3.5);rim.position.set(360,-180,360);scene.add(rim);
-  const fill=new THREE.PointLight(0xf5b944,2.6,900);fill.position.set(0,0,420);scene.add(fill);
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(78,84,28,96),blue);
+  hub.rotation.x=Math.PI/2;
+  hub.position.z=52;
+  hub.castShadow=true;
+  root.add(hub);
 
-  // A subtle back-disc glow gives the wheel a cinematic energy field without flattening the geometry.
-  const backGlow=new THREE.Mesh(new THREE.CircleGeometry(305,96),new THREE.MeshBasicMaterial({color:0x0b5e6d,transparent:true,opacity:.12}));
-  backGlow.position.z=-30;scene.add(backGlow);
+  root.add(torus(69,4,68,lightGold));
 
-  let targetX=0,targetY=0;
-  const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const resize=()=>{
-    const w=canvas.clientWidth||innerWidth,h=canvas.clientHeight||innerWidth;
-    renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
-  };
-  addEventListener("resize",resize,{passive:true});resize();
+  const core=new THREE.Mesh(new THREE.SphereGeometry(47,64,40),teal);
+  core.position.z=72;
+  core.castShadow=true;
+  root.add(core);
 
-  const onPointer=e=>{
+  const coreGlow=new THREE.Mesh(new THREE.SphereGeometry(62,48,32),glow);
+  coreGlow.position.z=70;
+  root.add(coreGlow);
+
+  // Controlled studio lighting makes the gold read as metal rather than flat yellow.
+  scene.add(new THREE.HemisphereLight(0x9fdbe4,0x03101b,2.1));
+  const key=new THREE.DirectionalLight(0xffe1a3,5.5);
+  key.position.set(-320,360,520);
+  scene.add(key);
+  const rim=new THREE.DirectionalLight(0x31d4ca,2.8);
+  rim.position.set(340,-220,380);
+  scene.add(rim);
+  const fill=new THREE.PointLight(0xf5b944,2.2,850);
+  fill.position.set(0,80,360);
+  scene.add(fill);
+
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let tx=0,ty=0;
+  const pointer=e=>{
     const r=canvas.getBoundingClientRect();
-    targetY=((e.clientX-r.left)/r.width-.5)*.22;
-    targetX=((e.clientY-r.top)/r.height-.5)*-.16;
+    ty=((e.clientX-r.left)/r.width-.5)*.12;
+    tx=((e.clientY-r.top)/r.height-.5)*-.09;
   };
-  canvas.addEventListener("pointermove",onPointer,{passive:true});
+  canvas.addEventListener("pointermove",pointer,{passive:true});
+
+  const resize=()=>{
+    const w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
+    renderer.setSize(w,h,false);
+    camera.aspect=w/h;
+    camera.updateProjectionMatrix();
+  };
+  addEventListener("resize",resize,{passive:true});
+  resize();
 
   const clock=new THREE.Clock();
   const animate=()=>{
     const t=clock.getElapsedTime();
     if(!reduced){
-      wheel.rotation.z=t*.16;
-      energy.rotation.z=-t*.07;
-      root.rotation.x+=(targetX-root.rotation.x)*.035;
-      root.rotation.y+=(targetY-root.rotation.y)*.035;
-      root.position.z=Math.sin(t*1.1)*2;
+      root.rotation.z=t*.13;
+      root.rotation.x+=(tx-root.rotation.x)*.035;
+      root.rotation.y+=(ty-root.rotation.y)*.035;
+      core.scale.setScalar(1+Math.sin(t*2.1)*.025);
     }
     renderer.render(scene,camera);
   };
   renderer.setAnimationLoop(animate);
 
-  // The brand remains outside the 3D object and never rotates with it.
   setTimeout(()=>splash.classList.add("hide"),6500);
 })();
 </script>
