@@ -40,11 +40,11 @@
 <aside class="sidebar">
   <div class="brand"><div class="brandmark"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4c8 6 11 12 10 18-1 8-7 12-10 14-3-2-9-6-10-14C9 16 12 10 20 4Z" stroke="#f5d27b" stroke-width="1.7"/><circle cx="20" cy="19" r="5" stroke="#73ddd5" stroke-width="1.7"/><path d="M20 14v10M15 19h10" stroke="#73ddd5" stroke-width="1.2"/></svg></div><div><h1>SAARTHI</h1><small>विचार • विवेक • कर्म</small></div></div>
   <nav class="nav">
-    <button class="active" data-nav><span class="ico">✦</span>Command</button>
-    <button data-nav><span class="ico">⌂</span>Home</button>
-    <button data-nav><span class="ico">◈</span>Insights</button>
-    <button data-nav><span class="ico">◷</span>Journey</button>
-    <button data-nav><span class="ico">◌</span>Memory</button>
+    <button class="active" data-nav="command"><span class="ico">✦</span>Command</button>
+    <button data-nav="home"><span class="ico">⌂</span>Home</button>
+    <button data-nav="insights"><span class="ico">◈</span>Insights</button>
+    <button data-nav="journey"><span class="ico">◷</span>Journey</button>
+    <button data-nav="memory"><span class="ico">◌</span>Memory</button>
   </nav>
   <div class="sanskrit"><div class="om">ॐ</div><p>योगः कर्मसु कौशलम्</p><small>Clarity in action.</small></div>
 </aside>
@@ -52,7 +52,7 @@
 <main class="main">
 <header class="topbar">
   <div><div class="eyebrow">SAARTHI • INTELLIGENCE CONSOLE</div><h2>Good afternoon, Swapnil</h2></div>
-  <div class="top-actions"><div class="presence"><i></i><span id="presenceText">Saarthi is present</span></div><button class="icon-btn" aria-label="Open settings">⌘</button></div>
+  <div class="top-actions"><div class="presence"><i></i><span id="presenceText">Saarthi is present</span></div><button class="icon-btn" id="settingsButton" aria-label="Open settings">⌘</button></div>
 </header>
 
 <section class="dashboard">
@@ -116,10 +116,10 @@
 </aside>
 </section>
 <nav class="mobile-nav" aria-label="Primary navigation">
-  <button class="active" data-nav><b>✦</b>Command</button>
-  <button data-nav><b>⌕</b>Ask</button>
-  <button data-nav><b>◈</b>Journey</button>
-  <button data-nav><b>◌</b>Memory</button>
+  <button class="active" data-nav="command"><b>✦</b>Command</button>
+  <button data-nav="command"><b>⌕</b>Ask</button>
+  <button data-nav="journey"><b>◈</b>Journey</button>
+  <button data-nav="memory"><b>◌</b>Memory</button>
 </nav>
 </main></div><script>const splash=document.getElementById('sudarshanSplash');
 const splashVideo=document.getElementById('saarthiSplashVideo');
