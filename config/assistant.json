@@ -1,0 +1,14 @@
+{
+  "product": "SAARTHI",
+  "principles": ["विचार", "विवेक", "कर्म"],
+  "assistant_mode": "guide",
+  "decision_authority": "user",
+  "llm": {
+    "provider": "cloud",
+    "adapter": "replaceable"
+  },
+  "memory": {
+    "provider": "cloud-database",
+    "browser_local_storage": false
+  }
+}
