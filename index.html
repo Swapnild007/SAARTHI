@@ -17,45 +17,30 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;ba
 @media(max-width:1050px){.app{grid-template-columns:205px 1fr}.main{padding:20px}.content{grid-template-columns:1fr}.right{display:grid;grid-template-columns:repeat(3,1fr)}.krishna-orb{right:15px;opacity:.45}}
 @media(max-width:700px){.app{display:block}.sidebar{display:none}.main{padding:14px 12px 28px}.topbar{margin-bottom:14px}.topbar h2{font-size:25px}.status{font-size:10px;padding:7px 9px}.content{display:block}.hero{min-height:470px;padding:28px 22px;border-radius:25px}.hero h3{font-size:51px;max-width:82%}.hero p{font-size:13px;max-width:88%}.krishna-orb{width:205px;height:205px;right:-22px;top:230px;opacity:.32}.flute{right:0;bottom:34px}.tools{grid-template-columns:1fr;gap:9px}.tool{min-height:105px}.right{display:grid;grid-template-columns:1fr;gap:9px;margin-top:14px}.chat{margin-top:14px}.messages{height:180px}}
 </style><style id="saarthi-opening">
-.sudarshan-splash{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#10384b 0,#071b29 42%,#02080f 100%);transition:opacity 1s ease,visibility 1s ease}
+.sudarshan-splash{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#020a12;transition:opacity .9s ease,visibility .9s ease}
 .sudarshan-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
-.opening-field{position:absolute;inset:-20%;background:radial-gradient(circle at 50% 45%,rgba(21,157,151,.13),transparent 28%),radial-gradient(circle at 50% 45%,rgba(232,197,108,.12),transparent 42%);animation:fieldBreath 4s ease-in-out infinite}
-.brand-stage{position:relative;width:min(92vw,620px);height:min(92vw,620px);display:grid;place-items:center;transform-style:preserve-3d}
-.brand-aura{position:absolute;width:72%;height:72%;border-radius:50%;background:radial-gradient(circle,rgba(238,193,84,.20),rgba(20,139,139,.10) 42%,transparent 70%);filter:blur(20px);animation:auraIn 1.8s ease-out both, auraPulse 3.4s ease-in-out 1.8s infinite}
-.brand-orbit{position:absolute;width:69%;height:69%;border:1px solid rgba(225,187,88,.24);border-radius:50%;box-shadow:0 0 35px rgba(224,181,69,.09),inset 0 0 35px rgba(14,151,151,.08);animation:orbitIn 1.4s cubic-bezier(.16,1,.3,1) both,orbitSpin 12s linear 1.4s infinite}
-.brand-orbit:before,.brand-orbit:after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:#f4d47c;box-shadow:0 0 16px #e8c56c}
-.brand-orbit:before{left:9%;top:14%}.brand-orbit:after{right:9%;bottom:14%}
-.brand-emblem{position:absolute;width:43%;height:43%;display:grid;place-items:center;opacity:0;transform:scale(.55) rotate(-12deg);animation:emblemReveal 1.35s cubic-bezier(.16,1,.3,1) .55s forwards}
-.emblem-ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(240,205,117,.5);box-shadow:0 0 24px rgba(229,190,80,.15),inset 0 0 20px rgba(20,149,145,.10)}
-.emblem-ring:before{content:"";position:absolute;inset:9%;border-radius:50%;border:1px solid rgba(87,213,198,.26)}
-.emblem-eye{position:relative;width:35%;height:55%;border:2px solid #e9c568;border-radius:70% 30% 70% 30%/78% 28% 72% 22%;transform:rotate(28deg);box-shadow:0 0 18px rgba(234,196,91,.22)}
-.emblem-eye:before{content:"";position:absolute;width:48%;height:48%;left:26%;top:23%;border-radius:50%;background:radial-gradient(circle,#f8e29a 0 15%,#0b6d78 16% 40%,#04151e 42% 100%);box-shadow:0 0 14px rgba(74,215,202,.38)}
-.emblem-eye:after{content:"";position:absolute;width:2px;height:120%;left:50%;top:-10%;background:linear-gradient(transparent,#e9c568,transparent);transform:rotate(-28deg)}
-.brand-wordmark{position:absolute;top:58%;width:100%;text-align:center;display:flex;justify-content:center;gap:.04em;opacity:0;transform:translateY(18px);animation:wordReveal 1.25s cubic-bezier(.16,1,.3,1) 1.7s forwards}
-.brand-letter{font-family:"Cormorant Garamond",Georgia,serif;font-size:clamp(42px,11vw,74px);font-weight:600;letter-spacing:.16em;color:#f1cf75;text-shadow:0 2px 20px rgba(238,192,75,.22);display:inline-block}
-.brand-letter:nth-child(1){animation:letterFloat .9s ease 2.35s both}.brand-letter:nth-child(2){animation:letterFloat .9s ease 2.42s both}.brand-letter:nth-child(3){animation:letterFloat .9s ease 2.49s both}.brand-letter:nth-child(4){animation:letterFloat .9s ease 2.56s both}.brand-letter:nth-child(5){animation:letterFloat .9s ease 2.63s both}.brand-letter:nth-child(6){animation:letterFloat .9s ease 2.70s both}.brand-letter:nth-child(7){animation:letterFloat .9s ease 2.77s both}
-.brand-line{position:absolute;top:70%;width:48%;height:1px;background:linear-gradient(90deg,transparent,#dcb85f,#6ed6cb,#dcb85f,transparent);transform:scaleX(0);transform-origin:center;animation:lineReveal 1s ease 2.7s forwards}
-.brand-hi{position:absolute;top:73%;font-family:"Noto Sans Devanagari",sans-serif;font-size:clamp(14px,3.7vw,20px);letter-spacing:.14em;color:#d8b35b;opacity:0;animation:hiReveal 1s ease 3.05s forwards}
-.brand-tag{position:absolute;top:80%;text-align:center;font-size:clamp(8px,2vw,10px);letter-spacing:.32em;color:#8e7b51;text-transform:uppercase;opacity:0;animation:tagReveal 1s ease 3.45s forwards}
-.brand-spark{position:absolute;width:3px;height:3px;border-radius:50%;background:#f4d47c;box-shadow:0 0 12px #f4d47c;opacity:0}
-.spark1{left:22%;top:35%;animation:spark .8s ease 2.2s forwards}.spark2{right:19%;top:43%;animation:spark .8s ease 2.6s forwards}.spark3{left:31%;bottom:29%;animation:spark .8s ease 3s forwards}.spark4{right:28%;bottom:25%;animation:spark .8s ease 3.2s forwards}
-@keyframes fieldBreath{50%{transform:scale(1.08);opacity:.82}}@keyframes auraIn{from{opacity:0;transform:scale(.45)}to{opacity:1;transform:scale(1)}}@keyframes auraPulse{50%{transform:scale(1.08);opacity:.72}}
-@keyframes orbitIn{from{opacity:0;transform:scale(.5) rotate(-45deg)}to{opacity:1;transform:scale(1) rotate(0)}}@keyframes orbitSpin{to{transform:rotate(360deg)}}
-@keyframes emblemReveal{to{opacity:1;transform:scale(1) rotate(0)}}@keyframes wordReveal{to{opacity:1;transform:translateY(0)}}@keyframes letterFloat{0%{transform:translateY(8px);filter:blur(4px)}100%{transform:translateY(0);filter:blur(0)}}
-@keyframes lineReveal{to{transform:scaleX(1)}}@keyframes hiReveal{to{opacity:1;transform:translateY(0)}}@keyframes tagReveal{to{opacity:1;transform:translateY(0)}}@keyframes spark{0%{opacity:0;transform:scale(.2)}40%{opacity:1;transform:scale(1.8)}100%{opacity:0;transform:scale(.5)}}
-@media(max-width:600px){.brand-stage{width:94vw;height:94vw}.brand-wordmark{top:57%}.brand-line{top:69%;width:54%}.brand-hi{top:72%}.brand-tag{top:79%;letter-spacing:.24em}}
-@media(prefers-reduced-motion:reduce){.opening-field,.brand-aura,.brand-orbit,.brand-emblem,.brand-wordmark,.brand-line,.brand-hi,.brand-tag,.brand-letter,.brand-spark{animation:none!important;opacity:1;transform:none}}
+.splash-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;background:#020a12}
+.splash-video-fallback{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,#10384b 0,#071b29 42%,#02080f 100%);display:grid;place-items:center}
+.splash-fallback-brand{font-family:"Cormorant Garamond",Georgia,serif;color:#f1cf75;font-size:clamp(42px,11vw,74px);letter-spacing:.16em;text-align:center}
+.splash-fallback-brand small{display:block;font-family:"Noto Sans Devanagari",sans-serif;font-size:18px;letter-spacing:.14em;margin-top:12px;color:#d8b35b}
+.splash-video-layer{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:8vh;pointer-events:none}
+.splash-brand-overlay{text-align:center;color:#f1cf75;text-shadow:0 2px 22px rgba(0,0,0,.55)}
+.splash-brand-overlay strong{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-size:clamp(38px,10vw,70px);font-weight:600;letter-spacing:.18em;line-height:1}
+.splash-brand-overlay span{display:block;font-family:"Noto Sans Devanagari",sans-serif;font-size:clamp(13px,3.6vw,20px);letter-spacing:.14em;margin-top:9px}
+.splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;color:#e2c982;margin-top:9px}
+@media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:7vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
+@media(prefers-reduced-motion:reduce){.splash-video{animation:none}}
 </style></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
-<div class="opening-field"></div>
-<div class="brand-stage">
-  <div class="brand-aura"></div>
-  <div class="brand-orbit"></div>
-  <div class="brand-emblem"><div class="emblem-ring"></div><div class="emblem-eye"></div></div>
-  <div class="brand-wordmark" aria-label="SAARTHI"><span class="brand-letter">S</span><span class="brand-letter">A</span><span class="brand-letter">A</span><span class="brand-letter">R</span><span class="brand-letter">T</span><span class="brand-letter">H</span><span class="brand-letter">I</span></div>
-  <div class="brand-line"></div>
-  <div class="brand-hi">सारथि</div>
-  <div class="brand-tag">THE INDIAN AI · GUIDE • THINK · ACT</div>
-  <i class="brand-spark spark1"></i><i class="brand-spark spark2"></i><i class="brand-spark spark3"></i><i class="brand-spark spark4"></i>
+<video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
+  <source src="./assets/saarthi-splash.mp4" type="video/mp4">
+</video>
+<div class="splash-fallback-brand" id="splashFallbackBrand" aria-hidden="true">SAARTHI<small>सारथि</small></div>
+<div class="splash-video-layer">
+  <div class="splash-brand-overlay">
+    <strong>SAARTHI</strong>
+    <span>सारथि</span>
+    <small>THE INDIAN AI · GUIDE • THINK · ACT</small>
+  </div>
 </div>
 </div><div class="app">
 <aside class="sidebar"><div class="brand"><div class="brandmark"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4c8 6 11 12 10 18-1 8-7 12-10 14-3-2-9-6-10-14C9 16 12 10 20 4Z" stroke="#f5d27b" stroke-width="1.7"/><circle cx="20" cy="19" r="5" stroke="#73ddd5" stroke-width="1.7"/><path d="M20 14v10M15 19h10" stroke="#73ddd5" stroke-width="1.2"/></svg></div><div><h1>SAARTHI</h1><small>भारतीय AI Guide</small></div></div><nav class="nav"><button class="active"><span class="ico">✦</span>Guidance</button><button><span class="ico">⌂</span>Home</button><button><span class="ico">◈</span>Insights</button><button><span class="ico">◷</span>Journey</button><button><span class="ico">◌</span>Memory</button></nav><div class="sanskrit"><div class="om">ॐ</div><p>योगः कर्मसु कौशलम्</p><small>Clarity in action.</small></div></aside>
@@ -65,9 +50,16 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;ba
 <div class="chat" id="chat"><div class="chathead"><div class="guide"><div class="avatar">✦</div><div><b>Saarthi</b><small> · शांत, संदर्भपूर्ण guidance</small></div></div><span class="mini">Cloud AI · private session</span></div><div class="messages" id="messages"><div class="msg ai">Namaste. 🙏 Tell me what is on your mind. We will look at it one step at a time.</div></div><div class="composer"><input id="input" placeholder="Ask Saarthi anything…" onkeydown="if(event.key==='Enter')send()"><button class="send" onclick="send()">➤</button></div></div></div>
 <aside class="right"><div class="panel"><h4>Today's focus</h4><div class="focus"><div class="focus-ring"><b>72%</b></div><div><b>Clarity</b><div class="mini">One thing at a time</div></div></div></div><div class="panel"><h4>Guidance modes</h4><div class="chips"><span class="chip">Decision</span><span class="chip">Work</span><span class="chip">Learning</span><span class="chip">Planning</span><span class="chip">Reflection</span></div></div><div class="panel"><h4>Your journey</h4><div class="timeline"><div class="step"><i></i><div><p>Define the question</p><span>Start with clarity</span></div></div><div class="step"><i></i><div><p>See the possibilities</p><span>Facts and trade-offs</span></div></div><div class="step"><i></i><div><p>Choose your action</p><span>You decide the path</span></div></div></div></div></aside></section></main></div>
 <script>
-setTimeout(()=>document.getElementById('sudarshanSplash')?.classList.add('hide'),6500);
+const splash=document.getElementById('sudarshanSplash');
+const splashVideo=document.getElementById('saarthiSplashVideo');
+const fallback=document.getElementById('splashFallbackBrand');
+if(fallback) fallback.style.display='none';
+function closeSplash(){splash?.classList.add('hide')}
+splashVideo?.addEventListener('error',()=>{if(fallback)fallback.style.display='grid';setTimeout(closeSplash,2500)});
+splashVideo?.addEventListener('ended',closeSplash);
+splashVideo?.play?.().catch(()=>{});
+setTimeout(closeSplash,10500);
 
-<script>
 function focusChat(){const c=document.getElementById('chat');c.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>document.getElementById('input').focus(),350)}
 function send(){const i=document.getElementById('input'),v=i.value.trim();if(!v)return;const m=document.getElementById('messages'),u=document.createElement('div');u.className='msg user';u.textContent=v;m.appendChild(u);i.value='';setTimeout(()=>{const a=document.createElement('div');a.className='msg ai';a.textContent='Let us slow this down. First, separate what you know from what you assume. Then we can look at the choices in front of you.';m.appendChild(a);m.scrollTop=m.scrollHeight},500);m.scrollTop=m.scrollHeight}
 function demo(){document.getElementById('input').value='Help me think through an important decision.';focusChat()}
