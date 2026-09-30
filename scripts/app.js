@@ -118,7 +118,6 @@ const SaarthiApp = (() => {
     const hour = now.getHours();
 
     if (topClock) topClock.textContent = time;
-    if (liveDate) liveDate.textContent = date;
     if (liveDay) liveDay.textContent = day + ' · local time';
     if (greeting) {
       const part = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night';
