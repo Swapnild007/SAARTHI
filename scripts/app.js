@@ -3,8 +3,10 @@ const SaarthiApp = (() => {
   const activity = $('#activityStream');
   const command = $('#saarthiCommand');
   const status = $('#presenceText');
-  const liveDate = $('#liveDate');
   const liveDay = $('#liveDay');
+  const liveLow = $('#liveLow');
+  const liveHigh = $('#liveHigh');
+  const weatherSymbol = $('#weatherSymbol');
   const topClock = $('#topClock');
   const liveLocation = $('#liveLocation');
   const liveWeather = $('#liveWeather');
@@ -93,6 +95,17 @@ const SaarthiApp = (() => {
     return map[code] || 'Weather available';
   };
 
+  const weatherIcon = code => {
+    if (code === 0) return '☀︎';
+    if ([1, 2].includes(code)) return '⛅';
+    if ([3, 45, 48].includes(code)) return '☁︎';
+    if ([51, 53, 55, 56, 57].includes(code)) return '☂︎';
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return '☔';
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return '❄︎';
+    if ([95, 96, 99].includes(code)) return '⚡';
+    return '☁︎';
+  };
+
   const updateClock = () => {
     const now = new Date();
     const time = new Intl.DateTimeFormat('en-IN', {
@@ -136,6 +149,7 @@ const SaarthiApp = (() => {
       'wind_speed_10m'
     ].join(','));
     url.searchParams.set('hourly', 'precipitation_probability');
+    url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min');
     url.searchParams.set('forecast_days', '1');
 
     const response = await fetch(url.toString(), { cache: 'no-store' });
@@ -165,6 +179,7 @@ const SaarthiApp = (() => {
       ]);
 
       const current = weather.current || {};
+      const daily = weather.daily || {};
       const humidity = current.relative_humidity_2m;
       const apparent = current.apparent_temperature;
       const condition = weatherDescription(current.weather_code);
@@ -178,16 +193,10 @@ const SaarthiApp = (() => {
         liveLocation.textContent = source === 'ip' ? label + ' · approximate' : label;
       }
       if (liveTemp) liveTemp.textContent = Number.isFinite(current.temperature_2m) ? Math.round(current.temperature_2m) + '°' : '--°';
-      if (liveWeather) {
-        const details = [
-          condition,
-          Number.isFinite(apparent) ? 'feels ' + Math.round(apparent) + '°' : null,
-          Number.isFinite(humidity) ? humidity + '% humidity' : null,
-          Number.isFinite(wind) ? Math.round(wind) + ' km/h wind' : null,
-          Number.isFinite(rainChance) ? rainChance + '% rain' : null
-        ].filter(Boolean);
-        liveWeather.textContent = details.join(' · ');
-      }
+      if (liveLow) liveLow.textContent = Number.isFinite(daily.temperature_2m_min?.[0]) ? Math.round(daily.temperature_2m_min[0]) + '°' : '--°';
+      if (liveHigh) liveHigh.textContent = Number.isFinite(daily.temperature_2m_max?.[0]) ? Math.round(daily.temperature_2m_max[0]) + '°' : '--°';
+      if (weatherSymbol) weatherSymbol.textContent = weatherIcon(current.weather_code);
+      if (liveWeather) liveWeather.textContent = condition + (Number.isFinite(apparent) ? ' · feels ' + Math.round(apparent) + '°' : '');
       return true;
     } catch {
       return false;
