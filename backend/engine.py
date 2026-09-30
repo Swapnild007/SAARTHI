@@ -126,6 +126,11 @@ def classify(message: str, requested_mode: str = "chat") -> Intent:
         name, confidence, reason = explicit[token]
         return Intent(name, confidence, reason)
 
+    mode_aliases = {
+        "tasks": "task",
+        "workflows": "workflow",
+    }
+    requested_mode = mode_aliases.get(requested_mode, requested_mode)
     if requested_mode not in {"chat", ""}:
         return Intent(requested_mode, 0.95, "UI-selected mode")
 
