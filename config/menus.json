@@ -1,0 +1,32 @@
+{
+  "menus": {
+    "command": {
+      "label": "Command",
+      "capabilities": ["chat", "voice", "tasks", "actions"]
+    },
+    "home": {
+      "label": "Home",
+      "capabilities": ["briefing", "status", "context"]
+    },
+    "insights": {
+      "label": "Insights",
+      "capabilities": ["research", "search", "analyze", "web"]
+    },
+    "journey": {
+      "label": "Journey",
+      "capabilities": ["tasks", "reminders", "workflows", "progress"]
+    },
+    "memory": {
+      "label": "Memory",
+      "capabilities": ["remember", "recall", "knowledge"]
+    },
+    "settings": {
+      "label": "Settings",
+      "capabilities": ["model", "voice", "privacy", "connections"]
+    }
+  },
+  "command_prefixes": [
+    "/help", "/research", "/search", "/analyze", "/remember", "/recall",
+    "/tasks", "/remind", "/workflows", "/briefing", "/system", "/settings", "/voice"
+  ]
+}
