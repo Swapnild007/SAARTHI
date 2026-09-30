@@ -157,50 +157,74 @@ const SaarthiApp = (() => {
     }
   };
 
+  const renderLiveContext = async (latitude, longitude, source = 'device') => {
+    try {
+      const [weather, location] = await Promise.all([
+        fetchWeather(latitude, longitude),
+        reverseGeocode(latitude, longitude)
+      ]);
+
+      const current = weather.current || {};
+      const humidity = current.relative_humidity_2m;
+      const apparent = current.apparent_temperature;
+      const condition = weatherDescription(current.weather_code);
+      const wind = current.wind_speed_10m;
+      const hourly = weather.hourly?.precipitation_probability || [];
+      const currentHour = new Date().getHours();
+      const rainChance = Number.isFinite(hourly[currentHour]) ? hourly[currentHour] : null;
+
+      if (liveLocation) {
+        const label = formatLocation(location);
+        liveLocation.textContent = source === 'ip' ? label + ' · approximate' : label;
+      }
+      if (liveTemp) liveTemp.textContent = Number.isFinite(current.temperature_2m) ? Math.round(current.temperature_2m) + '°' : '--°';
+      if (liveWeather) {
+        const details = [
+          condition,
+          Number.isFinite(apparent) ? 'feels ' + Math.round(apparent) + '°' : null,
+          Number.isFinite(humidity) ? humidity + '% humidity' : null,
+          Number.isFinite(wind) ? Math.round(wind) + ' km/h wind' : null,
+          Number.isFinite(rainChance) ? rainChance + '% rain' : null
+        ].filter(Boolean);
+        liveWeather.textContent = details.join(' · ');
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const loadApproximateContext = async () => {
+    try {
+      const response = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      if (!response.ok) throw new Error('IP geolocation ' + response.status);
+      const data = await response.json();
+      const latitude = Number(data.latitude);
+      const longitude = Number(data.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('Invalid coordinates');
+
+      const rendered = await renderLiveContext(latitude, longitude, 'ip');
+      if (!rendered) throw new Error('Weather unavailable');
+    } catch {
+      if (liveLocation) liveLocation.textContent = 'Location unavailable';
+      if (liveWeather) liveWeather.textContent = 'Local weather unavailable.';
+      if (liveTemp) liveTemp.textContent = '--°';
+    }
+  };
+
   const loadLiveContext = async () => {
     if (!navigator.geolocation) {
-      if (liveLocation) liveLocation.textContent = 'Location unavailable';
-      if (liveWeather) liveWeather.textContent = 'Browser location is not supported.';
+      await loadApproximateContext();
       return;
     }
 
     navigator.geolocation.getCurrentPosition(async position => {
-      const { latitude, longitude } = position.coords;
-
-      try {
-        const [weather, location] = await Promise.all([
-          fetchWeather(latitude, longitude),
-          reverseGeocode(latitude, longitude)
-        ]);
-
-        const current = weather.current || {};
-        const humidity = current.relative_humidity_2m;
-        const apparent = current.apparent_temperature;
-        const condition = weatherDescription(current.weather_code);
-        const wind = current.wind_speed_10m;
-        const hourly = weather.hourly?.precipitation_probability || [];
-        const currentHour = new Date().getHours();
-        const rainChance = Number.isFinite(hourly[currentHour]) ? hourly[currentHour] : null;
-
-        if (liveLocation) liveLocation.textContent = formatLocation(location);
-        if (liveTemp) liveTemp.textContent = Math.round(current.temperature_2m) + '°';
-        if (liveWeather) {
-          const details = [
-            condition,
-            Number.isFinite(apparent) ? 'feels ' + Math.round(apparent) + '°' : null,
-            Number.isFinite(humidity) ? humidity + '% humidity' : null,
-            Number.isFinite(wind) ? Math.round(wind) + ' km/h wind' : null,
-            Number.isFinite(rainChance) ? rainChance + '% rain' : null
-          ].filter(Boolean);
-          liveWeather.textContent = details.join(' · ');
-        }
-      } catch {
-        if (liveWeather) liveWeather.textContent = 'Weather service temporarily unavailable.';
-        if (liveLocation) liveLocation.textContent = 'Current location';
-      }
-    }, () => {
-      if (liveLocation) liveLocation.textContent = 'Location permission needed';
-      if (liveWeather) liveWeather.textContent = 'Allow location access for local weather.';
+      const rendered = await renderLiveContext(position.coords.latitude, position.coords.longitude, 'device');
+      if (!rendered) await loadApproximateContext();
+    }, async () => {
+      // Graceful fallback: do not block the Home context when precise browser
+      // location is unavailable or denied. Weather is based on approximate IP location.
+      await loadApproximateContext();
     }, {
       enableHighAccuracy: false,
       maximumAge: 300000,
