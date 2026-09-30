@@ -55,6 +55,30 @@
   <div class="top-actions"><div class="presence"><i></i><span id="presenceText">Saarthi is present</span></div><button class="icon-btn" id="settingsButton" aria-label="Open settings">⌘</button></div>
 </header>
 
+<section class="home-live-context" aria-label="Live context">
+  <div class="live-context-head">
+    <div><div class="eyebrow">SAARTHI • LIVE CONTEXT</div><h3>Right now</h3></div>
+    <span class="live-badge"><i></i>LIVE</span>
+  </div>
+  <div class="live-context-grid">
+    <div class="live-tile">
+      <div class="live-icon">◷</div>
+      <div><b id="liveDate">Local date</b><span id="liveDay">Loading date…</span></div>
+      <time id="liveTime">--:--:--</time>
+    </div>
+    <div class="live-tile live-weather-tile">
+      <div class="live-icon">⌁</div>
+      <div><b id="liveLocation">Current location</b><span id="liveWeather">Getting local weather…</span></div>
+      <strong id="liveTemp">--°</strong>
+    </div>
+    <div class="live-tile">
+      <div class="live-icon">✦</div>
+      <div><b>Session active</b><span>Cloud AI connection ready.</span></div>
+      <time>now</time>
+    </div>
+  </div>
+</section>
+
 <section class="dashboard">
 <div>
   <section class="core-panel" aria-label="Saarthi command center">
@@ -93,14 +117,6 @@
 </div>
 
 <aside class="side-rail">
-  <section class="rail-card"><div class="rail-head"><h4>Live context</h4><span>REAL TIME</span></div>
-    <div class="signal-list" id="activityStream">
-      <div class="signal"><i></i><div><b id="liveDate">Local date</b><span id="liveDay">Loading date…</span></div><time id="liveTime">--:--:--</time></div>
-      <div class="signal"><i></i><div><b id="liveLocation">Current location</b><span id="liveWeather">Getting local weather…</span></div><time id="liveTemp">--°</time></div>
-      <div class="signal"><i></i><div><b>Session active</b><span>Cloud AI connection ready.</span></div><time>now</time></div>
-    </div>
-  </section>
-
   <section class="rail-card"><div class="rail-head"><h4>Three faculties</h4><span>SAARTHI</span></div>
     <div class="module-grid">
       <div class="module"><b><em>विवेक</em></b><span>Reason & discernment</span></div>
