@@ -51,7 +51,7 @@
 
 <main class="main">
 <header class="topbar">
-  <div><div class="eyebrow">SAARTHI • INTELLIGENCE CONSOLE</div><h2>Good afternoon, Swapnil</h2></div>
+  <div><div class="eyebrow">SAARTHI • INTELLIGENCE CONSOLE</div><h2 id="greeting">Good afternoon, Swapnil</h2></div>
   <div class="top-actions"><div class="presence"><i></i><span id="presenceText">Saarthi is present</span></div><button class="icon-btn" id="settingsButton" aria-label="Open settings">⌘</button></div>
 </header>
 
@@ -95,9 +95,9 @@
 <aside class="side-rail">
   <section class="rail-card"><div class="rail-head"><h4>Live context</h4><span>REAL TIME</span></div>
     <div class="signal-list" id="activityStream">
+      <div class="signal"><i></i><div><b id="liveDate">Local date</b><span id="liveDay">Loading date…</span></div><time id="liveTime">--:--:--</time></div>
+      <div class="signal"><i></i><div><b id="liveLocation">Current location</b><span id="liveWeather">Getting local weather…</span></div><time id="liveTemp">--°</time></div>
       <div class="signal"><i></i><div><b>Session active</b><span>Cloud AI connection ready.</span></div><time>now</time></div>
-      <div class="signal"><i></i><div><b>Context window</b><span>Conversation context available.</span></div><time>ready</time></div>
-      <div class="signal"><i></i><div><b>Action layer</b><span>Tools can be connected by the backend.</span></div><time>idle</time></div>
     </div>
   </section>
 
