@@ -170,25 +170,22 @@ const SaarthiApp = (() => {
     }
   };
 
-  const renderLiveContext = async (latitude, longitude, source = 'device') => {
+  const renderLiveContext = async (latitude, longitude, source = 'device', explicitLocation = null) => {
     try {
-      const [weather, location] = await Promise.all([
-        fetchWeather(latitude, longitude),
-        reverseGeocode(latitude, longitude)
-      ]);
+      const weatherPromise = fetchWeather(latitude, longitude);
+      const locationPromise = source === 'device'
+        ? reverseGeocode(latitude, longitude)
+        : Promise.resolve(null);
+
+      const [weather, location] = await Promise.all([weatherPromise, locationPromise]);
 
       const current = weather.current || {};
       const daily = weather.daily || {};
-      const humidity = current.relative_humidity_2m;
       const apparent = current.apparent_temperature;
       const condition = weatherDescription(current.weather_code);
-      const wind = current.wind_speed_10m;
-      const hourly = weather.hourly?.precipitation_probability || [];
-      const currentHour = new Date().getHours();
-      const rainChance = Number.isFinite(hourly[currentHour]) ? hourly[currentHour] : null;
 
       if (liveLocation) {
-        const label = formatLocation(location);
+        const label = explicitLocation || formatLocation(location);
         liveLocation.textContent = source === 'ip' ? label + ' · approximate' : label;
       }
       if (liveTemp) liveTemp.textContent = Number.isFinite(current.temperature_2m) ? Math.round(current.temperature_2m) + '°' : '--°';
@@ -204,17 +201,27 @@ const SaarthiApp = (() => {
 
   const loadApproximateContext = async () => {
     try {
-      const response = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      // IP geolocation is only a fallback when precise browser location is unavailable.
+      // Use the provider's city/region directly instead of reverse-geocoding its
+      // network coordinates into a potentially different locality.
+      const response = await fetch('https://ipwho.is/', { cache: 'no-store' });
       if (!response.ok) throw new Error('IP geolocation ' + response.status);
       const data = await response.json();
+      if (!data.success) throw new Error(data.message || 'IP geolocation failed');
+
       const latitude = Number(data.latitude);
       const longitude = Number(data.longitude);
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('Invalid coordinates');
 
-      const rendered = await renderLiveContext(latitude, longitude, 'ip');
+      const city = String(data.city || '').trim();
+      const region = String(data.region || data.region_code || '').trim();
+      const country = String(data.country || '').trim();
+      const label = [city, region].filter(Boolean).join(', ') || country || 'Approximate location';
+
+      const rendered = await renderLiveContext(latitude, longitude, 'ip', label);
       if (!rendered) throw new Error('Weather unavailable');
     } catch {
-      if (liveLocation) liveLocation.textContent = 'Location unavailable';
+      if (liveLocation) liveLocation.textContent = 'Approximate location unavailable';
       if (liveWeather) liveWeather.textContent = 'Local weather unavailable.';
       if (liveTemp) liveTemp.textContent = '--°';
     }
