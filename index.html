@@ -23,7 +23,7 @@
 .splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;margin-top:9px}
 @media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:38vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
 @media(prefers-reduced-motion:reduce){.splash-video{animation:none}}
-</style><link rel="stylesheet" href="./styles/main.css?v=20260930-6"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
+</style><link rel="stylesheet" href="./styles/main.css?v=20260930-7"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4" type="video/mp4">
 </video>
@@ -55,20 +55,26 @@
   <div class="top-actions"><div class="clock-chip" aria-label="Current local time"><span class="clock-dot"></span><strong id="topClock">--:--:--</strong><span id="presenceText" class="sr-status">Saarthi is present</span></div><button class="icon-btn" id="settingsButton" aria-label="Open settings">⌘</button></div>
 </header>
 
-<section class="home-live-context" aria-label="Live context">
+<section class="home-live-context" aria-label="Live weather context">
   <div class="live-context-head">
     <div><div class="eyebrow">SAARTHI • LIVE CONTEXT</div><h3>Right now</h3></div>
     <span class="live-badge"><i></i>LIVE</span>
   </div>
-  <div class="live-widget">
-    <div class="live-widget-date">
-      <div class="live-widget-icon">◷</div>
-      <div><b id="liveDate">Local date</b><span id="liveDay">Loading date…</span></div>
+  <div class="weather-widget" id="weatherWidget">
+    <div class="weather-widget-top">
+      <div class="weather-location"><span class="pin">●</span><b id="liveLocation">Current location</b></div>
+      <div class="weather-symbol" id="weatherSymbol" aria-hidden="true">☁︎</div>
     </div>
-    <div class="live-widget-weather">
-      <div class="live-weather-icon">⌁</div>
-      <div class="live-weather-copy"><b id="liveLocation">Current location</b><span id="liveWeather">Getting local weather…</span></div>
+    <div class="weather-main">
       <strong id="liveTemp">--°</strong>
+      <div class="weather-copy">
+        <b id="liveWeather">Getting local weather…</b>
+        <span id="liveDay">Local conditions</span>
+      </div>
+    </div>
+    <div class="weather-footer">
+      <span>Today</span>
+      <strong><span id="liveLow">--°</span> / <span id="liveHigh">--°</span></strong>
     </div>
   </div>
 </section>
