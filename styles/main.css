@@ -248,3 +248,43 @@ body{
   .live-context-grid{grid-template-columns:1fr}
   .home-live-context{margin-bottom:9px}
 }
+
+/* iOS live widget + system clock */
+.sr-status{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.clock-chip{
+  min-width:96px;height:36px;padding:0 11px;border-radius:999px;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  background:rgba(255,255,255,.66);border:1px solid rgba(60,60,67,.10);
+  box-shadow:0 1px 2px rgba(0,0,0,.025),inset 0 1px 0 rgba(255,255,255,.86);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+  color:var(--s-ink);
+}
+.clock-chip strong{font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.clock-dot{width:6px;height:6px;border-radius:50%;background:var(--s-teal);box-shadow:0 0 0 4px rgba(21,154,145,.09)}
+.live-widget{
+  display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);
+  min-height:72px;border-radius:16px;overflow:hidden;
+  background:rgba(248,248,250,.48);border:1px solid rgba(60,60,67,.075);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.78);
+}
+.live-widget-date,.live-widget-weather{display:flex;align-items:center;gap:11px;padding:13px 14px;min-width:0}
+.live-widget-weather{border-left:1px solid rgba(60,60,67,.075)}
+.live-widget-icon,.live-weather-icon{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;
+  background:rgba(0,127,146,.075);color:var(--s-blue);font-size:15px;
+}
+.live-weather-icon{background:rgba(21,154,145,.075)}
+.live-widget b,.live-weather-copy b{display:block;font-size:10px;font-weight:650;color:var(--s-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-widget span,.live-weather-copy span{display:block;margin-top:3px;font-size:8px;line-height:1.35;color:var(--s-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-weather-copy{min-width:0;flex:1}
+.live-widget-weather>strong{font-size:16px;font-weight:650;color:var(--s-blue);font-variant-numeric:tabular-nums;white-space:nowrap}
+@media(max-width:720px){
+  .clock-chip{min-width:90px;height:34px;padding:0 10px}
+  .clock-chip strong{font-size:11px}
+  .live-widget{grid-template-columns:1fr;min-height:0;border-radius:15px}
+  .live-widget-date,.live-widget-weather{min-height:55px;padding:10px 11px}
+  .live-widget-weather{border-left:0;border-top:1px solid rgba(60,60,67,.075)}
+  .live-widget-icon,.live-weather-icon{width:31px;height:31px;border-radius:9px;font-size:13px}
+  .live-weather-copy span{font-size:7.5px}
+  .live-widget-weather>strong{font-size:15px}
+}
