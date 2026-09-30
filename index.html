@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f6efe2"><title>SAARTHI — Your Indian AI Guide</title>
+<meta name="theme-color" content="#f6efe2"><title>SAARTHI — Think. Discern. Act.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -36,6 +36,54 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;ba
 .splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;margin-top:9px}
 @media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:38vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
 @media(prefers-reduced-motion:reduce){.splash-video{animation:none}}
+</style><style id="saarthi-ios-main">
+/* SAARTHI main experience — iOS-inspired; splash intentionally untouched */
+:root{
+ --ios-bg:#f4f1ea;--ios-card:rgba(255,255,255,.72);--ios-border:rgba(35,55,66,.09);
+ --ios-blue:#176b7c;--ios-teal:#168f87;--ios-gold:#c79a3b;--ios-text:#162b38;--ios-muted:#718087;
+ --ios-shadow:0 20px 60px rgba(36,48,53,.09);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Inter,sans-serif;background:
+ radial-gradient(circle at 88% 4%,rgba(22,143,135,.13),transparent 28%),
+ radial-gradient(circle at 8% 12%,rgba(199,154,59,.10),transparent 24%),
+ #f5f2eb;color:var(--ios-text)}
+body:before{opacity:.06}
+.app{grid-template-columns:232px 1fr;gap:0}
+.sidebar{background:rgba(249,248,244,.76);backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%);border-right:1px solid var(--ios-border);padding:20px 13px}
+.brand{padding:5px 9px 24px}.brandmark{width:40px;height:40px;border-radius:12px;background:linear-gradient(145deg,#145e70,#159088);box-shadow:0 8px 20px rgba(20,94,112,.18)}
+.brand h1{font-size:17px;letter-spacing:.18em}.brand small{font-size:9px}
+.nav{gap:3px}.nav button{border-radius:12px;padding:11px 12px;color:#65737a}.nav button.active{background:rgba(22,143,135,.10);color:var(--ios-blue)}
+.main{padding:24px 30px 34px}.topbar{max-width:1280px;margin-bottom:18px}.eyebrow{font-size:9px;letter-spacing:.18em}.topbar h2{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,sans-serif;font-size:25px;font-weight:700;letter-spacing:-.025em}
+.status{background:rgba(255,255,255,.64);border:1px solid var(--ios-border);box-shadow:0 5px 18px rgba(30,45,50,.04)}
+.content{max-width:1280px;grid-template-columns:minmax(0,1fr) 285px;gap:16px}
+.hero{min-height:410px;border-radius:30px;padding:40px;background:linear-gradient(135deg,rgba(255,255,255,.86),rgba(236,247,244,.78));border:1px solid rgba(22,107,124,.10);box-shadow:var(--ios-shadow)}
+.hero:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 38%,rgba(22,143,135,.10),transparent 30%),radial-gradient(circle at 66% 75%,rgba(199,154,59,.08),transparent 25%);pointer-events:none}
+.hero-copy{max-width:650px}.hero h3{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,sans-serif;font-size:clamp(42px,5vw,67px);line-height:.94;letter-spacing:-.045em;color:#17303d;margin:9px 0 18px}.hero h3 em{color:#176b7c}.hero p{font-size:14px;color:#68777e;line-height:1.7;max-width:555px}
+.cta .btn{border-radius:999px;padding:11px 17px;font-size:12px}.btn{background:rgba(255,255,255,.78)}.btn.primary{background:linear-gradient(135deg,#176b7c,#168f87);box-shadow:0 10px 24px rgba(22,107,124,.17)}
+.krishna-orb{right:45px;top:50px;opacity:.9}.flute{opacity:.72}
+.section-title{margin:18px 3px 10px}.section-title h4{font-size:15px}.section-title span{font-size:10px}
+.tools{grid-template-columns:repeat(3,1fr);gap:10px}.tool{min-height:132px;padding:16px;border-radius:18px;background:rgba(255,255,255,.62);border:1px solid var(--ios-border);box-shadow:0 8px 28px rgba(38,49,53,.045)}.tool-icon{width:35px;height:35px;border-radius:11px;background:rgba(22,143,135,.09);color:#176b7c;margin-bottom:13px}.tool h4{font-size:13px}.tool p{font-size:11px}
+.chat{margin-top:14px;border-radius:21px;background:rgba(255,255,255,.68);border:1px solid var(--ios-border);box-shadow:0 10px 32px rgba(38,49,53,.055)}
+.chathead{padding:13px 16px}.avatar{width:36px;height:36px;background:radial-gradient(circle,#f4d989,#c7922f 40%,#176b7c 43%,#176b7c);box-shadow:0 4px 12px rgba(22,107,124,.16)}.messages{height:155px}.composer{background:rgba(248,248,246,.55)}.composer input{border-radius:999px;background:rgba(255,255,255,.84);padding:11px 15px}.send{width:42px;height:42px;border-radius:50%;background:#176b7c}
+.right{gap:10px}.panel{border-radius:19px;background:rgba(255,255,255,.63);border:1px solid var(--ios-border);box-shadow:0 8px 28px rgba(38,49,53,.045);padding:16px}.panel h4{font-size:13px}
+.chip{background:rgba(22,143,135,.06);border-color:rgba(22,143,135,.10);padding:6px 8px}
+.ios-command{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.ios-command button{border:1px solid rgba(22,107,124,.10);background:rgba(255,255,255,.65);color:#405861;border-radius:999px;padding:8px 11px;font-size:11px;box-shadow:0 4px 12px rgba(30,45,50,.035)}.ios-command button span{color:#c79a3b;margin-right:4px}
+@media(max-width:1050px){.app{grid-template-columns:205px 1fr}.main{padding:20px}.content{grid-template-columns:1fr}.right{display:grid;grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){
+ body{padding-bottom:82px}.app{display:block}.sidebar{display:none}.main{padding:12px 12px 20px}.topbar{margin:0 3px 13px}.topbar h2{font-size:23px}.status{font-size:9px;padding:7px 9px}
+ .content{display:block}.hero{min-height:520px;padding:27px 21px;border-radius:27px}.hero h3{font-size:45px;max-width:90%;margin-top:8px}.hero p{font-size:12px;max-width:82%;line-height:1.65}.cta{gap:7px}.cta .btn{padding:10px 14px}
+ .krishna-orb{width:190px;height:190px;right:-18px;top:255px;opacity:.25}.flute{right:-12px;bottom:47px;opacity:.38}
+ .ios-command{margin-top:14px;max-width:90%}.ios-command button{padding:7px 10px;font-size:10px}
+ .section-title{margin-top:16px}.tools{display:flex;overflow:auto;scroll-snap-type:x mandatory;padding-bottom:4px}.tool{min-width:235px;scroll-snap-align:start}
+ .right{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}.chat{margin-top:12px}.messages{height:190px}
+ .ios-tabbar{display:flex}
+}
+.ios-tabbar{display:none}
+@media(max-width:700px){
+ .ios-tabbar{position:fixed;display:flex;z-index:5000;left:10px;right:10px;bottom:10px;height:62px;border:1px solid rgba(255,255,255,.78);background:rgba(250,249,245,.78);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border-radius:22px;box-shadow:0 14px 38px rgba(32,45,50,.16);padding:5px}
+ .ios-tabbar button{flex:1;border:0;background:transparent;border-radius:17px;color:#7b8588;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+ .ios-tabbar button b{font-size:18px;font-weight:500;line-height:1;color:#b18a39}.ios-tabbar button.active{background:rgba(22,143,135,.09);color:#176b7c}.ios-tabbar button.active b{color:#176b7c}
+}
 </style></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4" type="video/mp4">
@@ -50,12 +98,22 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;ba
 </div>
 
 </div><div class="app">
-<aside class="sidebar"><div class="brand"><div class="brandmark"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4c8 6 11 12 10 18-1 8-7 12-10 14-3-2-9-6-10-14C9 16 12 10 20 4Z" stroke="#f5d27b" stroke-width="1.7"/><circle cx="20" cy="19" r="5" stroke="#73ddd5" stroke-width="1.7"/><path d="M20 14v10M15 19h10" stroke="#73ddd5" stroke-width="1.2"/></svg></div><div><h1>SAARTHI</h1><small>भारतीय AI Guide</small></div></div><nav class="nav"><button class="active"><span class="ico">✦</span>Guidance</button><button><span class="ico">⌂</span>Home</button><button><span class="ico">◈</span>Insights</button><button><span class="ico">◷</span>Journey</button><button><span class="ico">◌</span>Memory</button></nav><div class="sanskrit"><div class="om">ॐ</div><p>योगः कर्मसु कौशलम्</p><small>Clarity in action.</small></div></aside>
-<main class="main"><header class="topbar"><div><div class="eyebrow">SAARTHI • YOUR AI GUIDE</div><h2>Good afternoon, Swapnil</h2></div><div class="status"><i class="dot"></i>Saarthi is present</div></header>
-<section class="content"><div><div class="hero"><div class="hero-copy"><div class="eyebrow">THE INDIAN JARVIS</div><h3>Ask. Reflect.<br><em>Move forward.</em></h3><p>Saarthi brings the calm of a guide and the capability of an AI assistant. Ask anything, explore the possibilities, and turn clarity into action.</p><div class="cta"><button class="btn primary" onclick="focusChat()">Ask Saarthi</button><button class="btn" onclick="demo()">Start a conversation</button></div></div><div class="krishna-orb"><div class="feather"><i></i></div></div><div class="flute"><i></i><i></i><i></i></div></div>
-<div class="section-title"><h4>How Saarthi can help</h4><span>One guide. Many paths.</span></div><div class="tools"><div class="tool"><div class="tool-icon">✦</div><h4>Think with me</h4><p>Break complex questions into facts, options and practical next steps.</p></div><div class="tool"><div class="tool-icon">◌</div><h4>Remember what matters</h4><p>Build a secure cloud memory so Saarthi can understand your context over time.</p></div><div class="tool"><div class="tool-icon">↗</div><h4>Get things done</h4><p>Connect tools, automate routine work and turn decisions into action.</p></div></div>
-<div class="chat" id="chat"><div class="chathead"><div class="guide"><div class="avatar">✦</div><div><b>Saarthi</b><small> · शांत, संदर्भपूर्ण guidance</small></div></div><span class="mini">Cloud AI · private session</span></div><div class="messages" id="messages"><div class="msg ai">Namaste. 🙏 Tell me what is on your mind. We will look at it one step at a time.</div></div><div class="composer"><input id="input" placeholder="Ask Saarthi anything…" onkeydown="if(event.key==='Enter')send()"><button class="send" onclick="send()">➤</button></div></div></div>
-<aside class="right"><div class="panel"><h4>Today's focus</h4><div class="focus"><div class="focus-ring"><b>72%</b></div><div><b>Clarity</b><div class="mini">One thing at a time</div></div></div></div><div class="panel"><h4>Guidance modes</h4><div class="chips"><span class="chip">Decision</span><span class="chip">Work</span><span class="chip">Learning</span><span class="chip">Planning</span><span class="chip">Reflection</span></div></div><div class="panel"><h4>Your journey</h4><div class="timeline"><div class="step"><i></i><div><p>Define the question</p><span>Start with clarity</span></div></div><div class="step"><i></i><div><p>See the possibilities</p><span>Facts and trade-offs</span></div></div><div class="step"><i></i><div><p>Choose your action</p><span>You decide the path</span></div></div></div></div></aside></section></main></div>
+<aside class="sidebar"><div class="brand"><div class="brandmark"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4c8 6 11 12 10 18-1 8-7 12-10 14-3-2-9-6-10-14C9 16 12 10 20 4Z" stroke="#f5d27b" stroke-width="1.7"/><circle cx="20" cy="19" r="5" stroke="#73ddd5" stroke-width="1.7"/><path d="M20 14v10M15 19h10" stroke="#73ddd5" stroke-width="1.2"/></svg></div><div><h1>SAARTHI</h1><small>विचार • विवेक • कर्म</small></div></div><nav class="nav"><button class="active"><span class="ico">✦</span>Guidance</button><button><span class="ico">⌂</span>Home</button><button><span class="ico">◈</span>Insights</button><button><span class="ico">◷</span>Journey</button><button><span class="ico">◌</span>Memory</button></nav><div class="sanskrit"><div class="om">ॐ</div><p>योगः कर्मसु कौशलम्</p><small>Clarity in action.</small></div></aside>
+<main class="main"><header class="topbar"><div><div class="eyebrow">SAARTHI • YOUR COMPANION</div><h2>Good afternoon, Swapnil</h2></div><div class="status"><i class="dot"></i>Saarthi is present</div></header>
+<section class="content"><div><div class="hero"><div class="hero-copy"><div class="eyebrow">YOUR SECOND MIND</div><h3>Ask. Reflect.<br><em>Move forward.</em></h3><p>Bring a question, a decision, a plan, or simply a thought. Saarthi helps you see clearly, weigh what matters, and move with intention.</p><div class="cta"><button class="btn primary" onclick="focusChat()">Ask Saarthi</button><button class="btn" onclick="demo()">Talk it through</button></div></div><div class="krishna-orb"><div class="feather"><i></i></div></div><div class="flute"><i></i><i></i><i></i></div></div>
+<div class="section-title"><h4>What would you like to explore?</h4><span>Think clearly. Move intentionally.</span></div><div class="tools"><div class="tool"><div class="tool-icon">✦</div><h4>Think with me</h4><p>Break complex questions into facts, options and practical next steps.</p></div><div class="tool"><div class="tool-icon">◌</div><h4>Remember what matters</h4><p>Build a secure cloud memory so Saarthi can understand your context over time.</p></div><div class="tool"><div class="tool-icon">↗</div><h4>Get things done</h4><p>Connect tools, automate routine work and turn decisions into action.</p></div></div>
+<div class="ios-command" aria-label="Quick actions">
+<button onclick="quickAsk('Help me think through a decision.')"><span>✦</span>Decision</button>
+<button onclick="quickAsk('Help me plan my day.')"><span>◷</span>Plan</button>
+<button onclick="quickAsk('Teach me this from first principles.')"><span>◌</span>Learn</button>
+<button onclick="quickAsk('Help me understand the situation clearly.')"><span>◈</span>Understand</button>
+</div><div class="chat" id="chat"><div class="chathead"><div class="guide"><div class="avatar">✦</div><div><b>Saarthi</b><small> · शांत, संदर्भपूर्ण guidance</small></div></div><span class="mini">Cloud AI · private session</span></div><div class="messages" id="messages"><div class="msg ai">Namaste. 🙏 Tell me what is on your mind. We will look at it one step at a time.</div></div><div class="composer"><input id="input" placeholder="Ask Saarthi anything…" onkeydown="if(event.key==='Enter')send()"><button class="send" onclick="send()">➤</button></div></div></div>
+<aside class="right"><div class="panel"><h4>Today's focus</h4><div class="focus"><div class="focus-ring"><b>72%</b></div><div><b>Clarity</b><div class="mini">One thing at a time</div></div></div></div><div class="panel"><h4>Guidance modes</h4><div class="chips"><span class="chip">Decision</span><span class="chip">Work</span><span class="chip">Learning</span><span class="chip">Planning</span><span class="chip">Reflection</span></div></div><div class="panel"><h4>Your journey</h4><div class="timeline"><div class="step"><i></i><div><p>Define the question</p><span>Start with clarity</span></div></div><div class="step"><i></i><div><p>See the possibilities</p><span>Facts and trade-offs</span></div></div><div class="step"><i></i><div><p>Choose your action</p><span>You decide the path</span></div></div></div></div></aside></section></main><nav class="ios-tabbar" aria-label="Primary navigation">
+<button class="active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><b>✦</b>Home</button>
+<button onclick="focusChat()"><b>⌕</b>Ask</button>
+<button onclick="document.getElementById('messages').scrollIntoView({behavior:'smooth'})"><b>◈</b>Journey</button>
+<button onclick="document.getElementById('input').focus()"><b>◌</b>Memory</button>
+</nav></div>
 <script>
 const splash=document.getElementById('sudarshanSplash');
 const splashVideo=document.getElementById('saarthiSplashVideo');
@@ -69,5 +127,6 @@ setTimeout(closeSplash,10500);
 
 function focusChat(){const c=document.getElementById('chat');c.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>document.getElementById('input').focus(),350)}
 function send(){const i=document.getElementById('input'),v=i.value.trim();if(!v)return;const m=document.getElementById('messages'),u=document.createElement('div');u.className='msg user';u.textContent=v;m.appendChild(u);i.value='';setTimeout(()=>{const a=document.createElement('div');a.className='msg ai';a.textContent='Let us slow this down. First, separate what you know from what you assume. Then we can look at the choices in front of you.';m.appendChild(a);m.scrollTop=m.scrollHeight},500);m.scrollTop=m.scrollHeight}
+function quickAsk(v){document.getElementById('input').value=v;focusChat()}
 function demo(){document.getElementById('input').value='Help me think through an important decision.';focusChat()}
 </script></body></html>
