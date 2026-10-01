@@ -185,7 +185,7 @@ const SaarthiApp = (() => {
     }));
   };
 
-  const formatUsage=()=>{\n    const money=Number(usageTotals.cost||0).toFixed(6);\n    return [\n      '### AI Usage','',\n      '**Session requests:** '+usageTotals.requests.toLocaleString('en-IN'),\n      '**Prompt tokens:** '+usageTotals.prompt_tokens.toLocaleString('en-IN'),\n      '**Completion tokens:** '+usageTotals.completion_tokens.toLocaleString('en-IN'),\n      '**Reasoning tokens:** '+usageTotals.reasoning_tokens.toLocaleString('en-IN'),\n      '**Cached tokens:** '+usageTotals.cached_tokens.toLocaleString('en-IN'),\n      '**Total tokens:** '+usageTotals.total_tokens.toLocaleString('en-IN'),\n      '**Estimated cost:** $'+money,'',\n      'The OpenRouter key is masked and is never rendered in the interface.'\n    ].join('\\n');\n  };\n  const recordUsage=usage=>{
+  const recordUsage=usage=>{
     if(!usage||typeof usage!=='object')return;
     usageTotals.requests+=1;
     usageTotals.prompt_tokens+=Number(usage.prompt_tokens||0);
