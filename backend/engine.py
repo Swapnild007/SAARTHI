@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from .attachments import inspect_attachments, provider_content_parts
 from .agent_capabilities import agent_capability, build_runtime_context, INDUSTRY_PACKS
+from .data_analysis import analyze_dataset, build_chart
 from urllib.request import Request, urlopen
 
 
@@ -558,6 +559,18 @@ class SaarthiEngine:
         if assistant_id == "data_analyst":
             inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             tool_results["data.profile"] = analyze_attachments_for_data(inspected)
+            datasets = tool_results["data.profile"].get("datasets", [])
+            if datasets:
+                dataset = datasets[0]
+                tool_results["data.analysis"] = analyze_dataset(dataset["columns"], dataset["preview_rows"])
+                # Build a deterministic chart when the user explicitly asks for one.
+                chart_match = re.search(r"\b(bar|line|pie|scatter)\b.*?\b(?:chart|graph)\b", message, re.IGNORECASE)
+                if chart_match and len(dataset["columns"]) >= 2:
+                    x_key, series_key = dataset["columns"][0], dataset["columns"][1]
+                    tool_results["data.chart"] = build_chart(
+                        dataset["preview_rows"], chart_match.group(1).lower(), x_key, series_key,
+                        f"{series_key} by {x_key}",
+                    )
         boundary_reply = specialist_boundary_response(assistant_id, message)
         if boundary_reply:
             return {
