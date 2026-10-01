@@ -391,9 +391,10 @@ const SaarthiApp = (() => {
     if(!mobile){
       mobile=document.createElement('div');mobile.id='mobileHistory';mobile.className='mobile-history';mobile.hidden=true;document.body.appendChild(mobile);
     }
-    mobile.innerHTML='<div class="mobile-history-backdrop" data-close-history="true"></div><aside class="mobile-history-panel"><div class="mobile-history-top"><b>Conversation history</b><button type="button" data-close-history="true">×</button></div><div class="mobile-history-agent">'+escapeHtml(assistantInfo(currentAssistant).name)+'</div><div class="mobile-history-content"></div></aside>';
+    mobile.innerHTML='<div class="mobile-history-backdrop" data-close-history="true"></div><aside class="mobile-history-panel"><div class="mobile-history-top"><div><b>Conversation history</b><small>'+escapeHtml(assistantInfo(currentAssistant).name)+'</small></div><div class="mobile-history-actions"><button type="button" class="mobile-new-chat" aria-label="New conversation">＋</button><button type="button" data-close-history="true" aria-label="Close">×</button></div></div><div class="mobile-history-content"></div></aside>';
     const content=mobile.querySelector('.mobile-history-content');bind(content);
     content.querySelector('.history-head')?.remove();
+    mobile.querySelector('.mobile-new-chat')?.addEventListener('click',()=>{startNewConversation();mobile.hidden=true;});
     mobile.querySelectorAll('[data-close-history]').forEach(x=>x.addEventListener('click',()=>{mobile.hidden=true;}));
   };
   const openHistory=()=>{renderHistory();const mobile=document.querySelector('#mobileHistory');if(mobile)mobile.hidden=false;};
