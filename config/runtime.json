@@ -1,5 +1,5 @@
 {
-  "api_base_url": "https://saarthi-nine-chi.vercel.app",
+  "api_base_url": "",
   "environment": "cloud",
-  "version": 2
+  "version": 3
 }
