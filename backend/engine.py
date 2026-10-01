@@ -128,6 +128,31 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
 
 def assistant_profile(assistant: str | None) -> dict[str, str]:
     return ASSISTANT_PROFILES.get(str(assistant or "").lower(), ASSISTANT_PROFILES["saarthi"])
+\ndef specialist_boundary_response(assistant: str, message: str) -> str | None:
+    """Deterministic scope guard for specialist agents before any model call."""
+    text = message.strip().lower()
+    if assistant == "saarthi":
+        return None
+
+    outside_patterns = {
+        "coding": r"\\b(weather|recipe|restaurant|dating|relationship|movie|travel|personal advice|what should i eat)\\b",
+        "research": r"\\b(write code|debug|fix this code|implement|refactor|deploy|build this app)\\b",
+        "create": r"\\b(debug|implement|refactor|sql query|python script|analyze this dataset|calculate|research this)\\b",
+        "analyze": r"\\b(write a|draft an email|write an email|write a story|write a poem|code this|implement)\\b",
+        "plan": r"\\b(debug|write code|implement|research and cite|write a poem|casual chat|what is the weather)\\b",
+    }
+    pattern = outside_patterns.get(assistant)
+    if pattern and re.search(pattern, text, re.IGNORECASE):
+        target = {
+            "coding": "Saarthi", "research": "Research", "create": "Create",
+            "analyze": "Analyze", "plan": "Plan"
+        }.get(assistant, "Saarthi")
+        if assistant == "coding":
+            target = "Saarthi"
+        return f"{ASSISTANT_PROFILES[assistant]['name']} is restricted to {ASSISTANT_PROFILES[assistant]['boundary']}. Please use {target} for this request."
+    return None
+
+
 
 
 class LLMProvider:
