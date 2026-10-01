@@ -564,7 +564,7 @@ class SaarthiEngine:
                 dataset = datasets[0]
                 tool_results["data.analysis"] = analyze_dataset(dataset["columns"], dataset["preview_rows"])
                 # Build a deterministic chart when the user explicitly asks for one.
-                chart_match = re.search(r"\\b(bar|line|pie|scatter)\\b.*?\\b(?:chart|graph)\\b", message, re.IGNORECASE)
+                chart_match = re.search(r"\b(bar|line|pie|scatter)\b.*?\b(?:chart|graph)\b", message, re.IGNORECASE)
                 if chart_match and len(dataset["columns"]) >= 2:
                     x_key, series_key = dataset["columns"][0], dataset["columns"][1]
                     tool_results["data.chart"] = build_chart(
