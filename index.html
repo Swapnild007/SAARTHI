@@ -77,13 +77,6 @@
       <button class="quick" data-command="Break this situation into facts and assumptions."><b>◈</b>Understand</button>
     </div>
 
-    <div class="command">
-      <input id="saarthiCommand" autocomplete="off" placeholder="Give Saarthi a direction…">
-      <button class="voice" id="voiceCommand" aria-label="Speak to Saarthi" type="button">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="4"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
-</button>
-      <button id="sendCommand" aria-label="Send command">➤</button>
-    </div>
   </section>
 
   <section class="assistant-response" id="assistantResponse" hidden aria-live="polite" aria-label="Assistant conversation">
@@ -94,6 +87,23 @@
     </div>
     <div class="assistant-response-body" id="assistantResponseBody"></div>
   </section>
+
+  <section class="assistant-response" id="assistantResponse" hidden aria-live="polite" aria-label="Assistant conversation">
+    <div class="assistant-response-head">
+      <div class="assistant-response-icon">✦</div>
+      <div><div class="eyebrow" id="assistantResponseEyebrow">SAARTHI • CONVERSATION</div><h4 id="assistantResponseTitle">Conversation</h4></div>
+      <span id="assistantResponseMeta">SAARTHI · CONVERSATION</span>
+    </div>
+    <div class="assistant-response-body" id="assistantResponseBody"></div>
+  </section>
+
+  <div class="command conversation-composer" id="conversationComposer">
+    <input id="saarthiCommand" autocomplete="off" placeholder="Message Saarthi…">
+    <button class="voice" id="voiceCommand" aria-label="Speak to Saarthi" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="4"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
+    </button>
+    <button id="sendCommand" aria-label="Send command">➤</button>
+  </div>
 
   </div>
 
