@@ -7,6 +7,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable
+
+from .attachments import inspect_attachments, provider_content_parts
 from urllib.request import Request, urlopen
 
 
@@ -102,6 +104,19 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
         ),
         "boundary": "creative production and writing only",
     },
+    "data_analyst": {
+        "name": "Data Analyst",
+        "role": "quantitative data analysis and visualization specialist",
+        "instruction": (
+            "Act only as a quantitative data analysis specialist. Work with spreadsheets, CSV/JSON datasets, metrics, statistics, trends, anomalies, forecasting, SQL/Python reasoning and dashboards. "
+            "Treat the Data Analyst conversation as a separate workspace. Never use or reveal messages, memories or conclusions from another assistant. "
+            "When data is attached, use the supplied data rather than inventing values. State data quality issues, assumptions and limitations. "
+            "When a chart materially improves the answer or the user asks for one, produce a chart specification using a <saarthi-chart>{JSON}</saarthi-chart> block. The JSON must contain chartType (bar, line, pie or scatter), title, xKey, series and data. Every plotted value must come from supplied data or an explicitly labeled calculation. "
+            "When the user asks for a process, relationship or flow diagram rather than a quantitative chart, produce a <saarthi-diagram>{JSON}</saarthi-diagram> block with title, nodes and edges. "
+            "Do not fabricate measurements. Do not answer unrelated creative writing, general personal assistance or software implementation requests as Data Analyst."
+        ),
+        "boundary": "quantitative data, statistics, datasets and visualization only",
+    },
     "analyze": {
         "name": "Analyze",
         "role": "data, document and visual analysis assistant",
@@ -140,13 +155,14 @@ def specialist_boundary_response(assistant: str, message: str) -> str | None:
         "research": r"\b(write code|debug|fix this code|implement|refactor|deploy|build this app)\b",
         "create": r"\b(debug|implement|refactor|sql query|python script|analyze this dataset|calculate|research this)\b",
         "analyze": r"\b(write a|draft an email|write an email|write a story|write a poem|code this|implement)\b",
+        "data_analyst": r"\b(write a story|write a poem|draft an email|relationship advice|casual chat)\b",
         "plan": r"\b(debug|write code|implement|research and cite|write a poem|casual chat|what is the weather)\b",
     }
     pattern = outside_patterns.get(assistant)
     if pattern and re.search(pattern, text, re.IGNORECASE):
         target = {
             "coding": "Saarthi", "research": "Research", "create": "Create",
-            "analyze": "Analyze", "plan": "Plan"
+            "analyze": "Analyze", "data_analyst": "Data Analyst", "plan": "Plan"
         }.get(assistant, "Saarthi")
         if assistant == "coding":
             target = "Saarthi"
@@ -164,64 +180,57 @@ class LLMProvider:
 
 
 class OpenAICompatibleProvider(LLMProvider):
-    """Cloud-only OpenAI-compatible adapter. Secrets never enter the browser."""
+    """OpenAI-compatible gateway with ordered routes and automatic failover.
 
-    name = "openrouter-free"
+    Configure SAARTHI_LLM_ROUTES_JSON as a JSON array of:
+    {"name":"primary","url":"https://.../v1","key":"...","model":"..."}.
+    If unset, the legacy SAARTHI_LLM_API_URL/KEY/MODEL variables remain supported.
+    """
+    name = "ai-gateway"
 
     def __init__(self) -> None:
-        self.url = os.getenv(
-            "SAARTHI_LLM_API_URL",
-            "https://openrouter.ai/api/v1",
-        ).rstrip("/")
-        self.key = os.getenv("SAARTHI_LLM_API_KEY", "")
-        self.model = os.getenv("SAARTHI_LLM_MODEL", "openrouter/free")
+        raw = os.getenv("SAARTHI_LLM_ROUTES_JSON", "").strip()
+        routes: list[dict[str, str]] = []
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    routes = [r for r in parsed if isinstance(r, dict) and r.get("key") and r.get("url") and r.get("model")]
+            except json.JSONDecodeError:
+                routes = []
+        if not routes:
+            routes = [{
+                "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
+                "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
+                "key": os.getenv("SAARTHI_LLM_API_KEY", ""),
+                "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
+            }]
+        self.routes = routes
+        self.last_route = routes[0].get("name", "unknown") if routes else "unavailable"
+        self.last_failures: list[dict[str, str]] = []
 
     @property
     def configured(self) -> bool:
-        return bool(self.url and self.key and self.model)
+        return bool(self.routes and any(r.get("url") and r.get("key") and r.get("model") for r in self.routes))
 
-    def generate(self, *, message: str, intent: Intent, context: dict[str, Any], assistant: str = "saarthi") -> tuple[str, dict[str, Any] | None]:
-        if not self.configured:
-            raise RuntimeError("cloud provider is not configured")
-
-        profile = assistant_profile(assistant)
-        coding_context = ""
-        if profile["name"] == "AI Coding":
-            has_code = bool(re.search(r"\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\b", message, re.IGNORECASE))
-            generation_request = bool(re.search(r"\b(write|create|build|generate|implement|make|develop|scaffold|code)\b", message, re.IGNORECASE))
-            if has_code:
-                coding_context = " Code or code-like material is present. Review and transform the supplied material directly."
-            elif generation_request:
-                coding_context = " This is a generative coding request without supplied source. Produce the requested runnable code instead of asking for a snippet."
-            else:
-                coding_context = " No source code is present. If the user asks for explanation of a specific missing snippet, request the snippet; otherwise answer normally."
-        system = (
-            f"You are {profile['name']}, the {profile['role']} inside SAARTHI, a calm personal AI assistant. "
-            f"{profile['instruction']} {coding_context} "
-            "Treat the selected assistant as the user's current working environment, not as a superficial label. "
-            "Answer the user's actual request first. If useful, expose the reasoning structure briefly, but do not reveal hidden chain-of-thought. "
-            "Prefer a direct answer, useful artifact, or concrete next step over meta-commentary about what you could do. "
-            "Match depth to the request: simple questions get simple answers; complex requests get structured answers. "
-            "Do not make decisions for the user. Separate facts, assumptions, trade-offs and next actions when relevant. "
-            "Never claim a tool ran unless its result is present. Do not invent access to tools, files, browsing, memory or external services. "
-            f"The selected assistant boundary is: {profile.get('boundary', 'general assistance')}. Enforce that boundary explicitly. If the request is outside the selected specialist's scope, give a short handoff to Saarthi or the relevant specialist instead of answering it as that specialist. "
-        )
-        context_note = json.dumps(context, ensure_ascii=False)[:12000] if context else "{}"
+    def _request(self, route: dict[str, str], *, message: str, system: str, context: dict[str, Any], assistant: str) -> tuple[str, dict[str, Any] | None]:
+        inspected = inspect_attachments(context.get("attachments") if isinstance(context, dict) else [])
+        _, content_parts = provider_content_parts(message, inspected)
         payload = {
-            "model": self.model,
+            "model": route["model"],
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": f"Assistant context: {context_note}\n\nUser request:\n{message}"},
+                {"role": "user", "content": content_parts if len(content_parts) > 1 else content_parts[0]["text"]},
             ],
             "temperature": 0.3,
             "usage": {"include": True},
         }
         request = Request(
-            self.url + "/chat/completions",
+            route["url"].rstrip("/") + "/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.key}",
+                "Authorization": f"Bearer {route['key']}",
                 "HTTP-Referer": "https://swapnild007.github.io/SAARTHI/",
                 "X-Title": "SAARTHI",
             },
@@ -230,7 +239,55 @@ class OpenAICompatibleProvider(LLMProvider):
         with urlopen(request, timeout=45) as response:
             body = json.loads(response.read().decode("utf-8"))
         usage = body.get("usage") if isinstance(body, dict) else None
-        return str(body["choices"][0]["message"]["content"]).strip(), usage if isinstance(usage, dict) else None
+        reply = str(body["choices"][0]["message"]["content"]).strip()
+        self.last_route = route.get("name", route.get("model", "unknown"))
+        return reply, usage if isinstance(usage, dict) else None
+
+    def generate(self, *, message: str, intent: Intent, context: dict[str, Any], assistant: str = "saarthi") -> tuple[str, dict[str, Any] | None]:
+        if not self.configured:
+            raise RuntimeError("no AI gateway route is configured")
+        profile = assistant_profile(assistant)
+        coding_context = ""
+        if profile["name"] == "AI Coding":
+            has_code = bool(re.search(r"\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\b", message, re.IGNORECASE))
+            generation_request = bool(re.search(r"\b(write|create|build|generate|implement|make|develop|scaffold|code)\b", message, re.IGNORECASE))
+            coding_context = (
+                " Code or code-like material is present. Review and transform the supplied material directly."
+                if has_code else
+                " This is a generative coding request without supplied source. Produce the requested runnable code."
+                if generation_request else
+                " No source code is present. Answer normally unless a missing snippet is essential."
+            )
+        attachment_hint = ""
+        if context.get("attachments"):
+            attachment_hint = (
+                " Attachments are available in the request context. Use their extracted contents and images. "
+                "For Data Analyst, never invent values that are not in the supplied dataset."
+            )
+        chart_hint = ""
+        if assistant == "data_analyst":
+            chart_hint = (
+                " For charts use <saarthi-chart>{JSON}</saarthi-chart>. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. "
+                "Keep JSON valid and concise. Do not put prose inside these blocks."
+            )
+        system = (
+            f"You are {profile['name']}, the {profile['role']} inside SAARTHI, a calm personal AI assistant. "
+            f"{profile['instruction']} {coding_context}{attachment_hint}{chart_hint} "
+            "Treat the selected assistant as the user's current working environment, not as a superficial label. "
+            "Answer the user's actual request first. Do not reveal hidden chain-of-thought. "
+            "Never claim a tool ran unless its result is present. Do not invent access to tools, files, browsing, memory or external services. "
+            f"The selected assistant boundary is: {profile.get('boundary', 'general assistance')}. Enforce that boundary explicitly."
+        )
+        failures: list[dict[str, str]] = []
+        for route in self.routes:
+            try:
+                reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
+                self.last_failures = failures
+                return reply, usage
+            except Exception as exc:
+                failures.append({"route": route.get("name", route.get("model", "unknown")), "error": str(exc)[:240]})
+        self.last_failures = failures
+        raise RuntimeError("all configured AI gateway routes failed")
 
 
 def classify(message: str, requested_mode: str = "chat") -> Intent:
@@ -357,6 +414,8 @@ class SaarthiEngine:
             assistant_id = "saarthi"
         intent = classify(message, mode)
         plan = build_plan(intent)
+        if assistant_id == "data_analyst":
+            plan = [PlanStep("profile", "Profile supplied data"), PlanStep("validate", "Validate data quality"), PlanStep("analyze", "Calculate and analyze"), PlanStep("visualize", "Create requested visualization"), PlanStep("respond", "Explain findings")]
         tool_results: dict[str, Any] = {}
         boundary_reply = specialist_boundary_response(assistant_id, message)
         if boundary_reply:
@@ -416,6 +475,8 @@ class SaarthiEngine:
             "plan": [step.__dict__ for step in plan],
             "reply": reply,
             "provider": provider_name,
+            "route": self.cloud.last_route if self.cloud.configured else None,
+            "failover": self.cloud.last_failures if self.cloud.configured else [],
             "usage": usage,
             "execution": "completed",
             "tool_results": tool_results,
