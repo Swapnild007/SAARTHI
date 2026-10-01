@@ -1255,3 +1255,9 @@ body.chat-active .assistant-selector b{font-size:15px}
 .sidebar-new-chat:hover{background:rgba(18,107,128,.08);box-shadow:0 8px 20px rgba(18,63,82,.08);transform:translateY(-1px)}
 .sidebar-new-chat:active{transform:translateY(0)}
 @media(max-width:900px){.sidebar-new-chat{font-size:10px;padding:9px}}
+
+.mobile-history-top>div:first-child{display:flex;flex-direction:column;gap:3px}
+.mobile-history-top small{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--s-muted)}
+.mobile-history-actions{display:flex;align-items:center;gap:6px}
+.mobile-history-actions button{border:0;background:rgba(18,107,128,.08);color:var(--s-blue);width:34px;height:34px;border-radius:10px;font-size:19px}
+.mobile-history-actions .mobile-new-chat{font-weight:700;background:rgba(18,107,128,.11)}
