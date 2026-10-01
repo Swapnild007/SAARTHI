@@ -30,7 +30,7 @@ const SaarthiApp = (() => {
   const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
   const assistantInfo=id=>ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
   const titleFromMessage=value=>{
-    const clean=String(value||'').replace(/\\s+/g,' ').trim();
+    const clean=String(value||'').replace(/\s+/g,' ').trim();
     if(!clean)return 'New conversation';
     return clean.length>48?clean.slice(0,47).trimEnd()+'…':clean;
   };
