@@ -64,9 +64,12 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
         "name": "AI Coding",
         "role": "software engineering assistant",
         "instruction": (
-            "Act as a senior coding assistant. Explain, design, debug, refactor and review code. "
-            "Prefer runnable, precise solutions. Never claim to have inspected a repository, file, build or test "
-            "unless that evidence is present in the supplied context."
+            "Act as a senior coding assistant. Explain, design, debug, refactor, test and review code. "
+            "If code is supplied, work directly from it and identify concrete issues before proposing changes. "
+            "If the user asks to build, write, generate, implement or create something but supplies no code, "
+            "do not ask them to paste code first: produce a complete runnable solution and state any assumptions. "
+            "Prefer idiomatic, production-ready code with clear file boundaries when multiple files are needed. "
+            "Never claim to have inspected a repository, file, build or test unless that evidence is present in the supplied context."
         ),
     },
     "research": {
@@ -137,9 +140,19 @@ class OpenAICompatibleProvider(LLMProvider):
             raise RuntimeError("cloud provider is not configured")
 
         profile = assistant_profile(assistant)
+        coding_context = ""
+        if profile["name"] == "AI Coding":
+            has_code = bool(re.search(r"\\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\\b", message, re.IGNORECASE))
+            generation_request = bool(re.search(r"\\b(write|create|build|generate|implement|make|develop|scaffold|code)\\b", message, re.IGNORECASE))
+            if has_code:
+                coding_context = " Code or code-like material is present. Review and transform the supplied material directly."
+            elif generation_request:
+                coding_context = " This is a generative coding request without supplied source. Produce the requested runnable code instead of asking for a snippet."
+            else:
+                coding_context = " No source code is present. If the user asks for explanation of a specific missing snippet, request the snippet; otherwise answer normally."
         system = (
             f"You are {profile['name']}, the {profile['role']} inside SAARTHI, a calm personal AI assistant. "
-            f"{profile['instruction']} "
+            f"{profile['instruction']} {coding_context} "
             "Be concise, situationally aware and action-oriented. "
             "Do not make decisions for the user. Separate facts, assumptions, trade-offs "
             "and next actions when relevant. Never claim a tool ran unless its result is present. "
