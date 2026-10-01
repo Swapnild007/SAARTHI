@@ -1261,3 +1261,28 @@ body.chat-active .assistant-selector b{font-size:15px}
 .mobile-history-actions{display:flex;align-items:center;gap:6px}
 .mobile-history-actions button{border:0;background:rgba(18,107,128,.08);color:var(--s-blue);width:34px;height:34px;border-radius:10px;font-size:19px}
 .mobile-history-actions .mobile-new-chat{font-weight:700;background:rgba(18,107,128,.11)}
+
+
+/* SAARTHI attachments + analyst visualizations */
+.conversation-composer{position:relative}
+.attach-button{width:40px;height:40px;border:1px solid var(--line,rgba(20,30,40,.12));border-radius:14px;background:rgba(255,255,255,.72);color:inherit;font-size:22px;display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
+.attach-button:hover{transform:translateY(-1px);background:rgba(255,255,255,.95)}
+.attachment-tray{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;padding:0 4px}
+.attachment-chip{display:flex;align-items:center;gap:7px;max-width:min(100%,280px);padding:7px 9px;border:1px solid var(--line,rgba(20,30,40,.12));border-radius:12px;background:rgba(255,255,255,.72);backdrop-filter:blur(16px)}
+.attachment-chip-icon{font-size:14px;opacity:.72}
+.attachment-chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.attachment-chip button{border:0;background:transparent;color:inherit;opacity:.55;cursor:pointer;font-size:16px;padding:0 2px}
+.saarthi-visual{margin:14px 0;padding:14px;border:1px solid var(--line,rgba(20,30,40,.12));border-radius:18px;background:rgba(255,255,255,.58);overflow:hidden}
+.visual-title{font-weight:700;font-size:14px;margin-bottom:8px}
+.saarthi-chart-svg{display:block;width:100%;height:auto;min-height:220px}
+.chart-axis{stroke:rgba(50,60,70,.22);stroke-width:1}
+.chart-label{font-size:10px;fill:currentColor;opacity:.62}
+.diagram-flow{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:12px 2px}
+.diagram-node{flex:0 0 auto;padding:10px 14px;border:1px solid var(--line,rgba(20,30,40,.14));border-radius:13px;background:rgba(255,255,255,.82);font-size:12px;font-weight:650}
+.diagram-arrow{opacity:.45}
+.diagram-edges{font-size:11px;opacity:.6;margin-top:8px;line-height:1.6}
+@media(max-width:680px){
+  .attachment-tray{padding:0 2px}
+  .attachment-chip{max-width:calc(100vw - 60px)}
+  .saarthi-chart-svg{min-height:190px}
+}
