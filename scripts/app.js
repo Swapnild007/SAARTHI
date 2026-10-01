@@ -395,8 +395,8 @@ const SaarthiApp = (() => {
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
       let raw=String(message.content||'');
       const visuals=[];
-      raw=raw.replace(/<saarthi-chart>([\\s\\S]*?)<\/saarthi-chart>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('chart',json));return token;});
-      raw=raw.replace(/<saarthi-diagram>([\\s\\S]*?)<\/saarthi-diagram>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('diagram',json));return token;});
+      raw=raw.replace(/<saarthi-chart>([\s\S]*?)<\/saarthi-chart>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('chart',json));return token;});
+      raw=raw.replace(/<saarthi-diagram>([\s\S]*?)<\/saarthi-diagram>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('diagram',json));return token;});
       let html=renderMarkdown(raw);
       visuals.forEach((visual,index)=>{html=html.replace('<p>__SAARTHI_VISUAL_'+index+'__</p>',visual||'');});
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+'</div></div>';
