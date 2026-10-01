@@ -225,6 +225,7 @@ const SaarthiApp = (() => {
     if(!responseCard||!responseBody)return;
     const item=ASSISTANTS.find(x=>x.id===currentAssistant)||ASSISTANTS[0];
     const messages=currentConversation();
+    document.body.classList.toggle('chat-active',messages.length>0);
     if(!messages.length){responseCard.hidden=true;return;}
     responseBody.innerHTML=messages.map(message=>{
       const role=message.role==='user'?'You':item.name;
@@ -472,6 +473,6 @@ const SaarthiApp = (() => {
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
-  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;conversations[id]=[];try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}if(id===currentAssistant)renderConversation();},voiceTurn:false};
+  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;conversations[id]=[];try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();}},voiceTurn:false};
   return window.SaarthiApp;
 })()
