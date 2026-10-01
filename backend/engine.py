@@ -135,11 +135,11 @@ def assistant_profile(assistant: str | None) -> dict[str, str]:
         return None
 
     outside_patterns = {
-        "coding": r"\\b(weather|recipe|restaurant|dating|relationship|movie|travel|personal advice|what should i eat)\\b",
-        "research": r"\\b(write code|debug|fix this code|implement|refactor|deploy|build this app)\\b",
-        "create": r"\\b(debug|implement|refactor|sql query|python script|analyze this dataset|calculate|research this)\\b",
-        "analyze": r"\\b(write a|draft an email|write an email|write a story|write a poem|code this|implement)\\b",
-        "plan": r"\\b(debug|write code|implement|research and cite|write a poem|casual chat|what is the weather)\\b",
+        "coding": r"\b(weather|recipe|restaurant|dating|relationship|movie|travel|personal advice|what should i eat)\b",
+        "research": r"\b(write code|debug|fix this code|implement|refactor|deploy|build this app)\b",
+        "create": r"\b(debug|implement|refactor|sql query|python script|analyze this dataset|calculate|research this)\b",
+        "analyze": r"\b(write a|draft an email|write an email|write a story|write a poem|code this|implement)\b",
+        "plan": r"\b(debug|write code|implement|research and cite|write a poem|casual chat|what is the weather)\b",
     }
     pattern = outside_patterns.get(assistant)
     if pattern and re.search(pattern, text, re.IGNORECASE):
@@ -186,8 +186,8 @@ class OpenAICompatibleProvider(LLMProvider):
         profile = assistant_profile(assistant)
         coding_context = ""
         if profile["name"] == "AI Coding":
-            has_code = bool(re.search(r"\\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\\b", message, re.IGNORECASE))
-            generation_request = bool(re.search(r"\\b(write|create|build|generate|implement|make|develop|scaffold|code)\\b", message, re.IGNORECASE))
+            has_code = bool(re.search(r"\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\b", message, re.IGNORECASE))
+            generation_request = bool(re.search(r"\b(write|create|build|generate|implement|make|develop|scaffold|code)\b", message, re.IGNORECASE))
             if has_code:
                 coding_context = " Code or code-like material is present. Review and transform the supplied material directly."
             elif generation_request:
@@ -357,6 +357,26 @@ class SaarthiEngine:
         intent = classify(message, mode)
         plan = build_plan(intent)
         tool_results: dict[str, Any] = {}
+        boundary_reply = specialist_boundary_response(assistant_id, message)
+        if boundary_reply:
+            return {
+                "ok": True,
+                "run_id": run_id,
+                "assistant": {
+                    "id": assistant_id,
+                    "name": ASSISTANT_PROFILES[assistant_id]["name"],
+                    "role": ASSISTANT_PROFILES[assistant_id]["role"],
+                    "boundary": ASSISTANT_PROFILES[assistant_id].get("boundary", "general assistance"),
+                },
+                "intent": {"name": intent.name, "confidence": intent.confidence, "reason": intent.reason},
+                "plan": [step.__dict__ for step in plan],
+                "reply": boundary_reply,
+                "provider": "boundary-guard",
+                "usage": None,
+                "execution": "blocked-by-scope",
+                "tool_results": {},
+                "verification": {"verified": True, "claims": "specialist scope boundary enforced before model execution"},
+            }
 
         if intent.name == "system":
             tool_results["system.status"] = self.tools.execute("system.status")
