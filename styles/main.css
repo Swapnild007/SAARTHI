@@ -681,3 +681,8 @@ body{
   .greeting-block h2{font-size:32px}
   .top-actions{padding-top:42px}
 }
+
+/* Official supplied Saarthi logo */
+.saarthi-logo-image{width:58px!important;height:58px!important;object-fit:cover;border-radius:50%;display:block;filter:drop-shadow(0 4px 10px rgba(28,64,74,.12))}
+.brandmark img{width:40px;height:40px;object-fit:cover;border-radius:50%;display:block}
+@media(max-width:720px){.saarthi-logo-image{width:58px!important;height:58px!important}}
