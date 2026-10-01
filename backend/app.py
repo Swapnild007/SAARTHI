@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Literal
+from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,6 +71,55 @@ def menus():
         "memory": ["remember", "recall", "knowledge", "preferences"],
         "settings": ["model", "voice", "privacy", "connections", "permissions"],
     }
+
+
+@app.get("/api/usage")
+def usage():
+    """Return OpenRouter usage without exposing any credential to the browser.
+
+    The regular inference key can read its own time-windowed key totals from
+    /api/v1/key. Historical Activity/Analytics data is optional and requires a
+    separate management key kept server-side in SAARTHI_OPENROUTER_MANAGEMENT_KEY.
+    """
+    provider = engine.cloud
+    if not provider.configured:
+        return {"ok": False, "source": "unavailable", "reason": "provider_not_configured"}
+
+    base_url = provider.url.rstrip("/")
+    key = provider.key
+    result: dict[str, Any] = {
+        "ok": True,
+        "source": "openrouter-key",
+        "provider": "OpenRouter",
+        "analytics_configured": bool(os.getenv("SAARTHI_OPENROUTER_MANAGEMENT_KEY")),
+    }
+
+    try:
+        request = UrlRequest(
+            base_url + "/key",
+            headers={"Authorization": f"Bearer {key}", "Accept": "application/json"},
+            method="GET",
+        )
+        with urlopen(request, timeout=15) as response:
+            result["key"] = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        result["key_error"] = str(exc)
+
+    management_key = os.getenv("SAARTHI_OPENROUTER_MANAGEMENT_KEY", "")
+    if management_key:
+        try:
+            meta_request = UrlRequest(
+                base_url + "/analytics/meta",
+                headers={"Authorization": f"Bearer {management_key}", "Accept": "application/json"},
+                method="GET",
+            )
+            with urlopen(meta_request, timeout=15) as response:
+                meta = json.loads(response.read().decode("utf-8"))
+            result["analytics_meta"] = meta
+        except Exception as exc:
+            result["analytics_error"] = str(exc)
+
+    return result
 
 
 @app.post("/api/command")
