@@ -289,7 +289,7 @@ body{
   .live-widget-weather>strong{font-size:15px}
 }
 
-/* Native-style weather widget inspired by mobile OS weather tiles */
+
 .home-live-context{background:transparent;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0;margin-bottom:14px}
 .home-live-context .live-context-head{padding:0 5px 9px}
 .weather-widget{
