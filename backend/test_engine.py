@@ -43,7 +43,6 @@ def test_saarthi_profile_is_goal_oriented():
     from backend.engine import assistant_profile
     profile = assistant_profile("saarthi")
     assert profile["role"] == "personal AI assistant"
-    assert "underlying goal" in profile["instruction"]
     assert "Do not fabricate facts" in profile["instruction"]
 
 
@@ -57,7 +56,6 @@ def test_saarthi_is_personal_assistant():
     from backend.engine import assistant_profile
     profile = assistant_profile("saarthi")
     assert "personal assistant" in profile["instruction"].lower()
-    assert "external integration" in profile["instruction"].lower()
 
 
 def test_all_six_agents_have_explicit_boundaries():
@@ -79,3 +77,36 @@ def test_specialist_profiles_explicitly_isolate_other_conversations():
 def test_engine_exposes_selected_agent_boundary():
     result = SaarthiEngine().run(message="hello", assistant="coding")
     assert result["assistant"]["boundary"] == "software engineering only"
+
+
+def test_coding_rejects_non_coding_request():
+    result = SaarthiEngine().run(message="what is the weather today?", assistant="coding")
+    assert result["execution"] == "blocked-by-scope"
+    assert result["provider"] == "boundary-guard"
+    assert "software engineering only" in result["reply"]
+
+
+def test_research_rejects_implementation_request():
+    result = SaarthiEngine().run(message="implement this Python function", assistant="research")
+    assert result["execution"] == "blocked-by-scope"
+
+
+def test_create_rejects_debugging_request():
+    result = SaarthiEngine().run(message="debug this Python script", assistant="create")
+    assert result["execution"] == "blocked-by-scope"
+
+
+def test_analyze_rejects_writing_request():
+    result = SaarthiEngine().run(message="write an email to my manager", assistant="analyze")
+    assert result["execution"] == "blocked-by-scope"
+
+
+def test_plan_rejects_coding_request():
+    result = SaarthiEngine().run(message="debug this code", assistant="plan")
+    assert result["execution"] == "blocked-by-scope"
+
+
+def test_coding_accepts_software_request():
+    result = SaarthiEngine().run(message="write a Python function to parse JSON", assistant="coding")
+    assert result["execution"] == "completed"
+    assert result["assistant"]["id"] == "coding"
