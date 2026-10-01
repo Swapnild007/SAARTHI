@@ -288,13 +288,25 @@ const SaarthiApp = (() => {
     }
   };
 
+  const startNewConversation=()=>{
+    const id=currentAssistant;
+    conversations[id]=[];
+    try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}
+    document.body.classList.remove('chat-active');
+    renderConversation();
+    closePickers();
+    command?.focus();
+    addActivity('New conversation started',id);
+  };
+
   const renderMenuRoot=()=>{
     const target=$('#menuPicker');if(!target)return;
-    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
+    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option menu-option-new" data-new-conversation="true"><span class="menu-option-icon">＋</span><span><b>New conversation</b><small>Start a clean conversation with '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
     closePickers();
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
     target.querySelectorAll('[data-root-menu]').forEach(btn=>btn.addEventListener('click',()=>selectMenu(btn.dataset.rootMenu)));
+    target.querySelector('[data-new-conversation]')?.addEventListener('click',startNewConversation);
     target.querySelector('[data-root-usage]')?.addEventListener('click',()=>{
       addActivity('AI Usage opened','Session telemetry');
       renderUsagePanel();
@@ -473,6 +485,6 @@ const SaarthiApp = (() => {
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
-  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;conversations[id]=[];try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();}},voiceTurn:false};
+  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;conversations[id]=[];try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();}},startNewConversation,voiceTurn:false};
   return window.SaarthiApp;
 })()
