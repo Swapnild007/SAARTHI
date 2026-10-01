@@ -45,8 +45,27 @@ class ToolRegistry:
         return tool(args or {})
 
     @staticmethod
-    def _time(_: dict[str, Any]) -> dict[str, Any]:
-        return {"utc": datetime.now(timezone.utc).isoformat()}
+    def _time(args: dict[str, Any]) -> dict[str, Any]:
+        now_utc = datetime.now(timezone.utc)
+        tz_name = str((args or {}).get("timezone") or "UTC")
+        try:
+            from zoneinfo import ZoneInfo
+            local = now_utc.astimezone(ZoneInfo(tz_name))
+            return {
+                "utc": now_utc.isoformat(),
+                "local": local.isoformat(),
+                "timezone": tz_name,
+                "time": local.strftime("%H:%M:%S"),
+                "date": local.strftime("%Y-%m-%d"),
+            }
+        except Exception:
+            return {
+                "utc": now_utc.isoformat(),
+                "local": now_utc.isoformat(),
+                "timezone": "UTC",
+                "time": now_utc.strftime("%H:%M:%S"),
+                "date": now_utc.strftime("%Y-%m-%d"),
+            }
 
     @staticmethod
     def _status(_: dict[str, Any]) -> dict[str, Any]:
@@ -368,6 +387,7 @@ def classify(message: str, requested_mode: str = "chat") -> Intent:
         ("remind", r"\b(remind|reminder)\b"),
         ("workflow", r"\b(workflow|automate|automation)\b"),
         ("briefing", r"\b(briefing|brief me|what matters today)\b"),
+        ("time", r"\b(what(?:'s| is)?\s+the\s+(?:current\s+)?time|current\s+time|time\s+now|what time is it|tell me the time)\b"),
         ("system", r"\b(system status|health check|diagnostics)\b"),
         ("help", r"\b(help|what can you do|commands)\b"),
     ]
@@ -393,6 +413,7 @@ def build_plan(intent: Intent) -> list[PlanStep]:
         "remind": [PlanStep("schedule", "Prepare reminder")],
         "workflow": [PlanStep("workflow", "Prepare workflow")],
         "briefing": [PlanStep("briefing", "Assemble briefing")],
+        "time": [PlanStep("execute", "Get current time")],
         "system": [PlanStep("diagnose", "Check engine status")],
         "settings": [PlanStep("settings", "Prepare settings action")],
         "voice": [PlanStep("voice", "Prepare voice pipeline")],
@@ -410,6 +431,9 @@ def fallback_response(message: str, intent: Intent, tool_results: dict[str, Any]
             "I can chat, research, search, analyze, plan, remember, recall, manage tasks and reminders, "
             "run workflows, brief you, and report system status."
         )
+    if intent.name == "time":
+        result = tool_results.get("system.time", {})
+        return f"The current time is {result.get('time', 'unavailable')} ({result.get('timezone', 'UTC')})."
     if intent.name == "system":
         return "SAARTHI engine is online. The command router, plan builder and tool boundary are ready."
     if intent.name == "remember":
@@ -480,6 +504,30 @@ class SaarthiEngine:
 
         if intent.name == "system":
             tool_results["system.status"] = self.tools.execute("system.status")
+        if intent.name == "time":
+            timezone_name = ctx.get("timezone") if isinstance(ctx, dict) else None
+            tool_results["system.time"] = self.tools.execute("system.time", {"timezone": timezone_name or "Asia/Kolkata"})
+            reply = fallback_response(message, intent, tool_results, assistant_id)
+            return {
+                "ok": True,
+                "run_id": run_id,
+                "assistant": {
+                    "id": assistant_id,
+                    "name": ASSISTANT_PROFILES[assistant_id]["name"],
+                    "role": ASSISTANT_PROFILES[assistant_id]["role"],
+                    "boundary": ASSISTANT_PROFILES[assistant_id].get("boundary", "general assistance"),
+                },
+                "intent": {"name": intent.name, "confidence": intent.confidence, "reason": intent.reason},
+                "plan": [step.__dict__ for step in plan],
+                "reply": reply,
+                "provider": "system.time",
+                "route": None,
+                "failover": [],
+                "usage": None,
+                "execution": "completed",
+                "tool_results": tool_results,
+                "verification": {"verified": True, "claims": "current time returned by system.time"},
+            }
 
         provider = self.cloud if self.cloud.configured else None
         provider_name = provider.name if provider else "deterministic-fallback"
