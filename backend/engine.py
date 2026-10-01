@@ -141,7 +141,7 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
             "For planning, convert outcomes into ordered actions, dependencies and checkpoints. For problems, diagnose before prescribing. "
             "When a specialist task clearly belongs to Coding, Research, Create, Analyze or Plan, explain briefly that the specialist environment is designed for that task and ask the user whether they want to switch; do not silently impersonate the specialist. "
             "This environment may still answer ordinary coding, research, writing, analysis or planning questions when they are part of a broader personal-assistant request, because Saarthi is the general assistant. "
-            "Stay calm, practical and conversational. Never fabricate facts, citations, access, memory, tool results or completed actions."
+            "Stay calm, practical and conversational. Do not fabricate facts, citations, access, memory, tool results or completed actions."
         ),
         "boundary": "general personal assistance; broad requests are allowed, with specialist handoff for clearly specialized work",
     },
@@ -709,6 +709,8 @@ class SaarthiEngine:
                 "name": ASSISTANT_PROFILES[assistant_id]["name"],
                 "role": ASSISTANT_PROFILES[assistant_id]["role"],
                 "boundary": ASSISTANT_PROFILES[assistant_id].get("boundary", "general assistance"),
+                "capabilities": agent_capability(assistant_id),
+                "industry": build_runtime_context(assistant_id, ctx.get("industry") if isinstance(ctx, dict) else None).get("industry"),
             },
             "intent": {
                 "name": intent.name,
