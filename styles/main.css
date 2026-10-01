@@ -573,3 +573,26 @@ body{
 .picker-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(17,139,131,.09);color:var(--s-blue);font-size:18px}
 .picker-item b{display:block;font-size:11px}.picker-item small{display:block;color:var(--s-muted);font-size:9px;line-height:1.4;margin-top:3px}
 @media(max-width:720px){.assistant-picker,.control-picker{padding:11px;align-items:end}.picker-panel{border-radius:25px 25px 18px 18px;padding:15px;max-height:82vh}.picker-grid{grid-template-columns:1fr}.picker-head h3{font-size:21px}.picker-item{padding:11px}}
+
+/* Final mobile refinement: clear menu trigger + non-orb Saarthi mark */
+.menu-trigger{border:1px solid rgba(20,45,59,.09);background:rgba(255,255,255,.76);color:var(--s-blue);height:38px;padding:0 13px;border-radius:19px;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;box-shadow:0 8px 24px rgba(32,45,50,.08)}
+.menu-trigger span{font-size:10px;letter-spacing:.03em}
+.saarthi-mark{position:relative;width:168px;height:168px;transform:rotate(-7deg);filter:drop-shadow(0 18px 32px rgba(11,98,119,.16))}
+.saarthi-mark:before{content:"";position:absolute;inset:17px;border-radius:42px 58px 48px 34px;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(211,239,235,.88));border:1px solid rgba(11,98,119,.12);box-shadow:inset 10px 10px 24px rgba(255,255,255,.85),inset -12px -12px 26px rgba(17,139,131,.08)}
+.mark-glow{position:absolute;inset:34px;border-radius:28px 46px 30px 38px;background:linear-gradient(145deg,rgba(17,139,131,.72),rgba(11,98,119,.94));opacity:.94;box-shadow:0 0 55px rgba(17,139,131,.18)}
+.mark-stroke{position:absolute;z-index:2;height:7px;border-radius:99px;background:linear-gradient(90deg,#e8c76c,#fff4c9);transform-origin:left center;box-shadow:0 0 14px rgba(232,199,108,.45)}
+.mark-stroke.one{width:72px;left:51px;top:67px;transform:rotate(27deg)}
+.mark-stroke.two{width:58px;left:57px;top:99px;transform:rotate(-25deg)}
+.mark-letter{position:absolute;z-index:3;left:66px;top:54px;color:#fff9df;font-family:"Noto Sans Devanagari",sans-serif;font-size:58px;font-weight:500;line-height:1;transform:rotate(7deg);text-shadow:0 4px 18px rgba(0,0,0,.12)}
+.core-visual .core-status{bottom:0}
+.core-ring,.core-dot,.core-halo,.core-emblem{display:none!important}
+@media(max-width:720px){
+  .menu-trigger{height:34px;padding:0 10px;border-radius:17px;font-size:11px}
+  .menu-trigger span{font-size:9px}
+  .saarthi-mark{width:138px;height:138px}
+  .mark-stroke.one{width:58px;left:43px;top:56px}
+  .mark-stroke.two{width:47px;left:48px;top:81px}
+  .mark-letter{left:55px;top:45px;font-size:47px}
+  .core-visual{right:2px;top:242px;width:170px;height:190px;opacity:.9}
+  .core-visual .core-status{bottom:3px}
+}
