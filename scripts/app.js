@@ -20,6 +20,8 @@ const SaarthiApp = (() => {
   const HISTORY_KEY='saarthi.history.v2';
   const MAX_CONTEXT_MESSAGES=20;
   const MAX_THREADS_PER_ASSISTANT=100;
+  const MAX_ATTACHMENT_BYTES=3*1024*1024;
+  const attachmentsByAssistant=Object.create(null);
   const conversations=Object.create(null);
   const currentThreads=Object.create(null);
   const historyState={assistants:Object.create(null)};
@@ -145,7 +147,19 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'analyze',icon:'◈',name:'Analyze',description:'Data, documents and visual analysis',
+      id:'data_analyst',icon:'▥',name:'Data Analyst',description:'Datasets, statistics and visualizations',
+      environment:'Data Analyst environment',headline:'Find the signal.<br><em>Show the evidence.</em>',
+      descriptionText:'Work with spreadsheets and datasets, calculate what matters, surface patterns and create charts or diagrams when they improve the answer.',
+      placeholder:'Upload data or ask a data question…',
+      quick:[
+        ['▥','Analyze','Analyze this dataset.'],
+        ['◫','Chart','Create the right chart for this data.'],
+        ['◈','Find patterns','Find the important patterns.'],
+        ['◎','Explain','Explain what the numbers mean.']
+      ]
+    },
+    {
+      id:'analyze',icon:'◈',name:'Analyze',description:'Documents and visual interpretation',
       environment:'Analysis environment',headline:'See the signal.<br><em>Separate fact from noise.</em>',
       descriptionText:'Break complex material into evidence, patterns, assumptions, risks and useful conclusions.',
       placeholder:'What should I analyze…',
@@ -279,6 +293,93 @@ const SaarthiApp = (() => {
     return out.join('');
   };
 
+
+  const currentAttachments=()=>attachmentsByAssistant[currentAssistant]||[];
+  const fileAsDataUrl=file=>new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>reject(reader.error||new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+  const attachmentIcon=mime=>mime.startsWith('image/')?'▧':mime.includes('sheet')||mime.includes('csv')?'▥':mime.includes('pdf')?'▤':'◫';
+  const renderAttachmentTray=()=>{
+    let tray=$('#attachmentTray');
+    if(!tray){
+      const composer=document.querySelector('.conversation-composer');
+      if(!composer)return;
+      tray=document.createElement('div');tray.id='attachmentTray';tray.className='attachment-tray';
+      composer.parentElement?.insertBefore(tray,composer);
+    }
+    const items=currentAttachments();
+    tray.innerHTML=items.map((item,index)=>'<div class="attachment-chip"><span class="attachment-chip-icon">'+attachmentIcon(item.type)+'</span><span class="attachment-chip-name" title="'+escapeHtml(item.name)+'">'+escapeHtml(item.name)+'</span><button type="button" data-remove-attachment="'+index+'" aria-label="Remove '+escapeHtml(item.name)+'">×</button></div>').join('');
+    tray.hidden=!items.length;
+    tray.querySelectorAll('[data-remove-attachment]').forEach(button=>button.addEventListener('click',()=>{
+      currentAttachments().splice(Number(button.dataset.removeAttachment),1);renderAttachmentTray();
+    }));
+  };
+  const ensureAttachmentControls=()=>{
+    if($('#saarthiFileInput'))return;
+    const composer=$('.conversation-composer');
+    if(!composer)return;
+    const input=document.createElement('input');
+    input.type='file';input.id='saarthiFileInput';input.multiple=true;
+    input.accept='image/*,.pdf,.txt,.md,.csv,.tsv,.json,.xlsx,.xlsm';
+    input.hidden=true;
+    composer.appendChild(input);
+    const button=document.createElement('button');
+    button.type='button';button.id='attachCommand';button.className='attach-button';
+    button.setAttribute('aria-label','Attach files or images');button.title='Attach files or images';button.textContent='＋';
+    composer.insertBefore(button,composer.firstChild);
+    button.addEventListener('click',()=>input.click());
+    input.addEventListener('change',async()=>{
+      const files=[...input.files||[]];
+      for(const file of files){
+        if(file.size>MAX_ATTACHMENT_BYTES){addActivity('Attachment rejected',file.name+' · maximum 3 MB');continue;}
+        try{
+          const data=await fileAsDataUrl(file);
+          currentAttachments().push({name:file.name,type:file.type||'application/octet-stream',size:file.size,data});
+        }catch{addActivity('Attachment failed',file.name+' could not be read.');}
+      }
+      input.value='';renderAttachmentTray();
+    });
+    renderAttachmentTray();
+  };
+
+
+  const visualizationHtml=(type,json)=>{
+    try{
+      const spec=JSON.parse(json);
+      if(type==='chart'){
+        const data=Array.isArray(spec.data)?spec.data:[];const series=Array.isArray(spec.series)?spec.series:[];
+        if(!data.length||!series.length)return '';
+        const w=720,h=300,pad=42;
+        const values=series.flatMap(se=>data.map(row=>Number(row[se.dataKey]))).filter(Number.isFinite);
+        const max=Math.max(...values,1),min=Math.min(0,...values);
+        const sx=i=>pad+i*Math.max(1,(w-pad*2)/Math.max(1,data.length-1));
+        const sy=v=>h-pad-((v-min)/Math.max(1,max-min))*(h-pad*2);
+        const palette=['#6f8fa8','#a38b6a','#6d927a','#8b7ba8'];
+        let svg='<svg class="saarthi-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+escapeHtml(spec.title||'Chart')+'"><line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" class="chart-axis"/>';
+        if(spec.chartType==='pie'){
+          const total=data.reduce((a,r)=>a+Number(r[spec.valueKey]||0),0);let angle=-Math.PI/2;const cx=w/2,cy=h/2,r=95;
+          data.forEach((row,i)=>{const val=Number(row[spec.valueKey]||0),a=total?val/total*Math.PI*2:0, x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+a),y2=cy+r*Math.sin(angle+a),large=a>Math.PI?1:0;svg+='<path d="M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' Z" fill="'+palette[i%palette.length]+'"/>';angle+=a;});
+        }else if(spec.chartType==='bar'){
+          const bw=Math.max(10,(w-pad*2)/Math.max(1,data.length*series.length)-6);
+          data.forEach((row,i)=>series.forEach((se,j)=>{const v=Number(row[se.dataKey]);if(!Number.isFinite(v))return;const x=pad+i*((w-pad*2)/Math.max(1,data.length))+j*bw,y=sy(v),height=h-pad-y;svg+='<rect x="'+x+'" y="'+y+'" width="'+Math.max(4,bw-3)+'" height="'+Math.max(1,height)+'" rx="5" fill="'+palette[j%palette.length]+'"/>';}));
+        }else{
+          series.forEach((se,j)=>{const pts=data.map((row,i)=>{const v=Number(row[se.dataKey]);return Number.isFinite(v)?sx(i)+','+sy(v):null;}).filter(Boolean).join(' ');svg+='<polyline points="'+pts+'" fill="none" stroke="'+palette[j%palette.length]+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';});
+        }
+        data.forEach((row,i)=>{const label=String(row[spec.xKey]??'');svg+='<text x="'+sx(i)+'" y="'+(h-15)+'" text-anchor="middle" class="chart-label">'+escapeHtml(label.slice(0,14))+'</text>';});
+        svg+='</svg>';
+        return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(spec.title||'Visualization')+'</div>'+svg+'</div>';
+      }
+      if(type==='diagram'){
+        const nodes=Array.isArray(spec.nodes)?spec.nodes:[],edges=Array.isArray(spec.edges)?spec.edges:[];
+        return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(spec.title||'Diagram')+'</div><div class="diagram-flow">'+nodes.map((n,i)=>'<div class="diagram-node"><span>'+escapeHtml(String(n.label||n.id||i+1))+'</span></div>').join('<div class="diagram-arrow">→</div>')+'</div>'+ (edges.length?'<div class="diagram-edges">'+edges.map(e=>escapeHtml(String(e.from||''))+' → '+escapeHtml(String(e.to||''))).join(' · ')+'</div>':'')+'</div>';
+      }
+    }catch{}
+    return '';
+  };
+
   const renderConversation=()=>{
     if(!responseCard||!responseBody)return;
     const item=ASSISTANTS.find(x=>x.id===currentAssistant)||ASSISTANTS[0];
@@ -288,7 +389,13 @@ const SaarthiApp = (() => {
     responseBody.innerHTML=messages.map(message=>{
       const role=message.role==='user'?'You':item.name;
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
-      return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+renderMarkdown(message.content)+'</div></div>';
+      let raw=String(message.content||'');
+      const visuals=[];
+      raw=raw.replace(/<saarthi-chart>([\\s\\S]*?)<\\/saarthi-chart>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('chart',json));return token;});
+      raw=raw.replace(/<saarthi-diagram>([\\s\\S]*?)<\\/saarthi-diagram>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('diagram',json));return token;});
+      let html=renderMarkdown(raw);
+      visuals.forEach((visual,index)=>{html=html.replace('<p>__SAARTHI_VISUAL_'+index+'__</p>',visual||'');});
+      return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+'</div></div>';
     }).join('');
     const eyebrow=$('#assistantResponseEyebrow');
     const title=$('#assistantResponseTitle');
@@ -514,6 +621,7 @@ const SaarthiApp = (() => {
 
   const selectAssistant=id=>{
     currentAssistant=id;
+    attachmentsByAssistant[id]=attachmentsByAssistant[id]||[];
     const item=ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
     if(!item) return;
 
@@ -523,7 +631,9 @@ const SaarthiApp = (() => {
     if($('#coreAssistantLabel')) $('#coreAssistantLabel').textContent=item.name;
 
     applyAssistantEnvironment(item);
+    attachmentsByAssistant[item.id]=attachmentsByAssistant[item.id]||[];
     loadConversation(item.id);
+    ensureAttachmentControls();renderAttachmentTray();
     renderConversation();
     renderHistory();
     setStatus(item.name+' ready');
@@ -544,7 +654,8 @@ const SaarthiApp = (() => {
       client_time:new Date().toISOString(),
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
       locale:navigator.language||'en-IN',
-      conversation:currentConversation().map(({role,content})=>({role,content}))
+      conversation:currentConversation().map(({role,content})=>({role,content})),
+      attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
     const response=await fetch(apiUrl('/api/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,assistant:currentAssistant,context})});
     if(!response.ok)throw new Error('API '+response.status);return response.json();
@@ -589,11 +700,12 @@ const SaarthiApp = (() => {
   };
 
   loadHistory();
+  attachmentsByAssistant.saarthi=[];
   loadConversation('saarthi');
   applyAssistantEnvironment(ASSISTANTS[0]);
   renderConversation();
   renderHistory();
-  updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
+  updateClock();setInterval(updateClock,1000);loadRuntimeConfig();ensureAttachmentControls();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
   $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
