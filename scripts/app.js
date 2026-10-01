@@ -174,7 +174,7 @@ const SaarthiApp = (() => {
     addActivity('Menu selected',MENUS[id].label);
     return MENUS[id];
   };
-  const selectAssistant=id=>{currentAssistant=id;const item=ASSISTANTS.find(x=>x.id===id);if(item){setStatus(item.name+' ready');setCoreState('ready',item.name+' is ready.');addActivity('Assistant selected',item.name);}};
+  const selectAssistant=id=>{currentAssistant=id;const item=ASSISTANTS.find(x=>x.id===id);if(item){$('#assistantName')&&( $('#assistantName').textContent=item.name);$('#assistantSelectorIcon')&&( $('#assistantSelectorIcon').textContent=item.icon);$('#coreAssistantLabel')&&( $('#coreAssistantLabel').textContent=item.name);setStatus(item.name+' ready');setCoreState('ready',item.name+' is ready.');addActivity('Assistant selected',item.name);}};
 
   const ask=value=>{
     if(!command)return;command.value=value;command.focus();
@@ -230,6 +230,7 @@ const SaarthiApp = (() => {
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
   $('#settingsButton')?.addEventListener('click',()=>selectMenu('assistants'));
+  $('#assistantSelector')?.addEventListener('click',()=>selectMenu('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.assistant-picker,.control-picker,[data-menu]'))closePickers();});
   renderPicker('assistants');$('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
