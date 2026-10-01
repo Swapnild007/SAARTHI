@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import ast
 import json
+import math
+import operator
 import os
 import re
 import uuid
@@ -32,6 +35,9 @@ class ToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
             "system.time": self._time,
+            "system.date": self._date,
+            "system.calculate": self._calculate,
+            "system.convert": self._convert,
             "system.status": self._status,
         }
 
@@ -66,6 +72,53 @@ class ToolRegistry:
                 "time": now_utc.strftime("%H:%M:%S"),
                 "date": now_utc.strftime("%Y-%m-%d"),
             }
+
+    @staticmethod
+    def _date(args: dict[str, Any]) -> dict[str, Any]:
+        result = ToolRegistry._time(args)
+        return {"date": result["date"], "timezone": result["timezone"], "local": result["local"]}
+
+    @staticmethod
+    def _calculate(args: dict[str, Any]) -> dict[str, Any]:
+        expression = str((args or {}).get("expression") or "").strip()
+        if not expression or len(expression) > 200:
+            raise ValueError("invalid calculation expression")
+        allowed = {
+            ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+            ast.Div: operator.truediv, ast.Pow: operator.pow, ast.Mod: operator.mod,
+            ast.USub: operator.neg, ast.UAdd: operator.pos,
+        }
+        def evaluate(node: ast.AST) -> float:
+            if isinstance(node, ast.Expression):
+                return evaluate(node.body)
+            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and math.isfinite(float(node.value)):
+                return float(node.value)
+            if isinstance(node, ast.UnaryOp) and type(node.op) in allowed:
+                return allowed[type(node.op)](evaluate(node.operand))
+            if isinstance(node, ast.BinOp) and type(node.op) in allowed:
+                return allowed[type(node.op)](evaluate(node.left), evaluate(node.right))
+            raise ValueError("unsupported calculation")
+        value = evaluate(ast.parse(expression, mode="eval"))
+        return {"expression": expression, "value": value}
+
+    @staticmethod
+    def _convert(args: dict[str, Any]) -> dict[str, Any]:
+        value = float((args or {}).get("value"))
+        source = str((args or {}).get("from") or "").lower().strip()
+        target = str((args or {}).get("to") or "").lower().strip()
+        length = {"km": 1.0, "kilometer": 1.0, "kilometers": 1.0, "mi": 1.609344, "mile": 1.609344, "miles": 1.609344}
+        mass = {"kg": 1.0, "kilogram": 1.0, "kilograms": 1.0, "lb": 0.45359237, "lbs": 0.45359237, "pound": 0.45359237, "pounds": 0.45359237}
+        if source in length and target in length:
+            result = value * length[source] / length[target]
+        elif source in mass and target in mass:
+            result = value * mass[source] / mass[target]
+        elif source in {"c", "celsius"} and target in {"f", "fahrenheit"}:
+            result = value * 9 / 5 + 32
+        elif source in {"f", "fahrenheit"} and target in {"c", "celsius"}:
+            result = (value - 32) * 5 / 9
+        else:
+            raise ValueError("unsupported unit conversion")
+        return {"value": value, "from": source, "to": target, "result": result}
 
     @staticmethod
     def _status(_: dict[str, Any]) -> dict[str, Any]:
@@ -387,7 +440,10 @@ def classify(message: str, requested_mode: str = "chat") -> Intent:
         ("remind", r"\b(remind|reminder)\b"),
         ("workflow", r"\b(workflow|automate|automation)\b"),
         ("briefing", r"\b(briefing|brief me|what matters today)\b"),
+        ("date", r"\b(what(?:'s| is)?\s+(?:today(?:'s)?\s+)?date|today(?:'s)?\s+date|what date is it|what day is today)\b"),
         ("time", r"\b(what(?:'s| is)?\s+the\s+(?:current\s+)?time|current\s+time|time\s+now|what time is it|tell me the time)\b"),
+        ("calculate", r"\b(calculate|calculator|compute)\b|\b\d+(?:\s*[+\-*/x×]\s*\d+)+\b"),
+        ("convert", r"\b(convert|how many)\b.*\b(km|kilometer|kilometers|mile|miles|mi|kg|kilogram|kilograms|lb|lbs|pound|pounds|celsius|fahrenheit|°c|°f)\b"),
         ("system", r"\b(system status|health check|diagnostics)\b"),
         ("help", r"\b(help|what can you do|commands)\b"),
     ]
@@ -413,7 +469,10 @@ def build_plan(intent: Intent) -> list[PlanStep]:
         "remind": [PlanStep("schedule", "Prepare reminder")],
         "workflow": [PlanStep("workflow", "Prepare workflow")],
         "briefing": [PlanStep("briefing", "Assemble briefing")],
+        "date": [PlanStep("execute", "Get current date")],
         "time": [PlanStep("execute", "Get current time")],
+        "calculate": [PlanStep("execute", "Calculate expression")],
+        "convert": [PlanStep("execute", "Convert units")],
         "system": [PlanStep("diagnose", "Check engine status")],
         "settings": [PlanStep("settings", "Prepare settings action")],
         "voice": [PlanStep("voice", "Prepare voice pipeline")],
@@ -431,9 +490,18 @@ def fallback_response(message: str, intent: Intent, tool_results: dict[str, Any]
             "I can chat, research, search, analyze, plan, remember, recall, manage tasks and reminders, "
             "run workflows, brief you, and report system status."
         )
+    if intent.name == "date":
+        result = tool_results.get("system.date", {})
+        return f"Today's date is {result.get('date', 'unavailable')} ({result.get('timezone', 'UTC')})."
     if intent.name == "time":
         result = tool_results.get("system.time", {})
         return f"The current time is {result.get('time', 'unavailable')} ({result.get('timezone', 'UTC')})."
+    if intent.name == "calculate":
+        result = tool_results.get("system.calculate", {})
+        return f"The result is {result.get('value', 'unavailable')}."
+    if intent.name == "convert":
+        result = tool_results.get("system.convert", {})
+        return f"{result.get('value')} {result.get('from')} = {result.get('result')} {result.get('to')}."
     if intent.name == "system":
         return "SAARTHI engine is online. The command router, plan builder and tool boundary are ready."
     if intent.name == "remember":
@@ -504,9 +572,24 @@ class SaarthiEngine:
 
         if intent.name == "system":
             tool_results["system.status"] = self.tools.execute("system.status")
-        if intent.name == "time":
-            timezone_name = ctx.get("timezone") if isinstance(ctx, dict) else None
-            tool_results["system.time"] = self.tools.execute("system.time", {"timezone": timezone_name or "Asia/Kolkata"})
+        timezone_name = ctx.get("timezone") if isinstance(ctx, dict) else None
+        if intent.name in {"date", "time"}:
+            tool_name = "system.date" if intent.name == "date" else "system.time"
+            tool_results[tool_name] = self.tools.execute(tool_name, {"timezone": timezone_name or "Asia/Kolkata"})
+        elif intent.name == "calculate":
+            expression = message.strip()
+            expression = re.sub(r"^.*?\b(?:calculate|compute|calculator)\b", "", expression, flags=re.IGNORECASE).strip(" :")
+            match = re.search(r"-?\d+(?:\.\d+)?(?:\s*[+\-*/x×]\s*-?\d+(?:\.\d+)?)+", expression, re.IGNORECASE)
+            if not match:
+                raise ValueError("could not parse calculation expression")
+            expression = match.group(0).replace("×", "*").replace("x", "*").replace("X", "*")
+            tool_results["system.calculate"] = self.tools.execute("system.calculate", {"expression": expression})
+        elif intent.name == "convert":
+            match = re.search(r"(-?\d+(?:\.\d+)?)\s*(km|kilometers?|mi|miles?|kg|kilograms?|lbs?|pounds?|c|°c|celsius|f|°f|fahrenheit)\s+(?:to|in|into)\s*(km|kilometers?|mi|miles?|kg|kilograms?|lbs?|pounds?|c|°c|celsius|f|°f|fahrenheit)", message, re.IGNORECASE)
+            if not match:
+                raise ValueError("could not parse unit conversion")
+            tool_results["system.convert"] = self.tools.execute("system.convert", {"value": match.group(1), "from": match.group(2).replace("°", ""), "to": match.group(3).replace("°", "")})
+        if intent.name in {"date", "time", "calculate", "convert"}:
             reply = fallback_response(message, intent, tool_results, assistant_id)
             return {
                 "ok": True,
@@ -520,13 +603,13 @@ class SaarthiEngine:
                 "intent": {"name": intent.name, "confidence": intent.confidence, "reason": intent.reason},
                 "plan": [step.__dict__ for step in plan],
                 "reply": reply,
-                "provider": "system.time",
+                "provider": f"system.{intent.name}",
                 "route": None,
                 "failover": [],
                 "usage": None,
                 "execution": "completed",
                 "tool_results": tool_results,
-                "verification": {"verified": True, "claims": "current time returned by system.time"},
+                "verification": {"verified": True, "claims": f"deterministic {intent.name} tool result returned before model execution"},
             }
 
         provider = self.cloud if self.cloud.configured else None
