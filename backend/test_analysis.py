@@ -1,0 +1,43 @@
+from backend.analysis_engine import analyze_text, compare_items
+
+
+def test_analysis_extracts_evidence_and_assumptions():
+    text = "Revenue increased because demand rose. This may continue if capacity improves. Cost remains a risk."
+    result = analyze_text(text, "revenue demand")
+    assert result["evidence"]
+    assert result["assumptions"]
+    assert result["risks"]
+
+
+def test_analysis_separates_candidate_root_causes():
+    result = analyze_text("The outage was caused by a database failure.")
+    assert result["root_cause"]["candidate_causes"]
+
+
+def test_analysis_extracts_tradeoffs():
+    result = analyze_text("Option A is cheaper, but Option B has lower operational risk.")
+    assert result["tradeoffs"]
+
+
+def test_comparison_matrix_is_structured():
+    result = compare_items([
+        {"name": "A", "facts": {"cost": 10, "speed": 8}},
+        {"name": "B", "facts": {"cost": 12, "speed": 9}},
+    ])
+    assert result["dimensions"] == ["cost", "speed"]
+    assert result["matrix"][0]["cost"] == 10
+
+
+def test_analyze_agent_returns_deterministic_brief():
+    from backend.engine import SaarthiEngine
+    engine = SaarthiEngine()
+    engine.cloud.generate = lambda **kwargs: ("analysis response", None)
+    result = engine.run(
+        message="analyze this situation",
+        assistant="analyze",
+        context={"analysis_text": "The system failed because capacity was exceeded. This may happen again."},
+    )
+    assert result["execution"] == "completed"
+    brief = result["tool_results"]["analysis.brief"]
+    assert brief["root_cause"]["candidate_causes"]
+    assert brief["assumptions"]
