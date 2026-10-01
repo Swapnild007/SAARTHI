@@ -1,4 +1,4 @@
-from backend.engine import SaarthiEngine, classify, build_plan
+from backend.engine import ASSISTANT_PROFILES, SaarthiEngine, classify, build_plan
 
 
 def test_explicit_research_command():
