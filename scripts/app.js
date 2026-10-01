@@ -17,6 +17,21 @@ const SaarthiApp = (() => {
     total_tokens: 0,
     cost: 0
   };
+  const CONVERSATION_PREFIX='saarthi.conversation.v1.';
+  const MAX_CONTEXT_MESSAGES=12;
+  const conversations=Object.create(null);
+  const loadConversation=assistant=>{
+    const key=CONVERSATION_PREFIX+assistant;
+    try{
+      const parsed=JSON.parse(localStorage.getItem(key)||'[]');
+      conversations[assistant]=Array.isArray(parsed)?parsed.slice(-MAX_CONTEXT_MESSAGES):[];
+    }catch{conversations[assistant]=[];}
+    return conversations[assistant];
+  };
+  const saveConversation=assistant=>{
+    try{localStorage.setItem(CONVERSATION_PREFIX+assistant,JSON.stringify((conversations[assistant]||[]).slice(-MAX_CONTEXT_MESSAGES)));}catch{}
+  };
+  const currentConversation=()=>conversations[currentAssistant]||(conversations[currentAssistant]=loadConversation(currentAssistant));
 
   const MENUS = Object.freeze({
     assistants:{label:'Assistants',capabilities:['saarthi','coding','research','create','analyze','plan']},
@@ -206,17 +221,35 @@ const SaarthiApp = (() => {
     return out.join('');
   };
 
-  const showResponse=(reply,result)=>{
+  const renderConversation=()=>{
     if(!responseCard||!responseBody)return;
-    responseBody.innerHTML=renderMarkdown(reply||'Command completed.');
-    if(responseMeta){
-      const intent=result?.intent?.name||'chat';
-      const provider=result?.provider||'runtime';
-      const assistant=result?.assistant?.name||currentAssistant;
-      responseMeta.textContent=assistant.toUpperCase()+' · '+intent.toUpperCase()+' · '+provider;
-    }
+    const item=ASSISTANTS.find(x=>x.id===currentAssistant)||ASSISTANTS[0];
+    const messages=currentConversation();
+    if(!messages.length){responseCard.hidden=true;return;}
+    responseBody.innerHTML=messages.map(message=>{
+      const role=message.role==='user'?'You':item.name;
+      const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
+      return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+renderMarkdown(message.content)+'</div></div>';
+    }).join('');
+    const eyebrow=$('#assistantResponseEyebrow');
+    const title=$('#assistantResponseTitle');
+    if(eyebrow) eyebrow.textContent=item.name.toUpperCase()+' • CONVERSATION';
+    if(title) title.textContent='Conversation';
+    if(responseMeta)responseMeta.textContent=item.name.toUpperCase()+' · ISOLATED CONVERSATION';
+    responseCard.dataset.assistant=item.id;
     responseCard.hidden=false;
-    responseCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+  };
+  const appendConversation=(role,content)=>{
+    if(!content)return;
+    const messages=currentConversation();
+    messages.push({role,content:String(content),at:new Date().toISOString()});
+    conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
+    saveConversation(currentAssistant);
+    renderConversation();
+  };
+  const showResponse=(reply,result)=>{
+    appendConversation('assistant',reply||'Command completed.');
+    responseCard?.scrollIntoView({behavior:'smooth',block:'nearest'});
   };
 
   const speak=text=>{
@@ -359,6 +392,8 @@ const SaarthiApp = (() => {
     if($('#coreAssistantLabel')) $('#coreAssistantLabel').textContent=item.name;
 
     applyAssistantEnvironment(item);
+    loadConversation(item.id);
+    renderConversation();
     setStatus(item.name+' ready');
     setCoreState('ready',item.name+' environment is ready.');
     addActivity('Assistant selected',item.name+' · '+item.environment);
@@ -372,7 +407,12 @@ const SaarthiApp = (() => {
   const parseCommand=value=>{const token=value.trim().split(/\s+/)[0].toLowerCase();return COMMANDS[token]||'chat';};
 
   const apiCommand=async(value,mode)=>{
-    const context={client_time:new Date().toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',locale:navigator.language||'en-IN'};
+    const context={
+      client_time:new Date().toISOString(),
+      timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
+      locale:navigator.language||'en-IN',
+      conversation:currentConversation().map(({role,content})=>({role,content}))
+    };
     const response=await fetch(apiUrl('/api/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,assistant:currentAssistant,context})});
     if(!response.ok)throw new Error('API '+response.status);return response.json();
   };
@@ -395,6 +435,7 @@ const SaarthiApp = (() => {
   const submit=async()=>{
     const value=command?.value.trim();if(!value||command.disabled)return;
     const mode=parseCommand(value);addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
+    appendConversation('user',value);
     command.disabled=true;
     try{const result=await runCommand(value,mode);if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);}
     catch(error){
@@ -414,7 +455,9 @@ const SaarthiApp = (() => {
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
+  loadConversation('saarthi');
   applyAssistantEnvironment(ASSISTANTS[0]);
+  renderConversation();
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
@@ -425,6 +468,6 @@ const SaarthiApp = (() => {
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
-  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,voiceTurn:false};
+  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;conversations[id]=[];try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}if(id===currentAssistant)renderConversation();},voiceTurn:false};
   return window.SaarthiApp;
 })()
