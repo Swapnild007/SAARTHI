@@ -682,7 +682,12 @@ body{
   .top-actions{padding-top:42px}
 }
 
-/* Official supplied Saarthi logo */
-.saarthi-logo-image{width:58px!important;height:58px!important;object-fit:cover;border-radius:50%;display:block;filter:drop-shadow(0 4px 10px rgba(28,64,74,.12))}
-.brandmark img{width:40px;height:40px;object-fit:cover;border-radius:50%;display:block}
-@media(max-width:720px){.saarthi-logo-image{width:58px!important;height:58px!important}}
+
+/* Official Saarthi supplied logo — image contains its own wordmark */
+.saarthi-wordmark{height:auto!important;display:block!important}
+.saarthi-logo-image{display:block;width:145px;height:auto;max-height:92px;object-fit:contain;object-position:left center;border-radius:0;filter:none}
+.brand{align-items:center}
+.brandmark{display:flex;align-items:center;justify-content:center}
+.brandmark .saarthi-logo-image{width:54px;height:auto;max-height:54px;object-fit:contain}
+.wordmark-type{display:none!important}
+@media(max-width:720px){.saarthi-logo-image{width:142px;max-height:88px}.identity-stack{gap:10px}.saarthi-wordmark{margin-bottom:-2px}.brandmark .saarthi-logo-image{width:48px;max-height:48px}}
