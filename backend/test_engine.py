@@ -1,4 +1,4 @@
-from backend.engine import SaarthiEngine, classify, build_plan
+from backend.engine import ASSISTANT_PROFILES, SaarthiEngine, classify, build_plan
 
 
 def test_explicit_research_command():
@@ -60,7 +60,7 @@ def test_saarthi_is_personal_assistant():
 
 def test_all_six_agents_have_explicit_boundaries():
     from backend.engine import ASSISTANT_PROFILES
-    assert set(ASSISTANT_PROFILES) == {"saarthi", "coding", "research", "create", "analyze", "plan"}
+    assert set(ASSISTANT_PROFILES) == {"saarthi", "coding", "research", "create", "data_analyst", "analyze", "plan"}
     for profile in ASSISTANT_PROFILES.values():
         assert profile.get("boundary")
         assert profile.get("instruction")
@@ -68,7 +68,7 @@ def test_all_six_agents_have_explicit_boundaries():
 
 def test_specialist_profiles_explicitly_isolate_other_conversations():
     from backend.engine import ASSISTANT_PROFILES
-    for assistant in ("coding", "research", "create", "analyze", "plan"):
+    for assistant in ("coding", "research", "create", "data_analyst", "analyze", "plan"):
         instruction = ASSISTANT_PROFILES[assistant]["instruction"].lower()
         assert "separate workspace" in instruction
         assert "never use or reveal messages" in instruction
@@ -110,3 +110,51 @@ def test_coding_accepts_software_request():
     result = SaarthiEngine().run(message="write a Python function to parse JSON", assistant="coding")
     assert result["execution"] == "completed"
     assert result["assistant"]["id"] == "coding"
+
+
+def test_all_seven_agents_use_deterministic_time_before_model():
+    for assistant in ASSISTANT_PROFILES:
+        engine = SaarthiEngine()
+        engine.cloud.generate = lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not run for time"))
+        result = engine.run(message="What is current time", assistant=assistant, context={"timezone": "Asia/Kolkata"})
+        assert result["ok"] is True
+        assert result["intent"]["name"] == "time"
+        assert result["provider"] == "system.time"
+        assert result["execution"] == "completed"
+        assert result["verification"]["verified"] is True
+        assert result["tool_results"]["system.time"]["timezone"] == "Asia/Kolkata"
+        assert "general conversation" not in result["reply"]
+
+
+def test_all_seven_agents_use_deterministic_date_before_model():
+    for assistant in ASSISTANT_PROFILES:
+        engine = SaarthiEngine()
+        engine.cloud.generate = lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not run for date"))
+        result = engine.run(message="What is today's date", assistant=assistant, context={"timezone": "Asia/Kolkata"})
+        assert result["intent"]["name"] == "date"
+        assert result["provider"] == "system.date"
+        assert result["tool_results"]["system.date"]["timezone"] == "Asia/Kolkata"
+        assert "general conversation" not in result["reply"]
+
+
+def test_calculation_is_deterministic_and_model_free():
+    engine = SaarthiEngine()
+    engine.cloud.generate = lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not run for calculation"))
+    result = engine.run(message="What is 25 * 48")
+    assert result["intent"]["name"] == "calculate"
+    assert result["provider"] == "system.calculate"
+    assert result["tool_results"]["system.calculate"]["value"] == 1200.0
+
+
+def test_unit_conversion_is_deterministic_and_model_free():
+    engine = SaarthiEngine()
+    engine.cloud.generate = lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not run for conversion"))
+    result = engine.run(message="Convert 10 km to miles")
+    assert result["intent"]["name"] == "convert"
+    assert result["provider"] == "system.convert"
+    assert abs(result["tool_results"]["system.convert"]["result"] - 6.213711922) < 1e-9
+
+
+def test_deterministic_tools_are_registered_in_shared_registry():
+    names = SaarthiEngine().tools.names()
+    assert {"system.time", "system.date", "system.calculate", "system.convert", "system.status"} <= set(names)
