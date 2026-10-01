@@ -70,7 +70,7 @@ const SaarthiApp = (() => {
     const now=new Date();
     if(topClock)topClock.textContent=new Intl.DateTimeFormat('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);
     if(liveDay)liveDay.textContent=new Intl.DateTimeFormat('en-IN',{weekday:'long'}).format(now)+' · local time';
-    if(greeting){const h=now.getHours();const p=h<12?'morning':h<17?'afternoon':h<21?'evening':'night';greeting.textContent='Good '+p+', Swapnil';}
+    if(greeting){const h=now.getHours();const p=h>=5&&h<12?'morning':h>=12&&h<17?'afternoon':h>=17&&h<21?'evening':'night';greeting.textContent='Good '+p+', Swapnil';}
   };
 
   const addActivity=(title,detail)=>{
@@ -229,7 +229,7 @@ const SaarthiApp = (() => {
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
-  $('#settingsButton')?.addEventListener('click',()=>selectMenu('control'));
+  $('#settingsButton')?.addEventListener('click',()=>selectMenu('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.assistant-picker,.control-picker,[data-menu]'))closePickers();});
   renderPicker('assistants');$('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
