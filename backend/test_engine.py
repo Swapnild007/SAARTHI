@@ -42,7 +42,7 @@ def test_unknown_assistant_falls_back_to_saarthi():
 def test_saarthi_profile_is_goal_oriented():
     from backend.engine import assistant_profile
     profile = assistant_profile("saarthi")
-    assert profile["role"] == "general personal intelligence assistant"
+    assert profile["role"] == "personal AI assistant"
     assert "underlying goal" in profile["instruction"]
     assert "Do not fabricate facts" in profile["instruction"]
 
@@ -51,3 +51,10 @@ def test_saarthi_fallback_is_useful_for_general_chat():
     result = SaarthiEngine().run(message="I don't know where to start", assistant="saarthi")
     assert result["assistant"]["id"] == "saarthi"
     assert result["reply"]
+
+
+def test_saarthi_is_personal_assistant():
+    from backend.engine import assistant_profile
+    profile = assistant_profile("saarthi")
+    assert "personal assistant" in profile["instruction"].lower()
+    assert "external integration" in profile["instruction"].lower()
