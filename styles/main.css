@@ -615,3 +615,45 @@ body{
   .mark-letter{left:51px;top:40px;font-size:40px}
   .core-visual .core-status{bottom:0}
 }
+
+/* SAARTHI IDENTITY SYSTEM — 2026 */
+.topbar{align-items:flex-start}
+.identity-stack{display:flex;flex-direction:column;gap:12px}
+.saarthi-wordmark{display:flex;align-items:center;gap:10px;height:58px}
+.saarthi-logo{width:68px;height:52px;overflow:visible}
+.saarthi-logo .logo-arc{fill:none;stroke:rgba(11,98,119,.22);stroke-width:1.6}
+.saarthi-logo .logo-s{fill:none;stroke:var(--s-blue);stroke-width:4.2;stroke-linecap:round;stroke-linejoin:round}
+.saarthi-logo .logo-path{fill:none;stroke:#d2a94f;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.saarthi-logo .logo-node{fill:#d8b45c}
+.wordmark-type{display:flex;flex-direction:column;line-height:1}
+.wordmark-type strong{font-family:Inter,sans-serif;font-size:20px;letter-spacing:.17em;font-weight:700;color:var(--s-ink)}
+.wordmark-type span{font-family:"Noto Sans Devanagari",sans-serif;font-size:10px;letter-spacing:.24em;color:#9d8041;margin-top:6px}
+.greeting-block{display:flex;flex-direction:column;gap:11px}
+.greeting-block h2{margin:0}
+.assistant-selector{display:inline-flex;align-items:center;gap:9px;width:max-content;min-width:152px;border:1px solid rgba(20,45,59,.09);background:rgba(255,255,255,.74);border-radius:18px;padding:7px 10px 7px 7px;color:var(--s-ink);box-shadow:0 8px 25px rgba(32,45,50,.055);text-align:left}
+.assistant-selector-icon{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(17,139,131,.09);color:var(--s-blue);font-size:14px}
+.assistant-selector small{display:block;font-size:7px;letter-spacing:.16em;color:var(--s-muted);line-height:1}
+.assistant-selector b{display:block;font-size:11px;margin-top:4px}
+.assistant-chevron{margin-left:auto;color:var(--s-muted);font-size:16px;line-height:1}
+.voice{display:grid!important;place-items:center!important}
+.voice svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.core-copy .core-kicker{margin-top:4px}
+.core-status{font-size:9px!important;letter-spacing:.06em}
+@media(max-width:720px){
+  .topbar{padding-top:3px;gap:12px}
+  .identity-stack{gap:10px;min-width:0}
+  .saarthi-wordmark{height:48px}
+  .saarthi-logo{width:57px;height:45px}
+  .wordmark-type strong{font-size:17px}
+  .wordmark-type span{font-size:8px;margin-top:5px}
+  .greeting-block h2{font-size:35px;line-height:.98}
+  .assistant-selector{min-width:142px;padding:6px 9px 6px 6px;border-radius:16px}
+  .assistant-selector-icon{width:28px;height:28px}
+  .assistant-selector small{font-size:6.5px}
+  .assistant-selector b{font-size:10px}
+  .top-actions{padding-top:44px}
+  .clock-chip{height:38px}
+  .menu-trigger{height:38px}
+  .core-panel{margin-top:7px}
+  .core-visual{top:102px}
+}
