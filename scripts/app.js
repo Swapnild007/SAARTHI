@@ -221,6 +221,15 @@ const SaarthiApp = (() => {
   };
 
   const closePickers=()=>{['menuPicker','assistantPicker','controlPicker'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=true;});};
+  const renderUsagePanel=()=>{
+    const target=$('#menuPicker');if(!target)return;
+    const money=Number(usageTotals.cost||0).toFixed(6);
+    target.innerHTML='<div class="picker-panel usage-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>AI Usage</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="usage-summary"><div class="usage-card"><small>REQUESTS</small><strong>'+usageTotals.requests.toLocaleString('en-IN')+'</strong></div><div class="usage-card"><small>TOTAL TOKENS</small><strong>'+usageTotals.total_tokens.toLocaleString('en-IN')+'</strong></div><div class="usage-card"><small>EST. COST</small><strong>$'+money+'</strong></div></div><div class="usage-details"><div><span>Prompt tokens</span><b>'+usageTotals.prompt_tokens.toLocaleString('en-IN')+'</b></div><div><span>Completion tokens</span><b>'+usageTotals.completion_tokens.toLocaleString('en-IN')+'</b></div><div><span>Reasoning tokens</span><b>'+usageTotals.reasoning_tokens.toLocaleString('en-IN')+'</b></div><div><span>Cached tokens</span><b>'+usageTotals.cached_tokens.toLocaleString('en-IN')+'</b></div></div><div class="usage-foot">Provider: OpenRouter · API key: masked</div></div>';
+    closePickers();
+    target.hidden=false;
+    target.querySelector('.picker-close')?.addEventListener('click',closePickers);
+  };
+
   const renderMenuRoot=()=>{
     const target=$('#menuPicker');if(!target)return;
     target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
@@ -229,11 +238,10 @@ const SaarthiApp = (() => {
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
     target.querySelectorAll('[data-root-menu]').forEach(btn=>btn.addEventListener('click',()=>selectMenu(btn.dataset.rootMenu)));
     target.querySelector('[data-root-usage]')?.addEventListener('click',()=>{
-      const usagePanel=$('#menuPicker');
-      if(!usagePanel)return;
-      usagePanel.innerHTML='<div class="picker-panel usage-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>AI Usage</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="usage-summary"><div class="usage-card"><small>REQUESTS</small><strong>'+usageTotals.requests.toLocaleString('en-IN')+'</strong></div><div class="usage-card"><small>TOTAL TOKENS</small><strong>'+usageTotals.total_tokens.toLocaleString('en-IN')+'</strong></div><div class="usage-card"><small>EST. COST</small><strong>
+      addActivity('AI Usage opened','Session telemetry');
+      renderUsagePanel();
+    });
   };
-
   const renderPicker=(type)=>{
     const target=$(type==='assistants'?'#assistantPicker':'#controlPicker');if(!target)return;
     const items=type==='assistants'?ASSISTANTS:CONTROLS;
