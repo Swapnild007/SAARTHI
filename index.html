@@ -23,7 +23,7 @@
 .splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;margin-top:9px}
 @media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:38vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
 @media(prefers-reduced-motion:reduce){.splash-video{animation:none}}
-</style><link rel="stylesheet" href="./styles/main.css?v=20261001-5"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
+</style><link rel="stylesheet" href="./styles/main.css?v=20261001-6"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4" type="video/mp4">
 </video>
@@ -48,16 +48,37 @@
 
 <main class="main">
 <header class="topbar">
-  <div><div class="eyebrow">SAARTHI • INTELLIGENCE CONSOLE</div><h2 id="greeting">Good morning, Swapnil</h2></div>
-  <div class="top-actions"><div class="clock-chip" aria-label="Current local time"><span class="clock-dot"></span><strong id="topClock">--:--:--</strong><span id="presenceText" class="sr-status">Saarthi is present</span></div><button class="menu-trigger" id="settingsButton" aria-label="Open Saarthi menu">☰ <span>Menu</span></button></div>
+  <div class="identity-stack">
+    <div class="saarthi-wordmark" aria-label="Saarthi">
+      <svg class="saarthi-logo" viewBox="0 0 72 56" role="img" aria-labelledby="saarthiLogoTitle">
+        <title id="saarthiLogoTitle">Saarthi logo</title>
+        <path class="logo-arc" d="M13 40C8 29 12 15 25 10C38 5 53 11 59 23C64 34 59 46 48 51"/>
+        <path class="logo-s" d="M50 13C42 9 31 10 24 16C18 21 18 28 24 31C29 34 37 32 43 34C50 36 51 41 46 45C41 49 31 49 24 45"/>
+        <path class="logo-path" d="M45 45L55 47L52 37"/>
+        <circle class="logo-node" cx="24" cy="31" r="2.8"/>
+      </svg>
+      <div class="wordmark-type"><strong>SAARTHI</strong><span>सारथी</span></div>
+    </div>
+    <div class="greeting-block">
+      <h2 id="greeting">Good morning, Swapnil</h2>
+      <button class="assistant-selector" id="assistantSelector" aria-label="Choose AI assistant" type="button">
+        <span class="assistant-selector-icon" id="assistantSelectorIcon">✦</span>
+        <span><small>AI ASSISTANT</small><b id="assistantName">Saarthi</b></span>
+        <span class="assistant-chevron">⌄</span>
+      </button>
+    </div>
+  </div>
+  <div class="top-actions">
+    <div class="clock-chip" aria-label="Current local time"><span class="clock-dot"></span><strong id="topClock">--:--:--</strong><span id="presenceText" class="sr-status">Saarthi is present</span></div>
+    <button class="menu-trigger" id="settingsButton" aria-label="Open Saarthi menu">☰ <span>Menu</span></button>
+  </div>
 </header>
 
 <section class="dashboard">
 <div>
   <section class="core-panel" aria-label="Saarthi command center">
     <div class="core-copy">
-      <div class="eyebrow">SAARTHI • INTELLIGENCE CONSOLE</div>
-      <div class="core-kicker"><span class="online-dot"></span> CORE ONLINE <span>·</span> CONTEXT AWARE</div>
+      <div class="core-kicker"><span class="online-dot"></span> READY <span>·</span> CONTEXT AWARE</div>
       <h3>Think clearly.<br><em>Move deliberately.</em></h3>
       <p>Bring a problem, plan, question, or decision. Saarthi keeps the context together and helps you work it through.</p>
       <div class="core-actions">
@@ -73,7 +94,7 @@
         <span class="mark-stroke two"></span>
         <span class="mark-letter">स</span>
       </div>
-      <div class="core-status"><b>सारथी CORE</b> · online</div>
+      <div class="core-status"><b id="coreAssistantLabel">Saarthi</b> · online</div>
     </div>
 
     <div class="quick-row" aria-label="Quick commands">
@@ -85,7 +106,9 @@
 
     <div class="command">
       <input id="saarthiCommand" autocomplete="off" placeholder="Give Saarthi a direction…">
-      <button class="voice" id="voiceCommand" aria-label="Voice command">⌁</button>
+      <button class="voice" id="voiceCommand" aria-label="Speak to Saarthi" type="button">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="4"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
+</button>
       <button id="sendCommand" aria-label="Send command">➤</button>
     </div>
   </section>
@@ -114,4 +137,4 @@ splashVideo?.addEventListener('ended',closeSplash);
 splashVideo?.play?.().catch(()=>{});
 setTimeout(closeSplash,5000);
 
-</script><script src="./scripts/app.js?v=20261001-5" defer></script><script>(function(){try{var h=new Date().getHours(),p=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<21?"evening":"night";var e=document.getElementById("greeting");if(e)e.textContent="Good "+p+", Swapnil";}catch(e){}})();</script></body></html>
+</script><script src="./scripts/app.js?v=20261001-6" defer></script><script>(function(){try{var h=new Date().getHours(),p=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<21?"evening":"night";var e=document.getElementById("greeting");if(e)e.textContent="Good "+p+", Swapnil";}catch(e){}})();</script></body></html>
