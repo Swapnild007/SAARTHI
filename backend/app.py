@@ -29,7 +29,7 @@ Mode = Literal[
 ]
 
 
-Assistant = Literal["saarthi", "coding", "research", "create", "analyze", "plan"]
+Assistant = Literal["saarthi", "coding", "research", "create", "data_analyst", "analyze", "plan"]
 
 
 class CommandRequest(BaseModel):
@@ -58,6 +58,8 @@ def health():
         "architecture": "cloud",
         "engine": "jarvis-runtime-v1",
         "provider_configured": engine.cloud.configured,
+        "ai_gateway_routes": len(engine.cloud.routes),
+        "ai_gateway_active_route": engine.cloud.last_route if engine.cloud.configured else None,
         "tools": engine.tools.names(),
     }
 
