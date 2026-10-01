@@ -3,6 +3,7 @@ const SaarthiApp = (() => {
   const activity = $('#activityStream');
   const command = $('#saarthiCommand');
   const status = $('#presenceText');
+  const liveDay = $('#liveDay');
   const topClock = $('#topClock');
   const greeting = $('#greeting'), coreStatus = $('.core-status');
   const responseCard = $('#assistantResponse'), responseBody = $('#assistantResponseBody'), responseMeta = $('#assistantResponseMeta');
