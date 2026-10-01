@@ -58,3 +58,24 @@ def test_saarthi_is_personal_assistant():
     profile = assistant_profile("saarthi")
     assert "personal assistant" in profile["instruction"].lower()
     assert "external integration" in profile["instruction"].lower()
+
+
+def test_all_six_agents_have_explicit_boundaries():
+    from backend.engine import ASSISTANT_PROFILES
+    assert set(ASSISTANT_PROFILES) == {"saarthi", "coding", "research", "create", "analyze", "plan"}
+    for profile in ASSISTANT_PROFILES.values():
+        assert profile.get("boundary")
+        assert profile.get("instruction")
+
+
+def test_specialist_profiles_explicitly_isolate_other_conversations():
+    from backend.engine import ASSISTANT_PROFILES
+    for assistant in ("coding", "research", "create", "analyze", "plan"):
+        instruction = ASSISTANT_PROFILES[assistant]["instruction"].lower()
+        assert "separate workspace" in instruction
+        assert "never use or reveal messages" in instruction
+
+
+def test_engine_exposes_selected_agent_boundary():
+    result = SaarthiEngine().run(message="hello", assistant="coding")
+    assert result["assistant"]["boundary"] == "software engineering only"
