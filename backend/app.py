@@ -26,15 +26,20 @@ Mode = Literal[
 ]
 
 
+Assistant = Literal["saarthi", "coding", "research", "create", "analyze", "plan"]
+
+
 class CommandRequest(BaseModel):
     message: str = Field(min_length=1, max_length=12000)
     mode: Mode = "chat"
+    assistant: Assistant = "saarthi"
     conversation_id: str | None = None
     context: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=12000)
+    assistant: Assistant = "saarthi"
     conversation_id: str | None = None
     context: dict[str, Any] = Field(default_factory=dict)
 
@@ -71,6 +76,7 @@ def command(request: CommandRequest):
     result = engine.run(
         message=request.message,
         mode=request.mode,
+        assistant=request.assistant,
         context=request.context,
     )
     result["conversation_id"] = request.conversation_id
@@ -82,6 +88,7 @@ def chat(request: ChatRequest):
     result = engine.run(
         message=request.message,
         mode="chat",
+        assistant=request.assistant,
         context=request.context,
     )
     result["conversation_id"] = request.conversation_id
