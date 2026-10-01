@@ -143,29 +143,37 @@ const SaarthiApp = (() => {
     utterance.lang='en-IN';utterance.rate=.98;utterance.pitch=.92;window.speechSynthesis.speak(utterance);
   };
 
-  const closePickers=()=>{['assistantPicker','controlPicker'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=true;});};
+  const closePickers=()=>{['menuPicker','assistantPicker','controlPicker'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=true;});};
+  const renderMenuRoot=()=>{
+    const target=$('#menuPicker');if(!target)return;
+    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>AI, usage, memory, voice, tools, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
+    closePickers();
+    target.hidden=false;
+    target.querySelector('.picker-close')?.addEventListener('click',closePickers);
+    target.querySelectorAll('[data-root-menu]').forEach(btn=>btn.addEventListener('click',()=>selectMenu(btn.dataset.rootMenu)));
+  };
+
   const renderPicker=(type)=>{
     const target=$(type==='assistants'?'#assistantPicker':'#controlPicker');if(!target)return;
     const items=type==='assistants'?ASSISTANTS:CONTROLS;
     target.innerHTML='<div class="picker-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>'+(type==='assistants'?'Choose intelligence':'Control Saarthi')+'</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="picker-grid">'+items.map(item=>'<button class="picker-item" data-picker-id="'+item.id+'"><span class="picker-icon">'+item.icon+'</span><span><b>'+item.name+'</b><small>'+item.description+'</small></span></button>').join('')+'</div></div>';
+    closePickers();
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
     target.querySelectorAll('.picker-item').forEach(btn=>btn.addEventListener('click',()=>{
       const id=btn.dataset.pickerId;
       if(type==='assistants'){
-        currentAssistant=id;
-        const item=ASSISTANTS.find(x=>x.id===id);
-        addActivity('Assistant selected',item.name+' · '+item.description);
-        setStatus(item.name+' ready'); setCoreState('ready',item.name+' is ready.');
+        selectAssistant(id);
         closePickers();
       }else{
         addActivity('Control opened',id);
         closePickers();
-        if(id==='usage') showResponse('### AI Usage\n\nUsage telemetry is ready to be surfaced here. The runtime should return OpenRouter usage data including tokens and cost so Saarthi can display it accurately.\n\n**API key:** masked only. Never expose the secret key in the interface.',{intent:{name:'usage'},provider:'OpenRouter'});
-        else showResponse('### '+(CONTROLS.find(x=>x.id===id)?.name||'Control')+'\n\nThis control surface is reserved for Saarthi configuration and can be expanded without adding another primary navigation item.',{intent:{name:id},provider:'Saarthi'});
+        if(id==='usage') showResponse('### AI Usage\\n\\nUsage telemetry will show request count, prompt tokens, completion tokens, reasoning tokens, cached tokens and estimated cost when the runtime returns OpenRouter usage data.\\n\\n**API key:** masked only. The secret key is never rendered in the interface.',{intent:{name:'usage'},provider:'OpenRouter'});
+        else showResponse('### '+(CONTROLS.find(x=>x.id===id)?.name||'Control')+'\\n\\nThis control is ready to become a dedicated Saarthi surface without adding another primary navigation page.',{intent:{name:id},provider:'Saarthi'});
       }
     }));
   };
+
   const selectMenu=menuId=>{
     const id=MENUS[menuId]?menuId:'assistants';
     closePickers();
@@ -229,10 +237,10 @@ const SaarthiApp = (() => {
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
-  $('#settingsButton')?.addEventListener('click',()=>selectMenu('assistants'));
-  $('#assistantSelector')?.addEventListener('click',()=>selectMenu('assistants'));
-  document.addEventListener('click',event=>{if(!event.target.closest('.assistant-picker,.control-picker,[data-menu]'))closePickers();});
-  renderPicker('assistants');$('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
+  $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
+  $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
+  document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#assistantSelector'))closePickers();});
+  $('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
