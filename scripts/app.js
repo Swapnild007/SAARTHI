@@ -352,17 +352,17 @@ const SaarthiApp = (() => {
 
   const visualizationHtml=(type,json)=>{
     try{
-      const spec=JSON.parse(json);
+      const spec=JSON.parse(json); const meta=spec.meta&&typeof spec.meta==='object'?spec.meta:{}; const chartTitle=spec.title||meta.title||'Visualization';
       if(type==='chart'){
         const data=Array.isArray(spec.data)?spec.data:[];const series=Array.isArray(spec.series)?spec.series:[];
-        if(!data.length||!series.length)return '';
+        if(!data.length)return ''; if(spec.chartType!=='pie'&&!series.length)return '';
         const w=720,h=300,pad=42;
         const values=series.flatMap(se=>data.map(row=>Number(row[se.dataKey]))).filter(Number.isFinite);
         const max=Math.max(...values,1),min=Math.min(0,...values);
         const sx=i=>pad+i*Math.max(1,(w-pad*2)/Math.max(1,data.length-1));
         const sy=v=>h-pad-((v-min)/Math.max(1,max-min))*(h-pad*2);
         const palette=['#6f8fa8','#a38b6a','#6d927a','#8b7ba8'];
-        let svg='<svg class="saarthi-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+escapeHtml(spec.title||'Chart')+'"><line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" class="chart-axis"/>';
+        let svg='<svg class="saarthi-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+escapeHtml(chartTitle)+'"><line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" class="chart-axis"/>';
         if(spec.chartType==='pie'){
           const total=data.reduce((a,r)=>a+Number(r[spec.valueKey]||0),0);let angle=-Math.PI/2;const cx=w/2,cy=h/2,r=95;
           data.forEach((row,i)=>{const val=Number(row[spec.valueKey]||0),a=total?val/total*Math.PI*2:0, x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+a),y2=cy+r*Math.sin(angle+a),large=a>Math.PI?1:0;svg+='<path d="M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' Z" fill="'+palette[i%palette.length]+'"/>';angle+=a;});
@@ -374,7 +374,7 @@ const SaarthiApp = (() => {
         }
         data.forEach((row,i)=>{const label=String(row[spec.xKey]??'');svg+='<text x="'+sx(i)+'" y="'+(h-15)+'" text-anchor="middle" class="chart-label">'+escapeHtml(label.slice(0,14))+'</text>';});
         svg+='</svg>';
-        return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(spec.title||'Visualization')+'</div>'+svg+'</div>';
+        return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(chartTitle)+'</div>'+svg+'</div>';
       }
       if(type==='diagram'){
         const nodes=Array.isArray(spec.nodes)?spec.nodes:[],edges=Array.isArray(spec.edges)?spec.edges:[];
@@ -395,10 +395,10 @@ const SaarthiApp = (() => {
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
       let raw=String(message.content||'');
       const visuals=[];
-      raw=raw.replace(/<saarthi-chart>([\s\S]*?)<\/saarthi-chart>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('chart',json));return token;});
+      raw=raw.replace(/<saarthi-chart>([\s\S]*?)<\/saarthi-chart>/gi,(_,json)=>{const token='@@SAARTHI_VISUAL_'+visuals.length+'@@';visuals.push(visualizationHtml('chart',json));return token;});
       raw=raw.replace(/<saarthi-diagram>([\s\S]*?)<\/saarthi-diagram>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('diagram',json));return token;});
       let html=renderMarkdown(raw);
-      visuals.forEach((visual,index)=>{html=html.replace('<p>__SAARTHI_VISUAL_'+index+'__</p>',visual||'');});
+      visuals.forEach((visual,index)=>{html=html.replace('<p>@@SAARTHI_VISUAL_'+index+'@@</p>',visual||'');});
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+'</div></div>';
     }).join('');
     const eyebrow=$('#assistantResponseEyebrow');
