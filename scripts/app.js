@@ -257,7 +257,7 @@ const SaarthiApp = (() => {
       }else{
         addActivity('Control opened',id);
         closePickers();
-        if(id==='usage') showResponse(formatUsage(),{intent:{name:'usage'},provider:'OpenRouter'});
+        if(id==='usage') renderUsagePanel();
         else showResponse('### '+(CONTROLS.find(x=>x.id===id)?.name||'Control')+'\\n\\nThis control is ready to become a dedicated Saarthi surface without adding another primary navigation page.',{intent:{name:id},provider:'Saarthi'});
       }
     }));
