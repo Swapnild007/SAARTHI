@@ -23,12 +23,78 @@ const SaarthiApp = (() => {
     control:{label:'Control',capabilities:['ai','usage','memory','voice','tools','connections','security','notifications','appearance','privacy']}
   });
   const ASSISTANTS = Object.freeze([
-    {id:'saarthi',icon:'✦',name:'Saarthi',description:'General personal intelligence'},
-    {id:'coding',icon:'⌘',name:'AI Coding',description:'Build, debug, explain and refactor code'},
-    {id:'research',icon:'◎',name:'Research',description:'Research, compare and synthesize'},
-    {id:'create',icon:'◇',name:'Create',description:'Writing, ideas and creative generation'},
-    {id:'analyze',icon:'◈',name:'Analyze',description:'Data, documents and visual analysis'},
-    {id:'plan',icon:'◷',name:'Plan',description:'Planning, decisions and automation'}
+    {
+      id:'saarthi',icon:'✦',name:'Saarthi',description:'General personal intelligence',
+      environment:'Saarthi environment',headline:'Think clearly.<br><em>Move deliberately.</em>',
+      descriptionText:'Bring a problem, plan, question, or decision. Saarthi keeps the context together and helps you work it through.',
+      placeholder:'Give Saarthi a direction…',
+      quick:[
+        ['✦','Decision','Help me make a decision.'],
+        ['◷','Plan','Plan my day around what matters most.'],
+        ['◌','Learn','Teach me this from first principles.'],
+        ['◈','Understand','Break this situation into facts and assumptions.']
+      ]
+    },
+    {
+      id:'coding',icon:'⌘',name:'AI Coding',description:'Build, debug, explain and refactor code',
+      environment:'Coding environment',headline:'Build precisely.<br><em>Ship with confidence.</em>',
+      descriptionText:'Write, debug, review and improve software. Bring code, an error, or an idea and turn it into a runnable solution.',
+      placeholder:'Describe what you want to build…',
+      quick:[
+        ['⌘','Build','Build a complete solution for me.'],
+        ['◈','Debug','Help me debug this code.'],
+        ['◎','Review','Review this code for issues.'],
+        ['◇','Explain','Explain this code simply.']
+      ]
+    },
+    {
+      id:'research',icon:'◎',name:'Research',description:'Research, compare and synthesize',
+      environment:'Research environment',headline:'Go deeper.<br><em>Know what matters.</em>',
+      descriptionText:'Structure a question, compare evidence, expose uncertainty and turn information into a clear synthesis.',
+      placeholder:'What should I investigate…',
+      quick:[
+        ['◎','Investigate','Investigate this topic.'],
+        ['◈','Compare','Compare these options objectively.'],
+        ['✦','Explain','Explain the evidence behind this.'],
+        ['◇','Synthesize','Synthesize what matters most.']
+      ]
+    },
+    {
+      id:'create',icon:'◇',name:'Create',description:'Writing, ideas and creative generation',
+      environment:'Create environment',headline:'Make it distinct.<br><em>Give ideas a shape.</em>',
+      descriptionText:'Turn rough ideas into polished writing, concepts, prompts, structures and creative directions.',
+      placeholder:'What should we create…',
+      quick:[
+        ['◇','Draft','Draft this from my idea.'],
+        ['✦','Ideate','Give me strong ideas for this.'],
+        ['◈','Rewrite','Rewrite this with more impact.'],
+        ['◎','Refine','Refine this into a polished version.']
+      ]
+    },
+    {
+      id:'analyze',icon:'◈',name:'Analyze',description:'Data, documents and visual analysis',
+      environment:'Analysis environment',headline:'See the signal.<br><em>Separate fact from noise.</em>',
+      descriptionText:'Break complex material into evidence, patterns, assumptions, risks and useful conclusions.',
+      placeholder:'What should I analyze…',
+      quick:[
+        ['◈','Analyze','Analyze this carefully.'],
+        ['◎','Find patterns','Find the important patterns.'],
+        ['✦','Explain','Explain what the data means.'],
+        ['◇','Challenge','Challenge the assumptions.']
+      ]
+    },
+    {
+      id:'plan',icon:'◷',name:'Plan',description:'Planning, decisions and automation',
+      environment:'Planning environment',headline:'Turn intent into action.<br><em>Know the next move.</em>',
+      descriptionText:'Convert goals into practical steps, dependencies, checkpoints and decisions without losing the bigger picture.',
+      placeholder:'What are we trying to accomplish…',
+      quick:[
+        ['◷','Plan','Build a practical plan.'],
+        ['✦','Prioritize','Help me prioritize this.'],
+        ['◈','Map','Map the steps and dependencies.'],
+        ['◇','Decide','Help me choose the next move.']
+      ]
+    }
   ]);
   const CONTROLS = Object.freeze([
     {id:'ai',icon:'✦',name:'AI & Models',description:'Choose the intelligence behind Saarthi'},
@@ -204,7 +270,49 @@ const SaarthiApp = (() => {
     addActivity('Menu selected',MENUS[id].label);
     return MENUS[id];
   };
-  const selectAssistant=id=>{currentAssistant=id;const item=ASSISTANTS.find(x=>x.id===id);if(item){$('#assistantName')&&( $('#assistantName').textContent=item.name);$('#assistantSelectorIcon')&&( $('#assistantSelectorIcon').textContent=item.icon);$('#coreAssistantLabel')&&( $('#coreAssistantLabel').textContent=item.name);setStatus(item.name+' ready');setCoreState('ready',item.name+' is ready.');addActivity('Assistant selected',item.name);}};
+  const applyAssistantEnvironment = item => {
+    if(!item) return;
+    document.documentElement.dataset.assistant = item.id;
+    document.body.dataset.assistant = item.id;
+
+    const kicker = $('.core-kicker');
+    const headline = $('.core-copy h3');
+    const description = $('.core-copy > p');
+    const input = $('#saarthiCommand');
+    const quickRow = $('.quick-row');
+
+    if(kicker) kicker.innerHTML = '<span class="online-dot"></span> '+item.environment.toUpperCase()+' <span>·</span> CONTEXT AWARE';
+    if(headline) headline.innerHTML = item.headline;
+    if(description) description.textContent = item.descriptionText;
+    if(input) input.placeholder = item.placeholder;
+
+    if(quickRow) {
+      quickRow.innerHTML = item.quick.map(([icon,label,value]) =>
+        '<button class="quick" data-command="'+value.replace(/"/g,'&quot;')+'"><b>'+icon+'</b>'+label+'</button>'
+      ).join('');
+      quickRow.querySelectorAll('[data-command]').forEach(button => {
+        button.addEventListener('click', () => ask(button.dataset.command));
+      });
+    }
+
+    if(responseCard) responseCard.dataset.assistant = item.id;
+  };
+
+  const selectAssistant=id=>{
+    currentAssistant=id;
+    const item=ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
+    if(!item) return;
+
+    currentAssistant=item.id;
+    if($('#assistantName')) $('#assistantName').textContent=item.name;
+    if($('#assistantSelectorIcon')) $('#assistantSelectorIcon').textContent=item.icon;
+    if($('#coreAssistantLabel')) $('#coreAssistantLabel').textContent=item.name;
+
+    applyAssistantEnvironment(item);
+    setStatus(item.name+' ready');
+    setCoreState('ready',item.name+' environment is ready.');
+    addActivity('Assistant selected',item.name+' · '+item.environment);
+  };
 
   const ask=value=>{
     if(!command)return;command.value=value;command.focus();
@@ -256,6 +364,7 @@ const SaarthiApp = (() => {
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
+  applyAssistantEnvironment(ASSISTANTS[0]);
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
