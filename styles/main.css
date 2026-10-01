@@ -596,3 +596,22 @@ body{
   .core-visual{right:2px;top:242px;width:170px;height:190px;opacity:.9}
   .core-visual .core-status{bottom:3px}
 }
+
+/* FINAL CLEANUP — single menu, non-orb core identity */
+.mobile-nav{display:none!important}
+.saarthi-mark{width:150px;height:150px;transform:none;filter:drop-shadow(0 18px 28px rgba(11,98,119,.13))}
+.saarthi-mark:before{inset:20px 31px 22px 25px;border-radius:32px 18px 38px 20px;transform:skew(-8deg) rotate(-8deg);background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(208,239,235,.88));}
+.mark-glow{inset:42px 43px 39px 38px;border-radius:22px 12px 25px 15px;transform:skew(-8deg) rotate(-8deg);background:linear-gradient(145deg,rgba(17,139,131,.78),rgba(11,98,119,.96));box-shadow:0 16px 30px rgba(17,139,131,.13)}
+.mark-stroke.one{width:57px;left:47px;top:62px;transform:rotate(30deg)}
+.mark-stroke.two{width:48px;left:55px;top:91px;transform:rotate(-28deg)}
+.mark-letter{left:61px;top:48px;font-size:48px;transform:none}
+@media(max-width:720px){
+  .core-visual{right:0;top:96px;width:148px;height:165px;opacity:.78}
+  .saarthi-mark{width:125px;height:125px}
+  .saarthi-mark:before{inset:17px 25px 19px 21px}
+  .mark-glow{inset:35px 36px 33px 32px}
+  .mark-stroke.one{width:48px;left:39px;top:51px}
+  .mark-stroke.two{width:40px;left:45px;top:76px}
+  .mark-letter{left:51px;top:40px;font-size:40px}
+  .core-visual .core-status{bottom:0}
+}
