@@ -20,7 +20,8 @@ const SaarthiApp = (() => {
   const HISTORY_KEY='saarthi.history.v2';
   const MAX_CONTEXT_MESSAGES=20;
   const MAX_THREADS_PER_ASSISTANT=100;
-  const MAX_ATTACHMENT_BYTES=3*1024*1024;
+  const MAX_ATTACHMENT_BYTES=2*1024*1024;
+  const MAX_ATTACHMENT_TOTAL_BYTES=3*1024*1024;
   const attachmentsByAssistant=Object.create(null);
   const conversations=Object.create(null);
   const currentThreads=Object.create(null);
@@ -94,7 +95,7 @@ const SaarthiApp = (() => {
   const currentConversation=()=>loadConversation(currentAssistant);
 
   const MENUS = Object.freeze({
-    assistants:{label:'Assistants',capabilities:['saarthi','coding','research','create','analyze','plan']},
+    assistants:{label:'Assistants',capabilities:['saarthi','coding','research','create','data_analyst','analyze','plan']},
     control:{label:'Control',capabilities:['ai','usage','memory','voice','tools','connections','security','notifications','appearance','privacy']}
   });
   const ASSISTANTS = Object.freeze([
@@ -333,11 +334,14 @@ const SaarthiApp = (() => {
     button.addEventListener('click',()=>input.click());
     input.addEventListener('change',async()=>{
       const files=[...input.files||[]];
+      let total=currentAttachments().reduce((sum,item)=>sum+Number(item.size||0),0);
       for(const file of files){
-        if(file.size>MAX_ATTACHMENT_BYTES){addActivity('Attachment rejected',file.name+' · maximum 3 MB');continue;}
+        if(file.size>MAX_ATTACHMENT_BYTES){addActivity('Attachment rejected',file.name+' · maximum 2 MB');continue;}
+        if(total+file.size>MAX_ATTACHMENT_TOTAL_BYTES){addActivity('Attachment rejected',file.name+' · attachment batch limit reached');continue;}
         try{
           const data=await fileAsDataUrl(file);
           currentAttachments().push({name:file.name,type:file.type||'application/octet-stream',size:file.size,data});
+          total+=file.size;
         }catch{addActivity('Attachment failed',file.name+' could not be read.');}
       }
       input.value='';renderAttachmentTray();
