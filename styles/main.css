@@ -1019,3 +1019,12 @@ body[data-assistant] .picker-icon{
 .quick,
 .clock-chip,
 .menu-trigger{transition:background .35s ease,border-color .35s ease,box-shadow .35s ease,color .35s ease}
+
+.menu-option-featured{
+  border-color:var(--env-line)!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.88),var(--env-a))!important;
+}
+.menu-option-featured .menu-option-icon{
+  background:var(--env-a);
+  color:var(--s-teal);
+}
