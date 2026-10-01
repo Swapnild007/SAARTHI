@@ -179,6 +179,43 @@ class LLMProvider:
         raise NotImplementedError
 
 
+def _parse_tabular_attachment(item: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
+    tab = item.get("tabular") if isinstance(item, dict) else None
+    if isinstance(tab, dict) and isinstance(tab.get("columns"), list) and isinstance(tab.get("preview"), list):
+        cols = [str(c) for c in tab["columns"]]
+        rows = [{cols[i]: row[i] if i < len(row) else None for i in range(len(cols))} for row in tab["preview"] if isinstance(row, list)]
+        return cols, rows
+    return [], []
+
+
+def _numeric_profile(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    profile = []
+    for col in columns:
+        vals = []
+        missing = 0
+        for row in rows:
+            v = row.get(col)
+            if v is None or str(v).strip() == "":
+                missing += 1
+                continue
+            try:
+                vals.append(float(str(v).replace(",", "").replace("%", "")))
+            except (TypeError, ValueError):
+                pass
+        if vals:
+            profile.append({"column": col, "numeric_values": len(vals), "missing": missing, "min": min(vals), "max": max(vals), "mean": sum(vals) / len(vals)})
+    return {"rows_profiled": len(rows), "numeric_columns": profile}
+
+
+def analyze_attachments_for_data(attachments: list[dict[str, Any]]) -> dict[str, Any]:
+    datasets = []
+    for item in attachments:
+        cols, rows = _parse_tabular_attachment(item)
+        if cols:
+            datasets.append({"name": item.get("name", "dataset"), "columns": cols, "preview_rows": rows, "profile": _numeric_profile(cols, rows)})
+    return {"datasets": datasets, "dataset_count": len(datasets)}
+
+
 class OpenAICompatibleProvider(LLMProvider):
     """OpenAI-compatible gateway with ordered routes and automatic failover.
 
@@ -417,6 +454,9 @@ class SaarthiEngine:
         if assistant_id == "data_analyst":
             plan = [PlanStep("profile", "Profile supplied data"), PlanStep("validate", "Validate data quality"), PlanStep("analyze", "Calculate and analyze"), PlanStep("visualize", "Create requested visualization"), PlanStep("respond", "Explain findings")]
         tool_results: dict[str, Any] = {}
+        if assistant_id == "data_analyst":
+            inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
+            tool_results["data.profile"] = analyze_attachments_for_data(inspected)
         boundary_reply = specialist_boundary_response(assistant_id, message)
         if boundary_reply:
             return {
@@ -449,7 +489,7 @@ class SaarthiEngine:
                 reply, usage = provider.generate(
                     message=message,
                     intent=intent,
-                    context=ctx,
+                    context={**ctx, "execution_results": tool_results},
                     assistant=assistant_id,
                 )
             else:
@@ -480,6 +520,6 @@ class SaarthiEngine:
             "usage": usage,
             "execution": "completed",
             "tool_results": tool_results,
-            "verification": {"verified": True, "claims": "response generated from available execution context"},
+            "verification": {"verified": True, "claims": "response generated from available execution context", "data_analysis": assistant_id == "data_analyst", "calculation_source": "server-side attachment profile" if assistant_id == "data_analyst" else None},
         }
     
