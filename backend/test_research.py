@@ -54,6 +54,8 @@ def test_research_agent_runs_evidence_pass_before_model(monkeypatch):
 
     monkeypatch.setattr("backend.engine.research", lambda *args, **kwargs: expected)
     engine = SaarthiEngine()
+    # Force the provider path in CI without requiring real API credentials.
+    engine.cloud.routes = [{"name": "test", "url": "https://example.invalid/v1", "key": "test", "model": "test"}]
 
     captured = {}
     def fake_generate(**kwargs):
