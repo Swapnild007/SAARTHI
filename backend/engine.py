@@ -128,7 +128,8 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
 
 def assistant_profile(assistant: str | None) -> dict[str, str]:
     return ASSISTANT_PROFILES.get(str(assistant or "").lower(), ASSISTANT_PROFILES["saarthi"])
-\ndef specialist_boundary_response(assistant: str, message: str) -> str | None:
+
+def specialist_boundary_response(assistant: str, message: str) -> str | None:
     """Deterministic scope guard for specialist agents before any model call."""
     text = message.strip().lower()
     if assistant == "saarthi":
