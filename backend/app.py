@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .engine import SaarthiEngine
+from .agent_capabilities import AGENT_CAPABILITIES, INDUSTRY_PACKS
 
 app = FastAPI(title="SAARTHI Cloud API", version="0.3.0")
 
@@ -90,6 +91,15 @@ def menus():
         "journey": ["tasks", "reminders", "workflows", "progress"],
         "memory": ["remember", "recall", "knowledge", "preferences"],
         "settings": ["model", "voice", "privacy", "connections", "permissions"],
+    }
+
+
+@app.get("/api/capabilities")
+def capabilities():
+    return {
+        "ok": True,
+        "agents": AGENT_CAPABILITIES,
+        "industries": INDUSTRY_PACKS,
     }
 
 
