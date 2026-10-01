@@ -559,3 +559,17 @@ body{
   .command input{font-size:10px}
   .command button,.command .voice{width:33px;height:33px}
 }
+
+/* Saarthi multi-assistant control layer */
+.assistant-picker,.control-picker{position:fixed;inset:0;z-index:8000;background:rgba(20,45,59,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;padding:20px}
+.assistant-picker[hidden],.control-picker[hidden]{display:none}
+.picker-panel{width:min(680px,100%);max-height:min(720px,88vh);overflow:auto;border:1px solid rgba(255,255,255,.82);border-radius:28px;background:rgba(250,249,245,.92);backdrop-filter:blur(30px) saturate(145%);-webkit-backdrop-filter:blur(30px) saturate(145%);box-shadow:0 30px 90px rgba(20,45,59,.20);padding:18px}
+.picker-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.picker-head h3{font-size:25px;letter-spacing:-.035em;margin:4px 0 0}
+.picker-close{border:1px solid var(--s-line);background:rgba(255,255,255,.72);width:34px;height:34px;border-radius:50%;font-size:22px;color:var(--s-blue)}
+.picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.picker-item{display:grid;grid-template-columns:42px 1fr;align-items:center;text-align:left;gap:11px;border:1px solid rgba(20,45,59,.07);background:rgba(255,255,255,.62);border-radius:17px;padding:12px;color:var(--s-ink);transition:transform .16s ease,background .16s ease,border-color .16s ease}
+.picker-item:hover{transform:translateY(-1px);background:rgba(255,255,255,.88);border-color:rgba(17,139,131,.18)}
+.picker-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(17,139,131,.09);color:var(--s-blue);font-size:18px}
+.picker-item b{display:block;font-size:11px}.picker-item small{display:block;color:var(--s-muted);font-size:9px;line-height:1.4;margin-top:3px}
+@media(max-width:720px){.assistant-picker,.control-picker{padding:11px;align-items:end}.picker-panel{border-radius:25px 25px 18px 18px;padding:15px;max-height:82vh}.picker-grid{grid-template-columns:1fr}.picker-head h3{font-size:21px}.picker-item{padding:11px}}
