@@ -23,7 +23,7 @@
 .splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;margin-top:9px}
 @media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:38vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
 @media(prefers-reduced-motion:reduce){.splash-video{animation:none}}
-</style><link rel="stylesheet" href="./styles/main.css?v=20261001-4"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
+</style><link rel="stylesheet" href="./styles/main.css?v=20261001-5"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4" type="video/mp4">
 </video>
@@ -48,7 +48,7 @@
 
 <main class="main">
 <header class="topbar">
-  <div><div class="eyebrow">SAARTHI • INTELLIGENCE CONSOLE</div><h2 id="greeting">Good afternoon, Swapnil</h2></div>
+  <div><div class="eyebrow">SAARTHI • INTELLIGENCE CONSOLE</div><h2 id="greeting">Good morning, Swapnil</h2></div>
   <div class="top-actions"><div class="clock-chip" aria-label="Current local time"><span class="clock-dot"></span><strong id="topClock">--:--:--</strong><span id="presenceText" class="sr-status">Saarthi is present</span></div><button class="menu-trigger" id="settingsButton" aria-label="Open Saarthi menu">☰ <span>Menu</span></button></div>
 </header>
 
@@ -102,10 +102,6 @@
   </div>
 
 </section>
-<nav class="mobile-nav" aria-label="Primary navigation">
-  <button class="active" data-menu="assistants"><b>✦</b>Assistants</button>
-  <button data-menu="control"><b>⌘</b>Control</button>
-</nav>
 <div class="assistant-picker" id="assistantPicker" hidden aria-label="Saarthi assistants"></div>
 <div class="control-picker" id="controlPicker" hidden aria-label="Saarthi controls"></div>
 </main></div><script>const splash=document.getElementById('sudarshanSplash');
@@ -118,4 +114,4 @@ splashVideo?.addEventListener('ended',closeSplash);
 splashVideo?.play?.().catch(()=>{});
 setTimeout(closeSplash,5000);
 
-</script><script src="./scripts/app.js?v=20261001-4" defer></script></body></html>
+</script><script src="./scripts/app.js?v=20261001-5" defer></script><script>(function(){try{var h=new Date().getHours(),p=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<21?"evening":"night";var e=document.getElementById("greeting");if(e)e.textContent="Good "+p+", Swapnil";}catch(e){}})();</script></body></html>
