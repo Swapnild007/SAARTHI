@@ -3,10 +3,13 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Literal
 from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -21,6 +24,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Serve the premium static SAARTHI frontend from the same FastAPI application.
+# Keeping frontend and API in one ASGI app avoids Vercel routing ambiguity.
+for _path_name in ("assets", "scripts", "styles", "config"):
+    _path = PROJECT_ROOT / _path_name
+    if _path.is_dir():
+        app.mount(f"/{_path_name}", StaticFiles(directory=str(_path)), name=_path_name)
+
+
+@app.get("/", include_in_schema=False)
+def frontend():
+    return FileResponse(PROJECT_ROOT / "index.html")
 
 Mode = Literal[
     "chat", "help", "research", "search", "analyze", "plan", "remember",
