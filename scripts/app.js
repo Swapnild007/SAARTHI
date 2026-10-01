@@ -215,7 +215,7 @@ const SaarthiApp = (() => {
   };
   const ensureApiBase=async()=>{
     if(!API_BASE)await loadRuntimeConfig();
-    if(!API_BASE)API_BASE='https://saarthi-nine-chi.vercel.app';
+    if(!API_BASE)API_BASE=window.location.origin;
     return API_BASE;
   };
   const apiUrl=path=>API_BASE+(path.startsWith('/')?path:'/'+path);
