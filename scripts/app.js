@@ -57,7 +57,7 @@ const SaarthiApp = (() => {
       const legacy=JSON.parse(localStorage.getItem('saarthi.conversation.v1.'+assistant)||'[]');
       if(Array.isArray(legacy)&&legacy.length){
         const first=legacy.find(m=>m.role==='user');
-        const thread={id:uid(),title:titleFromMessage(first?.content),createdAt:first?.at||new Date().toISOString(),updatedAt:new Date().toISOString(),messages:legacy.slice(-MAX_CONTEXT_MESSAGES)};
+        const thread={id:uid(),title:titleFromMessage(first?.content),createdAt:first?.at||new Date().toISOString(),updatedAt:new Date().toISOString(),messages:legacy.slice()};
         list.push(thread);saveHistory();return list;
       }
     }catch{}
