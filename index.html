@@ -4,9 +4,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
 <style id="saarthi-base"></style><style id="saarthi-opening">
-.sudarshan-splash{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#020a12;transition:opacity .9s ease,visibility .9s ease}
+.sudarshan-splash{position:fixed;inset:0;width:100vw;height:100dvh;z-index:9999;overflow:hidden;background:#020a12;transition:opacity .9s ease,visibility .9s ease}
 .sudarshan-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
-.splash-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;background:#020a12}
+.splash-video{position:absolute;inset:0;width:100%;height:100%;width:100vw;height:100dvh;object-fit:cover;object-position:center center;background:#eef5f4}
 .splash-video-fallback{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,#10384b 0,#071b29 42%,#02080f 100%);display:grid;place-items:center}
 .splash-fallback-brand{font-family:"Cormorant Garamond",Georgia,serif;color:#f1cf75;font-size:clamp(42px,11vw,74px);letter-spacing:.16em;text-align:center}
 .splash-fallback-brand small{display:block;font-family:"Noto Sans Devanagari",sans-serif;font-size:18px;letter-spacing:.14em;margin-top:12px;color:#d8b35b}
@@ -27,14 +27,7 @@
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4?v=20261001-2" type="video/mp4">
 </video>
-<div class="splash-fallback-brand" id="splashFallbackBrand" aria-hidden="true">SAARTHI<small>सारथी</small></div>
-<div class="splash-video-layer">
-  <div class="splash-brand-overlay">
-    <strong>SAARTHI</strong>
-    <span>सारथी</span>
-    <small>विचार • विवेक • कर्म</small>
-  </div>
-</div>
+<div class="splash-fallback-brand" id="splashFallbackBrand" aria-hidden="true"></div>
 
 </div><div class="app">
 <aside class="sidebar">
