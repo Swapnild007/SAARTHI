@@ -40,11 +40,8 @@
 <aside class="sidebar">
   <div class="brand"><div class="brandmark"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4c8 6 11 12 10 18-1 8-7 12-10 14-3-2-9-6-10-14C9 16 12 10 20 4Z" stroke="#f5d27b" stroke-width="1.7"/><circle cx="20" cy="19" r="5" stroke="#73ddd5" stroke-width="1.7"/><path d="M20 14v10M15 19h10" stroke="#73ddd5" stroke-width="1.2"/></svg></div><div><h1>SAARTHI</h1><small>विचार • विवेक • कर्म</small></div></div>
   <nav class="nav">
-    <button class="active" data-nav="command"><span class="ico">✦</span>Command</button>
-    <button data-nav="home"><span class="ico">⌂</span>Home</button>
-    <button data-nav="insights"><span class="ico">◈</span>Insights</button>
-    <button data-nav="journey"><span class="ico">◷</span>Journey</button>
-    <button data-nav="memory"><span class="ico">◌</span>Memory</button>
+    <button class="active" data-menu="assistants"><span class="ico">✦</span>Assistants</button>
+    <button data-menu="control"><span class="ico">⌘</span>Control</button>
   </nav>
   <div class="sanskrit"><div class="om">ॐ</div><p>योगः कर्मसु कौशलम्</p><small>Clarity in action.</small></div>
 </aside>
@@ -103,11 +100,11 @@
 
 </section>
 <nav class="mobile-nav" aria-label="Primary navigation">
-  <button class="active" data-nav="command"><b>✦</b>Command</button>
-  <button data-nav="command"><b>⌕</b>Ask</button>
-  <button data-nav="journey"><b>◈</b>Journey</button>
-  <button data-nav="memory"><b>◌</b>Memory</button>
+  <button class="active" data-menu="assistants"><b>✦</b>Assistants</button>
+  <button data-menu="control"><b>⌘</b>Control</button>
 </nav>
+<div class="assistant-picker" id="assistantPicker" hidden aria-label="Saarthi assistants"></div>
+<div class="control-picker" id="controlPicker" hidden aria-label="Saarthi controls"></div>
 </main></div><script>const splash=document.getElementById('sudarshanSplash');
 const splashVideo=document.getElementById('saarthiSplashVideo');
 const fallback=document.getElementById('splashFallbackBrand');
