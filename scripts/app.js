@@ -9,13 +9,30 @@ const SaarthiApp = (() => {
   const runs = [];
 
   const MENUS = Object.freeze({
-    command:{label:'Command',capabilities:['chat','voice','tasks','actions','runs']},
-    home:{label:'Home',capabilities:['briefing','status','context']},
-    insights:{label:'Insights',capabilities:['research','search','analyze','web','sources']},
-    journey:{label:'Journey',capabilities:['tasks','reminders','workflows','progress']},
-    memory:{label:'Memory',capabilities:['remember','recall','knowledge','preferences']},
-    settings:{label:'Settings',capabilities:['model','voice','privacy','connections','permissions']}
+    assistants:{label:'Assistants',capabilities:['saarthi','coding','research','create','analyze','plan']},
+    control:{label:'Control',capabilities:['ai','usage','memory','voice','tools','connections','security','notifications','appearance','privacy']}
   });
+  const ASSISTANTS = Object.freeze([
+    {id:'saarthi',icon:'✦',name:'Saarthi',description:'General personal intelligence'},
+    {id:'coding',icon:'⌘',name:'AI Coding',description:'Build, debug, explain and refactor code'},
+    {id:'research',icon:'◎',name:'Research',description:'Research, compare and synthesize'},
+    {id:'create',icon:'◇',name:'Create',description:'Writing, ideas and creative generation'},
+    {id:'analyze',icon:'◈',name:'Analyze',description:'Data, documents and visual analysis'},
+    {id:'plan',icon:'◷',name:'Plan',description:'Planning, decisions and automation'}
+  ]);
+  const CONTROLS = Object.freeze([
+    {id:'ai',icon:'✦',name:'AI & Models',description:'Choose the intelligence behind Saarthi'},
+    {id:'usage',icon:'◉',name:'AI Usage',description:'Tokens, requests and estimated cost'},
+    {id:'memory',icon:'◌',name:'Memory',description:'Manage what Saarthi remembers'},
+    {id:'voice',icon:'⌁',name:'Voice',description:'Voice input and speech settings'},
+    {id:'tools',icon:'⚙',name:'Tools',description:'Capabilities available to assistants'},
+    {id:'connections',icon:'↗',name:'Connections',description:'Connected services and APIs'},
+    {id:'security',icon:'◈',name:'Security',description:'Sessions, permissions and API safety'},
+    {id:'notifications',icon:'•',name:'Notifications',description:'Reminders and proactive alerts'},
+    {id:'appearance',icon:'○',name:'Appearance',description:'Visual and interaction preferences'},
+    {id:'privacy',icon:'◇',name:'Privacy',description:'Data and privacy controls'}
+  ]);
+  let currentAssistant='saarthi';
   const COMMANDS = Object.freeze({
     '/help':'help','/research':'research','/search':'search','/analyze':'analyze','/plan':'plan',
     '/remember':'remember','/recall':'recall','/tasks':'tasks','/task':'task','/remind':'remind',
@@ -126,11 +143,38 @@ const SaarthiApp = (() => {
     utterance.lang='en-IN';utterance.rate=.98;utterance.pitch=.92;window.speechSynthesis.speak(utterance);
   };
 
-  const selectMenu=menuId=>{
-    const id=MENUS[menuId]?menuId:'command';
-    document.querySelectorAll('[data-nav]').forEach(button=>button.classList.toggle('active',button.dataset.nav===id));
-    const menu=MENUS[id];addActivity('Menu selected',menu.label+' · '+menu.capabilities.join(' · '));return menu;
+  const closePickers=()=>{['assistantPicker','controlPicker'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=true;});};
+  const renderPicker=(type)=>{
+    const target=$(type==='assistants'?'#assistantPicker':'#controlPicker');if(!target)return;
+    const items=type==='assistants'?ASSISTANTS:CONTROLS;
+    target.innerHTML='<div class="picker-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>'+(type==='assistants'?'Choose intelligence':'Control Saarthi')+'</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="picker-grid">'+items.map(item=>'<button class="picker-item" data-picker-id="'+item.id+'"><span class="picker-icon">'+item.icon+'</span><span><b>'+item.name+'</b><small>'+item.description+'</small></span></button>').join('')+'</div></div>';
+    target.hidden=false;
+    target.querySelector('.picker-close')?.addEventListener('click',closePickers);
+    target.querySelectorAll('.picker-item').forEach(btn=>btn.addEventListener('click',()=>{
+      const id=btn.dataset.pickerId;
+      if(type==='assistants'){
+        currentAssistant=id;
+        const item=ASSISTANTS.find(x=>x.id===id);
+        addActivity('Assistant selected',item.name+' · '+item.description);
+        setStatus(item.name+' ready'); setCoreState('ready',item.name+' is ready.');
+        closePickers();
+      }else{
+        addActivity('Control opened',id);
+        closePickers();
+        if(id==='usage') showResponse('### AI Usage\n\nUsage telemetry is ready to be surfaced here. The runtime should return OpenRouter usage data including tokens and cost so Saarthi can display it accurately.\n\n**API key:** masked only. Never expose the secret key in the interface.',{intent:{name:'usage'},provider:'OpenRouter'});
+        else showResponse('### '+(CONTROLS.find(x=>x.id===id)?.name||'Control')+'\n\nThis control surface is reserved for Saarthi configuration and can be expanded without adding another primary navigation item.',{intent:{name:id},provider:'Saarthi'});
+      }
+    }));
   };
+  const selectMenu=menuId=>{
+    const id=MENUS[menuId]?menuId:'assistants';
+    closePickers();
+    renderPicker(id);
+    document.querySelectorAll('[data-menu]').forEach(button=>button.classList.toggle('active',button.dataset.menu===id));
+    addActivity('Menu selected',MENUS[id].label);
+    return MENUS[id];
+  };
+  const selectAssistant=id=>{currentAssistant=id;const item=ASSISTANTS.find(x=>x.id===id);if(item){setStatus(item.name+' ready');setCoreState('ready',item.name+' is ready.');addActivity('Assistant selected',item.name);}};
 
   const ask=value=>{
     if(!command)return;command.value=value;command.focus();
@@ -141,7 +185,7 @@ const SaarthiApp = (() => {
 
   const apiCommand=async(value,mode)=>{
     const context={client_time:new Date().toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',locale:navigator.language||'en-IN'};
-    const response=await fetch(apiUrl('/api/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,context})});
+    const response=await fetch(apiUrl('/api/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,assistant:currentAssistant,context})});
     if(!response.ok)throw new Error('API '+response.status);return response.json();
   };
 
@@ -162,7 +206,7 @@ const SaarthiApp = (() => {
 
   const submit=async()=>{
     const value=command?.value.trim();if(!value||command.disabled)return;
-    const mode=parseCommand(value);addActivity('Command received',mode+' · '+value.replace(/^\/\w+\s*/,''));
+    const mode=parseCommand(value);addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
     command.disabled=true;
     try{const result=await runCommand(value,mode);if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);}
     catch(error){
@@ -184,11 +228,13 @@ const SaarthiApp = (() => {
 
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
-  document.querySelectorAll('[data-nav]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.nav)));
-  $('#settingsButton')?.addEventListener('click',()=>selectMenu('settings'));$('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
+  document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
+  $('#settingsButton')?.addEventListener('click',()=>selectMenu('control'));
+  document.addEventListener('click',event=>{if(!event.target.closest('.assistant-picker,.control-picker,[data-menu]'))closePickers();});
+  renderPicker('assistants');$('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
-  window.SaarthiApp={menus:MENUS,commands:COMMANDS,runs,ask,submit,voice,selectMenu,voiceTurn:false};
+  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,voiceTurn:false};
   return window.SaarthiApp;
 })();
