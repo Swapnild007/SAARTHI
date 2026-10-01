@@ -238,6 +238,10 @@ const SaarthiApp = (() => {
     if(responseMeta)responseMeta.textContent=item.name.toUpperCase()+' · ISOLATED CONVERSATION';
     responseCard.dataset.assistant=item.id;
     responseCard.hidden=false;
+    requestAnimationFrame(()=>{
+      responseBody?.lastElementChild?.scrollIntoView({behavior:'smooth',block:'nearest'});
+      $('#conversationComposer')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+    });
   };
   const appendConversation=(role,content)=>{
     if(!content)return;
