@@ -185,3 +185,51 @@ def test_runtime_returns_agent_capabilities():
     assert result["assistant"]["id"] == "plan"
     assert result["assistant"]["capabilities"]["name"] == "Plan"
     assert result["assistant"]["industry"] == "Travel & Tourism"
+
+
+def test_data_analysis_engine_profiles_and_aggregates():
+    from backend.data_analysis import analyze_dataset, group_by, percentage_change, correlation
+    columns = ["LOB", "Handled", "AHT"]
+    rows = [
+        {"LOB": "CountyCare", "Handled": "100", "AHT": "600"},
+        {"LOB": "CountyCare", "Handled": "120", "AHT": "660"},
+        {"LOB": "Premera", "Handled": "80", "AHT": "540"},
+    ]
+    result = analyze_dataset(columns, rows)
+    assert result["profile"]["row_count"] == 3
+    assert "Handled" in result["numeric_columns"]
+    grouped = group_by(rows, "LOB", "Handled", "sum")
+    assert {x["LOB"]: x["Handled"] for x in grouped}["CountyCare"] == 220.0
+    assert percentage_change(100, 120) == 20.0
+    assert correlation(rows, "Handled", "AHT") is not None
+
+
+def test_data_analyst_runtime_returns_computed_profile():
+    import base64
+    from backend.engine import SaarthiEngine
+    csv_text = "LOB,Handled,AHT\nCountyCare,100,600\nCountyCare,120,660\nPremera,80,540\n"
+    data = base64.b64encode(csv_text.encode()).decode()
+    result = SaarthiEngine().run(
+        message="analyze this dataset",
+        assistant="data_analyst",
+        context={"attachments": [{"name": "sample.csv", "type": "text/csv", "data": data}]},
+    )
+    assert result["execution"] == "completed"
+    analysis = result["tool_results"]["data.analysis"]
+    assert analysis["profile"]["row_count"] == 3
+    assert analysis["profile"]["duplicate_rows"] == 0
+
+
+def test_data_analyst_chart_is_built_from_attachment_data():
+    import base64
+    from backend.engine import SaarthiEngine
+    csv_text = "LOB,Handled\nCountyCare,100\nPremera,80\nMPC,90\n"
+    data = base64.b64encode(csv_text.encode()).decode()
+    result = SaarthiEngine().run(
+        message="create a bar chart",
+        assistant="data_analyst",
+        context={"attachments": [{"name": "sample.csv", "type": "text/csv", "data": data}]},
+    )
+    chart = result["tool_results"]["data.chart"]
+    assert chart["chartType"] == "bar"
+    assert chart["data"][0]["Handled"] == "100"
