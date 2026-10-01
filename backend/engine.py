@@ -14,6 +14,7 @@ from typing import Any, Callable
 from .attachments import inspect_attachments, provider_content_parts
 from .agent_capabilities import agent_capability, build_runtime_context, INDUSTRY_PACKS
 from .data_analysis import analyze_dataset, build_chart
+from .research import research
 from urllib.request import Request, urlopen
 
 
@@ -377,6 +378,15 @@ class OpenAICompatibleProvider(LLMProvider):
                 "For Data Analyst, never invent values that are not in the supplied dataset."
             )
         chart_hint = ""
+        research_hint = ""
+        if assistant == "research":
+            brief = context.get("execution_results", {}).get("research.brief", {}) if isinstance(context, dict) else {}
+            research_hint = (
+                " A deterministic research brief is available in execution_results.research.brief. "
+                "Use only its retrieved sources and evidence for factual source-backed claims. "
+                "Cite source URLs exactly as supplied. Distinguish retrieved evidence from inference, "
+                "state uncertainty and do not invent sources, quotes, dates or findings."
+            )
         if assistant == "data_analyst":
             chart_hint = (
                 " For charts use <saarthi-chart>{JSON}</saarthi-chart>. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. "
@@ -384,7 +394,7 @@ class OpenAICompatibleProvider(LLMProvider):
             )
         system = (
             f"You are {profile['name']}, the {profile['role']} inside SAARTHI, a calm personal AI assistant. "
-            f"{profile['instruction']} {coding_context}{attachment_hint}{chart_hint} "
+            f"{profile['instruction']} {coding_context}{attachment_hint}{chart_hint}{research_hint} "
             "Treat the selected assistant as the user's current working environment, not as a superficial label. "
             "Answer the user's actual request first. Do not reveal hidden chain-of-thought. "
             "Never claim a tool ran unless its result is present. Do not invent access to tools, files, browsing, memory or external services. "
@@ -571,6 +581,29 @@ class SaarthiEngine:
                         dataset["preview_rows"], chart_match.group(1).lower(), x_key, series_key,
                         f"{series_key} by {x_key}",
                     )
+        # Evidence-first research pass before model generation.
+        if assistant_id == "research":
+            research_urls = ctx.get("research_urls", []) if isinstance(ctx, dict) else []
+            if isinstance(research_urls, str):
+                research_urls = [research_urls]
+            if not isinstance(research_urls, list):
+                research_urls = []
+            try:
+                tool_results["research.brief"] = research(
+                    message,
+                    urls=[str(url) for url in research_urls[:10]],
+                    search=bool(ctx.get("research_web_search", True)) if isinstance(ctx, dict) else True,
+                    max_sources=5,
+                )
+            except Exception as exc:
+                tool_results["research.brief"] = {
+                    "question": message,
+                    "source_count": 0,
+                    "sources": [],
+                    "evidence": [],
+                    "limitations": [f"Research retrieval failed: {str(exc)[:240]}"],
+                }
+
         boundary_reply = specialist_boundary_response(assistant_id, message)
         if boundary_reply:
             return {
