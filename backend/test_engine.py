@@ -158,3 +158,30 @@ def test_unit_conversion_is_deterministic_and_model_free():
 def test_deterministic_tools_are_registered_in_shared_registry():
     names = SaarthiEngine().tools.names()
     assert {"system.time", "system.date", "system.calculate", "system.convert", "system.status"} <= set(names)
+
+
+def test_all_seven_agents_have_structured_capabilities():
+    from backend.agent_capabilities import AGENT_CAPABILITIES
+    assert set(AGENT_CAPABILITIES) == {"saarthi", "coding", "research", "create", "data_analyst", "analyze", "plan"}
+    for capability in AGENT_CAPABILITIES.values():
+        assert capability["capabilities"]
+        assert capability["workflows"]
+        assert capability["outputs"]
+
+
+def test_travel_industry_pack_maps_to_multiple_agents():
+    from backend.agent_capabilities import industry_pack, build_runtime_context
+    pack = industry_pack("travel")
+    assert pack["name"] == "Travel & Tourism"
+    assert "itinerary" in pack["workflows"]
+    assert "destination_research" in pack["agent_mapping"]["research"]
+    runtime = build_runtime_context("plan", "travel")
+    assert runtime["industry"] == "Travel & Tourism"
+    assert "itinerary" in runtime["industry_agent_mapping"]
+
+
+def test_runtime_returns_agent_capabilities():
+    result = SaarthiEngine().run(message="build a project roadmap", assistant="plan", context={"industry": "travel"})
+    assert result["assistant"]["id"] == "plan"
+    assert result["assistant"]["capabilities"]["name"] == "Plan"
+    assert result["assistant"]["industry"] == "Travel & Tourism"
