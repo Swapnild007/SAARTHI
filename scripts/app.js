@@ -539,6 +539,7 @@ const SaarthiApp = (() => {
   const parseCommand=value=>{const token=value.trim().split(/\s+/)[0].toLowerCase();return COMMANDS[token]||'chat';};
 
   const apiCommand=async(value,mode)=>{
+    await ensureApiBase();
     const context={
       client_time:new Date().toISOString(),
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
