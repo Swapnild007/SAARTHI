@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 from urllib.request import Request as UrlRequest, urlopen
 
@@ -108,14 +109,41 @@ def usage():
     management_key = os.getenv("SAARTHI_OPENROUTER_MANAGEMENT_KEY", "")
     if management_key:
         try:
+            now = datetime.now(timezone.utc)
+            start = now - timedelta(days=30)
+            headers = {
+                "Authorization": f"Bearer {management_key}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            }
             meta_request = UrlRequest(
                 base_url + "/analytics/meta",
-                headers={"Authorization": f"Bearer {management_key}", "Accept": "application/json"},
+                headers={k: v for k, v in headers.items() if k != "Content-Type"},
                 method="GET",
             )
             with urlopen(meta_request, timeout=15) as response:
                 meta = json.loads(response.read().decode("utf-8"))
             result["analytics_meta"] = meta
+
+            def analytics_query(dimensions: list[str] | None = None) -> dict[str, Any]:
+                payload = {
+                    "metrics": ["total_usage", "request_count", "tokens_total"],
+                    "dimensions": dimensions or [],
+                    "time_range": {"start": start.isoformat(), "end": now.isoformat()},
+                    "limit": 20,
+                    "order_by": {"field": "total_usage", "direction": "desc"},
+                }
+                req = UrlRequest(
+                    base_url + "/analytics/query",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers=headers,
+                    method="POST",
+                )
+                with urlopen(req, timeout=20) as response:
+                    return json.loads(response.read().decode("utf-8"))
+
+            result["analytics_30d"] = analytics_query()
+            result["analytics_by_model_30d"] = analytics_query(["model"])
         except Exception as exc:
             result["analytics_error"] = str(exc)
 
