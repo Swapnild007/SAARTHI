@@ -23,7 +23,7 @@
 .splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;margin-top:9px}
 @media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:38vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
 @media(prefers-reduced-motion:reduce){.splash-video{animation:none}}
-</style><link rel="stylesheet" href="./styles/main.css?v=20261001-6"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
+</style><link rel="stylesheet" href="./styles/main.css?v=20261001-7"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4" type="video/mp4">
 </video>
@@ -86,17 +86,6 @@
         <button class="btn" data-command="Show me how I can use Saarthi.">Explore Saarthi</button>
       </div>
     </div>
-
-    <div class="core-visual" aria-hidden="true">
-      <div class="saarthi-mark">
-        <span class="mark-glow"></span>
-        <span class="mark-stroke one"></span>
-        <span class="mark-stroke two"></span>
-        <span class="mark-letter">स</span>
-      </div>
-      <div class="core-status"><b id="coreAssistantLabel">Saarthi</b> · online</div>
-    </div>
-
     <div class="quick-row" aria-label="Quick commands">
       <button class="quick" data-command="Help me make a decision."><b>✦</b>Decision</button>
       <button class="quick" data-command="Plan my day around what matters most."><b>◷</b>Plan</button>
@@ -137,4 +126,4 @@ splashVideo?.addEventListener('ended',closeSplash);
 splashVideo?.play?.().catch(()=>{});
 setTimeout(closeSplash,5000);
 
-</script><script src="./scripts/app.js?v=20261001-6" defer></script><script>(function(){try{var h=new Date().getHours(),p=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<21?"evening":"night";var e=document.getElementById("greeting");if(e)e.textContent="Good "+p+", Swapnil";}catch(e){}})();</script></body></html>
+</script><script src="./scripts/app.js?v=20261001-7" defer></script><script>(function(){try{var h=Number(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",hour12:false}).format(new Date())),p=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<21?"evening":"night";var e=document.getElementById("greeting");if(e)e.textContent="Good "+p+", Swapnil";}catch(e){}})();</script></body></html>
