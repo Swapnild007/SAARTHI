@@ -386,3 +386,126 @@ body{
   .assistant-response-body h1{font-size:18px}.assistant-response-body h2{font-size:15px}.assistant-response-body h3{font-size:13px}
   .assistant-response-body table{display:block;overflow-x:auto;white-space:nowrap}
 }
+
+
+/* SAARTHI compact command hero
+   Keeps the same visual language while reducing the command card footprint. */
+.core-panel{
+  min-height:430px;
+}
+.core-copy{
+  padding:30px 32px 0;
+  max-width:560px;
+}
+.core-copy h3{
+  font-size:clamp(36px,4vw,54px);
+  margin:7px 0 11px;
+}
+.core-copy p{
+  max-width:460px;
+  font-size:12px;
+  line-height:1.5;
+}
+.core-actions{
+  margin-top:14px;
+}
+.core-visual{
+  width:270px;
+  height:270px;
+  right:22px;
+  top:35px;
+}
+.core-emblem{
+  width:112px;
+  height:112px;
+}
+.quick-row{
+  left:32px;
+  bottom:77px;
+}
+.command{
+  left:24px;
+  right:24px;
+  bottom:17px;
+}
+
+@media(max-width:720px){
+  .core-panel{
+    min-height:405px;
+    border-radius:24px;
+  }
+  .core-copy{
+    padding:20px 17px 0;
+    max-width:72%;
+  }
+  .core-copy h3{
+    font-size:34px;
+    line-height:.94;
+    letter-spacing:-.055em;
+    margin:6px 0 9px;
+  }
+  .core-copy p{
+    max-width:100%;
+    font-size:10px;
+    line-height:1.45;
+  }
+  .core-actions{
+    margin-top:11px;
+    gap:6px;
+  }
+  .btn{
+    padding:7px 10px;
+    font-size:9px;
+  }
+  .core-visual{
+    width:185px;
+    height:185px;
+    right:-8px;
+    top:96px;
+    opacity:.74;
+  }
+  .core-emblem{
+    width:82px;
+    height:82px;
+  }
+  .core-ring.r1{inset:16px}
+  .core-ring.r2{inset:34px}
+  .core-ring.r3{inset:52px}
+  .core-dot{width:5px;height:5px}
+  .core-dot.d1{top:15px}
+  .core-dot.d2{right:15px}
+  .core-dot.d3{bottom:15px}
+  .core-dot.d4{left:15px}
+  .core-status{
+    bottom:7px;
+    padding:5px 8px;
+    font-size:7px;
+  }
+  .quick-row{
+    left:17px;
+    right:13px;
+    bottom:68px;
+    gap:5px;
+  }
+  .quick{
+    padding:6px 8px;
+    font-size:8px;
+  }
+  .command{
+    left:11px;
+    right:11px;
+    bottom:11px;
+    padding:6px;
+    border-radius:16px;
+    gap:5px;
+  }
+  .command input{
+    padding:8px 9px;
+    font-size:10px;
+  }
+  .command button,
+  .command .voice{
+    width:34px;
+    height:34px;
+  }
+}
