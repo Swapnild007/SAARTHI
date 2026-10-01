@@ -1028,3 +1028,16 @@ body[data-assistant] .picker-icon{
   background:var(--env-a);
   color:var(--s-teal);
 }
+
+.usage-panel{min-width:min(92vw,520px)}
+.usage-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.usage-card{padding:16px;border:1px solid var(--env-line);border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.9),var(--env-a))}
+.usage-card small{display:block;font-size:10px;letter-spacing:.14em;color:var(--s-muted);margin-bottom:8px}
+.usage-card strong{font-size:20px;color:var(--s-ink)}
+.usage-details{margin-top:12px;border:1px solid var(--env-line);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.7)}
+.usage-details div{display:flex;justify-content:space-between;gap:18px;padding:13px 15px;border-bottom:1px solid var(--env-line);font-size:13px}
+.usage-details div:last-child{border-bottom:0}
+.usage-details span{color:var(--s-muted)}
+.usage-details b{color:var(--s-ink)}
+.usage-foot{margin-top:14px;font-size:11px;color:var(--s-muted)}
+@media(max-width:560px){.usage-summary{grid-template-columns:1fr}.usage-panel{min-width:0;width:calc(100vw - 32px)}}
