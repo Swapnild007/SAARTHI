@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 from .attachments import inspect_attachments, provider_content_parts
+from .agent_capabilities import agent_capability, build_runtime_context, INDUSTRY_PACKS
 from urllib.request import Request, urlopen
 
 
@@ -356,6 +357,7 @@ class OpenAICompatibleProvider(LLMProvider):
         if not self.configured:
             raise RuntimeError("no AI gateway route is configured")
         profile = assistant_profile(assistant)
+        runtime_capabilities = build_runtime_context(assistant, context.get("industry") if isinstance(context, dict) else None)
         coding_context = ""
         if profile["name"] == "AI Coding":
             has_code = bool(re.search(r"\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\b", message, re.IGNORECASE))
@@ -385,7 +387,14 @@ class OpenAICompatibleProvider(LLMProvider):
             "Treat the selected assistant as the user's current working environment, not as a superficial label. "
             "Answer the user's actual request first. Do not reveal hidden chain-of-thought. "
             "Never claim a tool ran unless its result is present. Do not invent access to tools, files, browsing, memory or external services. "
-            f"The selected assistant boundary is: {profile.get('boundary', 'general assistance')}. Enforce that boundary explicitly."
+            f"The selected assistant boundary is: {profile.get('boundary', 'general assistance')}. Enforce that boundary explicitly. "
+            f"Runtime capability focus: {runtime_capabilities['focus']}. Supported capabilities: {', '.join(runtime_capabilities['capabilities'])}. "
+            f"Preferred workflows: {', '.join(runtime_capabilities['workflows'])}. Expected output forms: {', '.join(runtime_capabilities['outputs'])}. "
+            f"Active industry context: {runtime_capabilities['industry'] or 'none'}. "
+            f"Industry vocabulary: {', '.join(runtime_capabilities['industry_vocabulary']) or 'none'}. "
+            f"Industry workflows: {', '.join(runtime_capabilities['industry_workflows']) or 'none'}. "
+            f"Industry KPIs: {', '.join(runtime_capabilities['industry_kpis']) or 'none'}. "
+            f"Industry-specific workflows for this assistant: {', '.join(runtime_capabilities['industry_agent_mapping']) or 'none'}."
         )
         failures: list[dict[str, str]] = []
         for route in self.routes:
@@ -559,6 +568,8 @@ class SaarthiEngine:
                     "name": ASSISTANT_PROFILES[assistant_id]["name"],
                     "role": ASSISTANT_PROFILES[assistant_id]["role"],
                     "boundary": ASSISTANT_PROFILES[assistant_id].get("boundary", "general assistance"),
+                    "capabilities": agent_capability(assistant_id),
+                    "industry": build_runtime_context(assistant_id, ctx.get("industry") if isinstance(ctx, dict) else None).get("industry"),
                 },
                 "intent": {"name": intent.name, "confidence": intent.confidence, "reason": intent.reason},
                 "plan": [step.__dict__ for step in plan],
@@ -599,6 +610,8 @@ class SaarthiEngine:
                     "name": ASSISTANT_PROFILES[assistant_id]["name"],
                     "role": ASSISTANT_PROFILES[assistant_id]["role"],
                     "boundary": ASSISTANT_PROFILES[assistant_id].get("boundary", "general assistance"),
+                    "capabilities": agent_capability(assistant_id),
+                    "industry": build_runtime_context(assistant_id, ctx.get("industry") if isinstance(ctx, dict) else None).get("industry"),
                 },
                 "intent": {"name": intent.name, "confidence": intent.confidence, "reason": intent.reason},
                 "plan": [step.__dict__ for step in plan],
