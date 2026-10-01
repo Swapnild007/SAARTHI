@@ -367,25 +367,37 @@ const SaarthiApp = (() => {
 
   const renderHistory=()=>{
     const list=ensureAssistantHistory(currentAssistant);
-    const nav=document.querySelector('.sidebar .nav');
-    if(!nav)return;
-    let box=document.querySelector('.assistant-history');
-    if(!box){
-      box=document.createElement('section');box.className='assistant-history';
-      nav.insertAdjacentElement('afterend',box);
-    }
     const active=currentThreads[currentAssistant];
     const rows=list.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(t=>
       '<button class="history-thread '+(t.id===active?'active':'')+'" data-thread-id="'+escapeHtml(t.id)+'"><span class="history-thread-icon">'+escapeHtml(assistantInfo(currentAssistant).icon)+'</span><span><b>'+escapeHtml(t.title||'New conversation')+'</b><small>'+new Date(t.updatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</small></span></button>'
     ).join('');
-    box.innerHTML='<div class="history-head"><div><small>CONVERSATIONS</small><b>'+escapeHtml(assistantInfo(currentAssistant).name)+'</b></div><button type="button" class="history-new" aria-label="New conversation">＋</button></div><div class="history-search"><span>⌕</span><input type="search" placeholder="Search conversations…" aria-label="Search conversations"></div><div class="history-list">'+(rows||'<div class="history-empty">No conversations yet.</div>')+'</div>';
-    box.querySelector('.history-new')?.addEventListener('click',startNewConversation);
-    box.querySelector('.history-search input')?.addEventListener('input',e=>{
-      const q=e.target.value.trim().toLowerCase();
-      box.querySelectorAll('.history-thread').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(q);});
-    });
-    box.querySelectorAll('.history-thread').forEach(row=>row.addEventListener('click',()=>openConversation(row.dataset.threadId)));
+    const markup='<div class="history-head"><div><small>CONVERSATIONS</small><b>'+escapeHtml(assistantInfo(currentAssistant).name)+'</b></div><button type="button" class="history-new" aria-label="New conversation">＋</button></div><div class="history-search"><span>⌕</span><input type="search" placeholder="Search conversations…" aria-label="Search conversations"></div><div class="history-list">'+(rows||'<div class="history-empty">No conversations yet.</div>')+'</div>';
+    const bind=box=>{
+      box.innerHTML=markup;
+      box.querySelector('.history-new')?.addEventListener('click',startNewConversation);
+      box.querySelector('.history-search input')?.addEventListener('input',e=>{
+        const q=e.target.value.trim().toLowerCase();
+        box.querySelectorAll('.history-thread').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(q);});
+      });
+      box.querySelectorAll('.history-thread').forEach(row=>row.addEventListener('click',()=>openConversation(row.dataset.threadId)));
+    };
+    const nav=document.querySelector('.sidebar .nav');
+    if(nav){
+      let box=document.querySelector('.assistant-history');
+      if(!box){box=document.createElement('section');box.className='assistant-history';nav.insertAdjacentElement('afterend',box);}
+      bind(box);
+    }
+    let mobile=document.querySelector('#mobileHistory');
+    if(!mobile){
+      mobile=document.createElement('div');mobile.id='mobileHistory';mobile.className='mobile-history';mobile.hidden=true;document.body.appendChild(mobile);
+    }
+    mobile.innerHTML='<div class="mobile-history-backdrop" data-close-history="true"></div><aside class="mobile-history-panel"><div class="mobile-history-top"><b>Conversation history</b><button type="button" data-close-history="true">×</button></div><div class="mobile-history-agent">'+escapeHtml(assistantInfo(currentAssistant).name)+'</div><div class="mobile-history-content"></div></aside>';
+    const content=mobile.querySelector('.mobile-history-content');bind(content);
+    content.querySelector('.history-head')?.remove();
+    mobile.querySelectorAll('[data-close-history]').forEach(x=>x.addEventListener('click',()=>{mobile.hidden=true;}));
   };
+  const openHistory=()=>{renderHistory();const mobile=document.querySelector('#mobileHistory');if(mobile)mobile.hidden=false;};
+
   const openConversation=threadId=>{
     const list=ensureAssistantHistory(currentAssistant);
     const thread=list.find(t=>t.id===threadId);
@@ -402,13 +414,13 @@ const SaarthiApp = (() => {
 
   const renderMenuRoot=()=>{
     const target=$('#menuPicker');if(!target)return;
-    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-history-root="true"><span class="menu-option-icon">☷</span><span><b>Conversation history</b><small>Open +(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'s conversations.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-new" data-new-conversation="true"><span class="menu-option-icon">＋</span><span><b>New conversation</b><small>Start a clean conversation with '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
+    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-history-root="true"><span class="menu-option-icon">☷</span><span><b>Conversation history</b><small>Open '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'\'s conversations.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-new" data-new-conversation="true"><span class="menu-option-icon">＋</span><span><b>New conversation</b><small>Start a clean conversation with '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
     closePickers();
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
     target.querySelectorAll('[data-root-menu]').forEach(btn=>btn.addEventListener('click',()=>selectMenu(btn.dataset.rootMenu)));
     target.querySelector('[data-new-conversation]')?.addEventListener('click',startNewConversation);
-    target.querySelector('[data-history-root]')?.addEventListener('click',()=>{closePickers();renderHistory();document.querySelector('.assistant-history')?.classList.toggle('history-mobile-open');});
+    target.querySelector('[data-history-root]')?.addEventListener('click',()=>{closePickers();openHistory();});
     target.querySelector('[data-root-usage]')?.addEventListener('click',()=>{
       addActivity('AI Usage opened','Session telemetry');
       renderUsagePanel();
@@ -584,6 +596,11 @@ const SaarthiApp = (() => {
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
   $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
+  if(!document.querySelector('#historyTrigger')){
+    const trigger=document.createElement('button');trigger.id='historyTrigger';trigger.className='history-trigger';trigger.type='button';trigger.setAttribute('aria-label','Conversation history');trigger.textContent='☷';
+    document.querySelector('.top-actions')?.insertBefore(trigger,document.querySelector('#settingsButton'));
+    trigger.addEventListener('click',openHistory);
+  }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#assistantSelector'))closePickers();});
   $('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
