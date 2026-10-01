@@ -266,143 +266,14 @@ const SaarthiApp = (() => {
       '**Reasoning tokens:** '+usageTotals.reasoning_tokens.toLocaleString('en-IN'),
       '**Cached tokens:** '+usageTotals.cached_tokens.toLocaleString('en-IN'),
       '**Total tokens:** '+usageTotals.total_tokens.toLocaleString('en-IN'),
-      '**Estimated cost:** 
-    if(!usage||typeof usage!=='object')return;
-    usageTotals.requests+=1;
-    usageTotals.prompt_tokens+=Number(usage.prompt_tokens||0);
-    usageTotals.completion_tokens+=Number(usage.completion_tokens||0);
-    usageTotals.reasoning_tokens+=Number(usage.reasoning_tokens||0);
-    usageTotals.cached_tokens+=Number(usage.cached_tokens||0);
-    usageTotals.total_tokens+=Number(usage.total_tokens||0);
-    usageTotals.cost+=Number(usage.cost||0);
-  };
-
-  const selectMenu=menuId=>{
-    const id=MENUS[menuId]?menuId:'assistants';
-    closePickers();
-    renderPicker(id);
-    document.querySelectorAll('[data-menu]').forEach(button=>button.classList.toggle('active',button.dataset.menu===id));
-    addActivity('Menu selected',MENUS[id].label);
-    return MENUS[id];
-  };
-  const applyAssistantEnvironment = item => {
-    if(!item) return;
-    document.documentElement.dataset.assistant = item.id;
-    document.body.dataset.assistant = item.id;
-
-    const kicker = $('.core-kicker');
-    const headline = $('.core-copy h3');
-    const description = $('.core-copy > p');
-    const input = $('#saarthiCommand');
-    const quickRow = $('.quick-row');
-
-    if(kicker) kicker.innerHTML = '<span class="online-dot"></span> '+item.environment.toUpperCase()+' <span>·</span> CONTEXT AWARE';
-    if(headline) headline.innerHTML = item.headline;
-    if(description) description.textContent = item.descriptionText;
-    if(input) input.placeholder = item.placeholder;
-
-    if(quickRow) {
-      quickRow.innerHTML = item.quick.map(([icon,label,value]) =>
-        '<button class="quick" data-command="'+value.replace(/"/g,'&quot;')+'"><b>'+icon+'</b>'+label+'</button>'
-      ).join('');
-      quickRow.querySelectorAll('[data-command]').forEach(button => {
-        button.addEventListener('click', () => ask(button.dataset.command));
-      });
-    }
-
-    if(responseCard) responseCard.dataset.assistant = item.id;
-  };
-
-  const selectAssistant=id=>{
-    currentAssistant=id;
-    const item=ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
-    if(!item) return;
-
-    currentAssistant=item.id;
-    if($('#assistantName')) $('#assistantName').textContent=item.name;
-    if($('#assistantSelectorIcon')) $('#assistantSelectorIcon').textContent=item.icon;
-    if($('#coreAssistantLabel')) $('#coreAssistantLabel').textContent=item.name;
-
-    applyAssistantEnvironment(item);
-    setStatus(item.name+' ready');
-    setCoreState('ready',item.name+' environment is ready.');
-    addActivity('Assistant selected',item.name+' · '+item.environment);
-  };
-
-  const ask=value=>{
-    if(!command)return;command.value=value;command.focus();
-    document.querySelector('.core-panel')?.scrollIntoView({behavior:'smooth',block:'center'});
-  };
-
-  const parseCommand=value=>{const token=value.trim().split(/\s+/)[0].toLowerCase();return COMMANDS[token]||'chat';};
-
-  const apiCommand=async(value,mode)=>{
-    const context={client_time:new Date().toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',locale:navigator.language||'en-IN'};
-    const response=await fetch(apiUrl('/api/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,assistant:currentAssistant,context})});
-    if(!response.ok)throw new Error('API '+response.status);return response.json();
-  };
-
-  const runCommand=async(value,mode)=>{
-    setStatus('Routing…');setCoreState('routing','Request received.');await new Promise(r=>setTimeout(r,90));
-    setStatus('Understanding…');setCoreState('understanding','Separating intent from noise.');
-    const request=apiCommand(value,mode);await new Promise(r=>setTimeout(r,120));
-    setStatus('Planning…');setCoreState('planning','Building an execution path.');
-    const result=await request;if(!result?.ok)throw new Error('SAARTHI runtime rejected the command');
-    const intent=result?.intent?.name||mode;setStatus('Verifying…');setCoreState('verifying','Checking the execution result.');
-    await new Promise(r=>setTimeout(r,120));
-    runs.unshift({id:result.run_id,intent,provider:result.provider,at:new Date().toISOString(),message:value});runs.splice(20);
-    setStatus('Ready');setCoreState('ready','Saarthi has a response.');
-    addActivity('Run completed',result.run_id+' · '+intent+' · '+result.provider);
-    showResponse(result.reply,result);
-    return result;
-  };
-
-  const submit=async()=>{
-    const value=command?.value.trim();if(!value||command.disabled)return;
-    const mode=parseCommand(value);addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
-    command.disabled=true;
-    try{const result=await runCommand(value,mode);if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);}
-    catch(error){
-      setStatus('Connection issue');setCoreState('offline','Cloud runtime is unavailable.');
-      addActivity('Run failed',error?.message||'Cloud runtime unavailable.');
-      showResponse('### Connection issue\n\nSAARTHI could not reach the cloud runtime. Check the backend connection and try again.',{intent:{name:'runtime'},provider:'unavailable'});
-    }finally{window.SaarthiApp.voiceTurn=false;command.value='';command.disabled=false;setTimeout(()=>setStatus('Saarthi is present'),1200);}
-  };
-
-  const voice=()=>{
-    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SpeechRecognition){addActivity('Voice unavailable','This browser does not expose speech recognition.');return;}
-    const recognition=new SpeechRecognition();recognition.lang='en-IN';recognition.interimResults=false;recognition.maxAlternatives=1;
-    window.SaarthiApp.voiceTurn=true;recognition.onstart=()=>setStatus('Listening…');
-    recognition.onresult=e=>{ask(e.results[0][0].transcript);setStatus('Command ready');submit();};
-    recognition.onerror=()=>{window.SaarthiApp.voiceTurn=false;setStatus('Saarthi is present');};
-    recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
-  };
-
-  applyAssistantEnvironment(ASSISTANTS[0]);
-  updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
-  document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
-  document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
-  $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
-  $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
-  document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#assistantSelector'))closePickers();});
-  $('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
-  command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
-  window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
-
-  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,voiceTurn:false};
-  return window.SaarthiApp;
-})();+money,
+      '**Estimated cost:** $'+money,
       '',
       '**Provider:** OpenRouter',
       '**API key:** masked',
       '',
-      usageTotals.requests
-        ? 'Usage is measured from the OpenRouter runtime responses received in this browser session.'
-        : 'No AI requests have been recorded in this browser session yet.'
+      usageTotals.requests ? 'Usage is measured from OpenRouter runtime responses received in this browser session.' : 'No AI requests have been recorded in this browser session yet.'
     ].join('\\n');
   };
-
   const recordUsage=usage=>{
     if(!usage||typeof usage!=='object')return;
     usageTotals.requests+=1;
