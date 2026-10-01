@@ -61,12 +61,15 @@ class LLMProvider:
 class OpenAICompatibleProvider(LLMProvider):
     """Cloud-only OpenAI-compatible adapter. Secrets never enter the browser."""
 
-    name = "mistral-free"
+    name = "openrouter-free"
 
     def __init__(self) -> None:
-        self.url = os.getenv("SAARTHI_LLM_API_URL", "https://api.mistral.ai/v1").rstrip("/")
+        self.url = os.getenv(
+            "SAARTHI_LLM_API_URL",
+            "https://openrouter.ai/api/v1",
+        ).rstrip("/")
         self.key = os.getenv("SAARTHI_LLM_API_KEY", "")
-        self.model = os.getenv("SAARTHI_LLM_MODEL", "mistral-small-latest")
+        self.model = os.getenv("SAARTHI_LLM_MODEL", "openrouter/free")
 
     @property
     def configured(self) -> bool:
@@ -96,6 +99,8 @@ class OpenAICompatibleProvider(LLMProvider):
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.key}",
+                "HTTP-Referer": "https://swapnild007.github.io/SAARTHI/",
+                "X-Title": "SAARTHI",
             },
             method="POST",
         )
@@ -241,3 +246,4 @@ class SaarthiEngine:
             "tool_results": tool_results,
             "verification": {"verified": True, "claims": "response generated from available execution context"},
         }
+    
