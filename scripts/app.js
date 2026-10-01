@@ -228,7 +228,7 @@ const SaarthiApp = (() => {
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
     try{
-      const response=await fetch('/api/usage');
+      const response=await fetch(apiUrl('/api/usage'));
       const data=await response.json();
       const key=data?.key?.data||data?.key||{};
       const details=target.querySelector('#liveUsageDetails');
