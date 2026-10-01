@@ -3,9 +3,7 @@ const SaarthiApp = (() => {
   const activity = $('#activityStream');
   const command = $('#saarthiCommand');
   const status = $('#presenceText');
-  const liveDay = $('#liveDay'), liveLow = $('#liveLow'), liveHigh = $('#liveHigh');
-  const weatherSymbol = $('#weatherSymbol'), topClock = $('#topClock');
-  const liveLocation = $('#liveLocation'), liveWeather = $('#liveWeather'), liveTemp = $('#liveTemp');
+  const topClock = $('#topClock');
   const greeting = $('#greeting'), coreStatus = $('.core-status');
   const responseCard = $('#assistantResponse'), responseBody = $('#assistantResponseBody'), responseMeta = $('#assistantResponseMeta');
   const runs = [];
@@ -24,7 +22,6 @@ const SaarthiApp = (() => {
     '/workflow':'workflow','/workflows':'workflows','/briefing':'briefing','/system':'system',
     '/settings':'settings','/voice':'voice'
   });
-  const WEATHER_URL='https://api.open-meteo.com/v1/forecast';
   let API_BASE='';
   const loadRuntimeConfig=async()=>{
     try{
@@ -57,57 +54,6 @@ const SaarthiApp = (() => {
     if(topClock)topClock.textContent=new Intl.DateTimeFormat('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);
     if(liveDay)liveDay.textContent=new Intl.DateTimeFormat('en-IN',{weekday:'long'}).format(now)+' · local time';
     if(greeting){const h=now.getHours();const p=h<12?'morning':h<17?'afternoon':h<21?'evening':'night';greeting.textContent='Good '+p+', Swapnil';}
-  };
-
-  const formatLocation=location=>{
-    const parts=[location?.city,location?.locality,location?.principalSubdivision].filter(Boolean);
-    return [...new Set(parts)].slice(0,2).join(', ')||'Current location';
-  };
-
-  const fetchWeather=async(latitude,longitude)=>{
-    const url=new URL(WEATHER_URL);
-    url.searchParams.set('latitude',latitude.toFixed(5));url.searchParams.set('longitude',longitude.toFixed(5));
-    url.searchParams.set('timezone','auto');
-    url.searchParams.set('current','temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m');
-    url.searchParams.set('hourly','precipitation_probability');url.searchParams.set('daily','temperature_2m_max,temperature_2m_min');
-    url.searchParams.set('forecast_days','1');
-    const response=await fetch(url.toString(),{cache:'no-store'});if(!response.ok)throw new Error('Weather API '+response.status);return response.json();
-  };
-
-  const reverseGeocode=async(latitude,longitude)=>{
-    try{const url=new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');url.searchParams.set('latitude',latitude);url.searchParams.set('longitude',longitude);url.searchParams.set('localityLanguage','en');const response=await fetch(url.toString(),{cache:'no-store'});return response.ok?await response.json():null;}catch{return null;}
-  };
-
-  const renderLiveContext=async(latitude,longitude,source='device',explicitLocation=null)=>{
-    try{
-      const [weather,location]=await Promise.all([fetchWeather(latitude,longitude),source==='device'?reverseGeocode(latitude,longitude):Promise.resolve(null)]);
-      const current=weather.current||{},daily=weather.daily||{},apparent=current.apparent_temperature;
-      if(liveLocation)liveLocation.textContent=source==='ip'?(explicitLocation||'Approximate location')+' · approximate':(explicitLocation||formatLocation(location));
-      if(liveTemp)liveTemp.textContent=Number.isFinite(current.temperature_2m)?Math.round(current.temperature_2m)+'°':'--°';
-      if(liveLow)liveLow.textContent=Number.isFinite(daily.temperature_2m_min?.[0])?Math.round(daily.temperature_2m_min[0])+'°':'--°';
-      if(liveHigh)liveHigh.textContent=Number.isFinite(daily.temperature_2m_max?.[0])?Math.round(daily.temperature_2m_max[0])+'°':'--°';
-      if(weatherSymbol)weatherSymbol.textContent=weatherIcon(current.weather_code);
-      if(liveWeather)liveWeather.textContent=weatherDescription(current.weather_code)+(Number.isFinite(apparent)?' · feels '+Math.round(apparent)+'°':'');
-      return true;
-    }catch{return false;}
-  };
-
-  const loadApproximateContext=async()=>{
-    try{
-      const response=await fetch('https://ipwho.is/',{cache:'no-store'});if(!response.ok)throw new Error('IP geolocation '+response.status);
-      const data=await response.json();if(!data.success)throw new Error(data.message||'IP geolocation failed');
-      const latitude=Number(data.latitude),longitude=Number(data.longitude);
-      if(!Number.isFinite(latitude)||!Number.isFinite(longitude))throw new Error('Invalid coordinates');
-      const label=[String(data.city||'').trim(),String(data.region||data.region_code||'').trim()].filter(Boolean).join(', ')||String(data.country||'').trim()||'Approximate location';
-      if(!await renderLiveContext(latitude,longitude,'ip',label))throw new Error('Weather unavailable');
-    }catch{if(liveLocation)liveLocation.textContent='Approximate location unavailable';if(liveWeather)liveWeather.textContent='Local weather unavailable.';if(liveTemp)liveTemp.textContent='--°';}
-  };
-
-  const loadLiveContext=async()=>{
-    if(!navigator.geolocation)return loadApproximateContext();
-    navigator.geolocation.getCurrentPosition(async position=>{
-      if(!await renderLiveContext(position.coords.latitude,position.coords.longitude,'device'))await loadApproximateContext();
-    },loadApproximateContext,{enableHighAccuracy:true,maximumAge:0,timeout:15000});
   };
 
   const addActivity=(title,detail)=>{
@@ -236,7 +182,7 @@ const SaarthiApp = (() => {
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
-  updateClock();setInterval(updateClock,1000);loadRuntimeConfig().then(loadLiveContext);setInterval(loadLiveContext,15*60*1000);
+  updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-nav]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.nav)));
   $('#settingsButton')?.addEventListener('click',()=>selectMenu('settings'));$('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
