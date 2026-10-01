@@ -221,13 +221,27 @@ const SaarthiApp = (() => {
   };
 
   const closePickers=()=>{['menuPicker','assistantPicker','controlPicker'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=true;});};
-  const renderUsagePanel=()=>{
+  const renderUsagePanel=async()=>{
     const target=$('#menuPicker');if(!target)return;
-    const money=Number(usageTotals.cost||0).toFixed(6);
-    target.innerHTML='<div class="picker-panel usage-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>AI Usage</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="usage-summary"><div class="usage-card"><small>REQUESTS</small><strong>'+usageTotals.requests.toLocaleString('en-IN')+'</strong></div><div class="usage-card"><small>TOTAL TOKENS</small><strong>'+usageTotals.total_tokens.toLocaleString('en-IN')+'</strong></div><div class="usage-card"><small>EST. COST</small><strong>$'+money+'</strong></div></div><div class="usage-details"><div><span>Prompt tokens</span><b>'+usageTotals.prompt_tokens.toLocaleString('en-IN')+'</b></div><div><span>Completion tokens</span><b>'+usageTotals.completion_tokens.toLocaleString('en-IN')+'</b></div><div><span>Reasoning tokens</span><b>'+usageTotals.reasoning_tokens.toLocaleString('en-IN')+'</b></div><div><span>Cached tokens</span><b>'+usageTotals.cached_tokens.toLocaleString('en-IN')+'</b></div></div><div class="usage-foot">Provider: OpenRouter · API key: masked</div></div>';
     closePickers();
+    target.innerHTML='<div class="picker-panel usage-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>AI Usage</h3><small class="usage-live-state">Loading…</small></div><button class="picker-close" aria-label="Close">×</button></div><div class="usage-summary"><div class="usage-card"><small>SESSION REQUESTS</small><strong>'+usageTotals.requests+'</strong></div><div class="usage-card"><small>SESSION TOKENS</small><strong>'+usageTotals.total_tokens.toLocaleString('en-IN')+'</strong></div><div class="usage-card"><small>SESSION COST</small><strong>$'+Number(usageTotals.cost||0).toFixed(6)+'</strong></div></div><div class="usage-details" id="liveUsageDetails"><div><span>OpenRouter</span><b>Loading…</b></div></div><div class="usage-models"><div class="usage-section-title">Models · last 30 days</div><div class="usage-model-list"><div class="usage-empty">Loading…</div></div></div><div class="usage-foot">Usage is loaded through the Saarthi server.</div></div>';
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
+    try{
+      const response=await fetch('/api/usage');
+      const data=await response.json();
+      const key=data?.key?.data||data?.key||{};
+      const details=target.querySelector('#liveUsageDetails');
+      if(details) details.innerHTML='<div><span>Current usage</span><b>$'+Number(key.usage||0).toFixed(6)+'</b></div><div><span>Today</span><b>$'+Number(key.usage_daily||0).toFixed(6)+'</b></div><div><span>This week</span><b>$'+Number(key.usage_weekly||0).toFixed(6)+'</b></div><div><span>This month</span><b>$'+Number(key.usage_monthly||0).toFixed(6)+'</b></div><div><span>Limit remaining</span><b>'+((key.limit_remaining==null)?'—':'$'+Number(key.limit_remaining).toFixed(6))+'</b></div>';
+      const models=data?.analytics_by_model_30d?.data||data?.analytics_by_model_30d?.results||[];
+      const modelBox=target.querySelector('.usage-model-list');
+      if(modelBox) modelBox.innerHTML=Array.isArray(models)&&models.length?models.slice(0,6).map(row=>'<div class="usage-model-row"><span>'+String(row.model||'Unknown')+'</span><b>$'+Number(row.total_usage||0).toFixed(6)+'</b></div>').join(''):'<div class="usage-empty">'+(data?.analytics_configured?'No model data returned.':'30-day model analytics is not connected yet.')+'</div>';
+      const state=target.querySelector('.usage-live-state');
+      if(state) state.textContent=data?.analytics_configured?'LIVE · OPENROUTER ANALYTICS':'LIVE · OPENROUTER KEY';
+    }catch(error){
+      const state=target.querySelector('.usage-live-state');
+      if(state) state.textContent='Usage unavailable';
+    }
   };
 
   const renderMenuRoot=()=>{
