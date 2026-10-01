@@ -378,6 +378,15 @@ class OpenAICompatibleProvider(LLMProvider):
                 "For Data Analyst, never invent values that are not in the supplied dataset."
             )
         chart_hint = ""
+        research_hint = ""
+        if assistant == "research":
+            brief = context.get("execution_results", {}).get("research.brief", {}) if isinstance(context, dict) else {}
+            research_hint = (
+                " A deterministic research brief is available in execution_results.research.brief. "
+                "Use only its retrieved sources and evidence for factual source-backed claims. "
+                "Cite source URLs exactly as supplied. Distinguish retrieved evidence from inference, "
+                "state uncertainty and do not invent sources, quotes, dates or findings."
+            )
         if assistant == "data_analyst":
             chart_hint = (
                 " For charts use <saarthi-chart>{JSON}</saarthi-chart>. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. "
@@ -385,7 +394,7 @@ class OpenAICompatibleProvider(LLMProvider):
             )
         system = (
             f"You are {profile['name']}, the {profile['role']} inside SAARTHI, a calm personal AI assistant. "
-            f"{profile['instruction']} {coding_context}{attachment_hint}{chart_hint} "
+            f"{profile['instruction']} {coding_context}{attachment_hint}{chart_hint}{research_hint} "
             "Treat the selected assistant as the user's current working environment, not as a superficial label. "
             "Answer the user's actual request first. Do not reveal hidden chain-of-thought. "
             "Never claim a tool ran unless its result is present. Do not invent access to tools, files, browsing, memory or external services. "
