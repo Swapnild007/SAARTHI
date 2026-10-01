@@ -657,3 +657,27 @@ body{
   .core-panel{margin-top:7px}
   .core-visual{top:102px}
 }
+
+
+/* 2026 MOBILE PRODUCT REFINEMENT — menu hierarchy + cleaner command surface */
+.menu-picker{position:fixed;inset:0;z-index:8100;background:rgba(20,45,59,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;padding:20px}
+.menu-picker[hidden]{display:none}
+.menu-panel{width:min(520px,100%)}
+.menu-options{display:grid;gap:9px}
+.menu-option{width:100%;display:grid;grid-template-columns:44px 1fr 20px;align-items:center;gap:11px;text-align:left;border:1px solid rgba(20,45,59,.08);background:rgba(255,255,255,.72);border-radius:18px;padding:13px;color:var(--s-ink);transition:transform .16s ease,background .16s ease,border-color .16s ease}
+.menu-option:hover{transform:translateY(-1px);background:rgba(255,255,255,.92);border-color:rgba(17,139,131,.18)}
+.menu-option-icon{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:rgba(17,139,131,.09);color:var(--s-blue);font-size:18px}
+.menu-option b{display:block;font-size:12px}
+.menu-option small{display:block;margin-top:4px;font-size:9px;line-height:1.45;color:var(--s-muted)}
+.menu-option-arrow{font-size:22px;color:var(--s-muted);text-align:center}
+.core-copy{max-width:100%}
+.core-panel{min-height:390px}
+.core-visual{display:none!important}
+@media(max-width:720px){
+  .menu-picker{padding:11px;align-items:end}
+  .menu-panel{border-radius:25px 25px 18px 18px}
+  .core-copy{max-width:100%;padding-right:17px}
+  .core-panel{min-height:360px}
+  .greeting-block h2{font-size:32px}
+  .top-actions{padding-top:42px}
+}
