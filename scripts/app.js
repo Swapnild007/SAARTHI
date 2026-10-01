@@ -31,7 +31,7 @@ const SaarthiApp = (() => {
       const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
       if(response.ok){
         const config=await response.json();
-        API_BASE=String(config.api_base_url||'').replace(/\\/$/,'');
+        API_BASE=String(config.api_base_url||'').replace(/\/$/,'');
       }
     }catch{}
   };
