@@ -14,6 +14,7 @@ from typing import Any, Callable
 from .attachments import inspect_attachments, provider_content_parts
 from .agent_capabilities import agent_capability, build_runtime_context, INDUSTRY_PACKS
 from .data_analysis import analyze_dataset, build_chart
+from .analysis_engine import analyze_text
 from .research import research
 from urllib.request import Request, urlopen
 
@@ -581,6 +582,18 @@ class SaarthiEngine:
                         dataset["preview_rows"], chart_match.group(1).lower(), x_key, series_key,
                         f"{series_key} by {x_key}",
                     )
+        if assistant_id == "analyze":
+            inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
+            texts = []
+            for item in inspected:
+                if isinstance(item, dict) and item.get("text"):
+                    texts.append(str(item["text"]))
+            supplied = "\\n".join(texts) if texts else str(ctx.get("analysis_text", "")) if isinstance(ctx, dict) else ""
+            if supplied:
+                tool_results["analysis.brief"] = analyze_text(supplied, message)
+            else:
+                tool_results["analysis.brief"] = analyze_text(message, message)
+
         # Evidence-first research pass before model generation.
         if assistant_id == "research":
             research_urls = ctx.get("research_urls", []) if isinstance(ctx, dict) else []
