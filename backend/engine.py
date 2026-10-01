@@ -61,12 +61,12 @@ class LLMProvider:
 class OpenAICompatibleProvider(LLMProvider):
     """Cloud-only OpenAI-compatible adapter. Secrets never enter the browser."""
 
-    name = "cloud-llm"
+    name = "mistral-free"
 
     def __init__(self) -> None:
-        self.url = os.getenv("SAARTHI_LLM_API_URL", "").rstrip("/")
+        self.url = os.getenv("SAARTHI_LLM_API_URL", "https://api.mistral.ai/v1").rstrip("/")
         self.key = os.getenv("SAARTHI_LLM_API_KEY", "")
-        self.model = os.getenv("SAARTHI_LLM_MODEL", "")
+        self.model = os.getenv("SAARTHI_LLM_MODEL", "mistral-small-latest")
 
     @property
     def configured(self) -> bool:
