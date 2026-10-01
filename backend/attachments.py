@@ -106,6 +106,20 @@ def inspect_attachment(item: dict[str, Any]) -> dict[str, Any]:
         result["summary"] = f"Binary attachment: {name} ({len(blob):,} bytes)."
     return result
 
+def build_tabular_dataset(item: dict[str, Any]) -> dict[str, Any]:
+    """Return a bounded, JSON-safe dataset for deterministic analysis."""
+    tab = item.get("tabular") if isinstance(item, dict) else None
+    if isinstance(tab, dict) and isinstance(tab.get("columns"), list) and isinstance(tab.get("preview"), list):
+        return {
+            "name": item.get("name", "dataset"),
+            "columns": [str(c) for c in tab["columns"][:50]],
+            "rows": tab["preview"][:100],
+            "row_count": len(tab["preview"]),
+            "source": "attachment-preview",
+        }
+    return {"name": item.get("name", "dataset"), "columns": [], "rows": [], "row_count": 0, "source": "unsupported"}
+
+
 def inspect_attachments(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     return [inspect_attachment(item) for item in (items or [])][:10]
 
