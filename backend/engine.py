@@ -14,6 +14,7 @@ from typing import Any, Callable
 from .attachments import inspect_attachments, provider_content_parts
 from .agent_capabilities import agent_capability, build_runtime_context, INDUSTRY_PACKS
 from .data_analysis import analyze_dataset, build_chart
+from .research import research
 from urllib.request import Request, urlopen
 
 
@@ -571,6 +572,29 @@ class SaarthiEngine:
                         dataset["preview_rows"], chart_match.group(1).lower(), x_key, series_key,
                         f"{series_key} by {x_key}",
                     )
+        # Evidence-first research pass before model generation.
+        if assistant_id == "research":
+            research_urls = ctx.get("research_urls", []) if isinstance(ctx, dict) else []
+            if isinstance(research_urls, str):
+                research_urls = [research_urls]
+            if not isinstance(research_urls, list):
+                research_urls = []
+            try:
+                tool_results["research.brief"] = research(
+                    message,
+                    urls=[str(url) for url in research_urls[:10]],
+                    search=bool(ctx.get("research_web_search", True)) if isinstance(ctx, dict) else True,
+                    max_sources=5,
+                )
+            except Exception as exc:
+                tool_results["research.brief"] = {
+                    "question": message,
+                    "source_count": 0,
+                    "sources": [],
+                    "evidence": [],
+                    "limitations": [f"Research retrieval failed: {str(exc)[:240]}"],
+                }
+
         boundary_reply = specialist_boundary_response(assistant_id, message)
         if boundary_reply:
             return {
