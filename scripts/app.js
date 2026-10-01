@@ -125,6 +125,11 @@ const SaarthiApp = (() => {
       }
     }catch{}
   };
+  const ensureApiBase=async()=>{
+    if(!API_BASE)await loadRuntimeConfig();
+    if(!API_BASE)API_BASE='https://saarthi-nine-chi.vercel.app';
+    return API_BASE;
+  };
   const apiUrl=path=>API_BASE+(path.startsWith('/')?path:'/'+path);
 
   const weatherDescription=code=>({
@@ -237,7 +242,8 @@ const SaarthiApp = (() => {
       const modelBox=target.querySelector('.usage-model-list');
       if(modelBox) modelBox.innerHTML=Array.isArray(models)&&models.length?models.slice(0,6).map(row=>'<div class="usage-model-row"><span>'+String(row.model||'Unknown')+'</span><b>$'+Number(row.total_usage||0).toFixed(6)+'</b></div>').join(''):'<div class="usage-empty">'+(data?.analytics_configured?'No model data returned.':'30-day model analytics is not connected yet.')+'</div>';
       const state=target.querySelector('.usage-live-state');
-      if(state) state.textContent=data?.analytics_configured?'LIVE · OPENROUTER ANALYTICS':'LIVE · OPENROUTER KEY';
+      if(state) state.textContent=data?.analytics_configured?'LIVE · OPENROUTER ANALYTICS':(data?.key_error?'OPENROUTER KEY ERROR':'LIVE · OPENROUTER KEY');
+      if(data?.key_error){const details=target.querySelector('#liveUsageDetails');if(details)details.insertAdjacentHTML('beforeend','<div><span>Status</span><b>'+String(data.key_error).slice(0,140)+'</b></div>');}
     }catch(error){
       const state=target.querySelector('.usage-live-state');
       if(state) state.textContent='Usage unavailable';
