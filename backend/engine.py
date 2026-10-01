@@ -51,10 +51,67 @@ class ToolRegistry:
         return {"service": "saarthi-engine", "state": "ready"}
 
 
+ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
+    "saarthi": {
+        "name": "Saarthi",
+        "role": "general personal AI assistant",
+        "instruction": (
+            "Handle everyday questions, decisions, learning, planning and personal tasks. "
+            "Keep context together, surface important assumptions, and turn ambiguity into clear next actions."
+        ),
+    },
+    "coding": {
+        "name": "AI Coding",
+        "role": "software engineering assistant",
+        "instruction": (
+            "Act as a senior coding assistant. Explain, design, debug, refactor and review code. "
+            "Prefer runnable, precise solutions. Never claim to have inspected a repository, file, build or test "
+            "unless that evidence is present in the supplied context."
+        ),
+    },
+    "research": {
+        "name": "Research",
+        "role": "research and synthesis assistant",
+        "instruction": (
+            "Turn questions into structured research problems. Separate established facts, evidence, uncertainty "
+            "and interpretation. When sources are not available, say so rather than inventing citations."
+        ),
+    },
+    "create": {
+        "name": "Create",
+        "role": "creative and writing assistant",
+        "instruction": (
+            "Help create high-quality writing, concepts, prompts, narratives and other creative outputs. "
+            "Match the requested format and tone while keeping the result useful and polished."
+        ),
+    },
+    "analyze": {
+        "name": "Analyze",
+        "role": "analysis assistant",
+        "instruction": (
+            "Break complex material into facts, patterns, assumptions, risks, trade-offs and conclusions. "
+            "Show the reasoning structure clearly and distinguish data from interpretation."
+        ),
+    },
+    "plan": {
+        "name": "Plan",
+        "role": "planning and execution assistant",
+        "instruction": (
+            "Turn goals into realistic ordered steps, dependencies, checkpoints and next actions. "
+            "Identify missing constraints before making detailed plans."
+        ),
+    },
+}
+
+
+def assistant_profile(assistant: str | None) -> dict[str, str]:
+    return ASSISTANT_PROFILES.get(str(assistant or "").lower(), ASSISTANT_PROFILES["saarthi"])
+
+
 class LLMProvider:
     name = "deterministic"
 
-    def generate(self, *, message: str, intent: Intent, context: dict[str, Any]) -> str:
+    def generate(self, *, message: str, intent: Intent, context: dict[str, Any], assistant: str = "saarthi") -> tuple[str, dict[str, Any] | None]:
         raise NotImplementedError
 
 
@@ -75,23 +132,29 @@ class OpenAICompatibleProvider(LLMProvider):
     def configured(self) -> bool:
         return bool(self.url and self.key and self.model)
 
-    def generate(self, *, message: str, intent: Intent, context: dict[str, Any]) -> str:
+    def generate(self, *, message: str, intent: Intent, context: dict[str, Any], assistant: str = "saarthi") -> tuple[str, dict[str, Any] | None]:
         if not self.configured:
             raise RuntimeError("cloud provider is not configured")
 
+        profile = assistant_profile(assistant)
         system = (
-            "You are SAARTHI, a calm Indian JARVIS-style personal AI guide. "
+            f"You are {profile['name']}, the {profile['role']} inside SAARTHI, a calm personal AI assistant. "
+            f"{profile['instruction']} "
             "Be concise, situationally aware and action-oriented. "
             "Do not make decisions for the user. Separate facts, assumptions, trade-offs "
-            "and next actions when relevant. Never claim a tool ran unless its result is present."
+            "and next actions when relevant. Never claim a tool ran unless its result is present. "
+            "Do not invent access to tools, files, browsing, memory or external services. "
+            "Use the selected assistant's role consistently for this turn."
         )
+        context_note = json.dumps(context, ensure_ascii=False)[:12000] if context else "{}"
         payload = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": message},
+                {"role": "user", "content": f"Assistant context: {context_note}\n\nUser request:\n{message}"},
             ],
             "temperature": 0.3,
+            "usage": {"include": True},
         }
         request = Request(
             self.url + "/chat/completions",
@@ -106,7 +169,8 @@ class OpenAICompatibleProvider(LLMProvider):
         )
         with urlopen(request, timeout=45) as response:
             body = json.loads(response.read().decode("utf-8"))
-        return str(body["choices"][0]["message"]["content"]).strip()
+        usage = body.get("usage") if isinstance(body, dict) else None
+        return str(body["choices"][0]["message"]["content"]).strip(), usage if isinstance(usage, dict) else None
 
 
 def classify(message: str, requested_mode: str = "chat") -> Intent:
@@ -184,9 +248,14 @@ def build_plan(intent: Intent) -> list[PlanStep]:
     return common + tail.get(intent.name, tail["chat"]) + [PlanStep("respond", "Form response")]
 
 
-def fallback_response(message: str, intent: Intent, tool_results: dict[str, Any]) -> str:
+def fallback_response(message: str, intent: Intent, tool_results: dict[str, Any], assistant: str = "saarthi") -> str:
+    profile = assistant_profile(assistant)
     if intent.name == "help":
-        return "I can chat, research, search, analyze, plan, remember, recall, manage tasks and reminders, run workflows, brief you, and report system status."
+        return (
+            f"{profile['name']} is active. "
+            "I can chat, research, search, analyze, plan, remember, recall, manage tasks and reminders, "
+            "run workflows, brief you, and report system status."
+        )
     if intent.name == "system":
         return "SAARTHI engine is online. The command router, plan builder and tool boundary are ready."
     if intent.name == "remember":
@@ -213,9 +282,19 @@ class SaarthiEngine:
         self.tools = ToolRegistry()
         self.cloud = OpenAICompatibleProvider()
 
-    def run(self, *, message: str, mode: str = "chat", context: dict[str, Any] | None = None) -> dict[str, Any]:
+    def run(
+        self,
+        *,
+        message: str,
+        mode: str = "chat",
+        assistant: str = "saarthi",
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         run_id = "run_" + uuid.uuid4().hex[:12]
         ctx = context or {}
+        assistant_id = str(assistant or "saarthi").lower()
+        if assistant_id not in ASSISTANT_PROFILES:
+            assistant_id = "saarthi"
         intent = classify(message, mode)
         plan = build_plan(intent)
         tool_results: dict[str, Any] = {}
@@ -225,15 +304,29 @@ class SaarthiEngine:
 
         provider = self.cloud if self.cloud.configured else None
         provider_name = provider.name if provider else "deterministic-fallback"
+        usage: dict[str, Any] | None = None
         try:
-            reply = provider.generate(message=message, intent=intent, context=ctx) if provider else fallback_response(message, intent, tool_results)
+            if provider:
+                reply, usage = provider.generate(
+                    message=message,
+                    intent=intent,
+                    context=ctx,
+                    assistant=assistant_id,
+                )
+            else:
+                reply = fallback_response(message, intent, tool_results, assistant_id)
         except Exception:
             provider_name = "deterministic-fallback"
-            reply = fallback_response(message, intent, tool_results)
+            reply = fallback_response(message, intent, tool_results, assistant_id)
 
         return {
             "ok": True,
             "run_id": run_id,
+            "assistant": {
+                "id": assistant_id,
+                "name": ASSISTANT_PROFILES[assistant_id]["name"],
+                "role": ASSISTANT_PROFILES[assistant_id]["role"],
+            },
             "intent": {
                 "name": intent.name,
                 "confidence": intent.confidence,
@@ -242,6 +335,7 @@ class SaarthiEngine:
             "plan": [step.__dict__ for step in plan],
             "reply": reply,
             "provider": provider_name,
+            "usage": usage,
             "execution": "completed",
             "tool_results": tool_results,
             "verification": {"verified": True, "claims": "response generated from available execution context"},
