@@ -17,21 +17,79 @@ const SaarthiApp = (() => {
     total_tokens: 0,
     cost: 0
   };
-  const CONVERSATION_PREFIX='saarthi.conversation.v1.';
-  const MAX_CONTEXT_MESSAGES=12;
+  const HISTORY_KEY='saarthi.history.v2';
+  const MAX_CONTEXT_MESSAGES=20;
+  const MAX_THREADS_PER_ASSISTANT=100;
   const conversations=Object.create(null);
-  const loadConversation=assistant=>{
-    const key=CONVERSATION_PREFIX+assistant;
+  const currentThreads=Object.create(null);
+  const historyState={assistants:Object.create(null)};
+
+  const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+  const assistantInfo=id=>ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
+  const titleFromMessage=value=>{
+    const clean=String(value||'').replace(/\\s+/g,' ').trim();
+    if(!clean)return 'New conversation';
+    return clean.length>48?clean.slice(0,47).trimEnd()+'…':clean;
+  };
+  const loadHistory=()=>{
     try{
-      const parsed=JSON.parse(localStorage.getItem(key)||'[]');
-      conversations[assistant]=Array.isArray(parsed)?parsed.slice(-MAX_CONTEXT_MESSAGES):[];
-    }catch{conversations[assistant]=[];}
+      const parsed=JSON.parse(localStorage.getItem(HISTORY_KEY)||'{}');
+      historyState.assistants=parsed&&parsed.assistants&&typeof parsed.assistants==='object'?parsed.assistants:Object.create(null);
+    }catch{historyState.assistants=Object.create(null);}
+    return historyState.assistants;
+  };
+  const saveHistory=()=>{
+    try{localStorage.setItem(HISTORY_KEY,JSON.stringify(historyState));}catch{}
+  };
+  const ensureAssistantHistory=assistant=>{
+    const id=assistantInfo(assistant).id;
+    if(!Array.isArray(historyState.assistants[id]))historyState.assistants[id]=[];
+    historyState.assistants[id]=historyState.assistants[id].filter(t=>t&&t.id&&Array.isArray(t.messages)).slice(-MAX_THREADS_PER_ASSISTANT);
+    return historyState.assistants[id];
+  };
+  const migrateLegacyConversation=assistant=>{
+    const list=ensureAssistantHistory(assistant);
+    if(list.length)return list;
+    try{
+      const legacy=JSON.parse(localStorage.getItem('saarthi.conversation.v1.'+assistant)||'[]');
+      if(Array.isArray(legacy)&&legacy.length){
+        const first=legacy.find(m=>m.role==='user');
+        const thread={id:uid(),title:titleFromMessage(first?.content),createdAt:first?.at||new Date().toISOString(),updatedAt:new Date().toISOString(),messages:legacy.slice(-MAX_CONTEXT_MESSAGES)};
+        list.push(thread);saveHistory();return list;
+      }
+    }catch{}
+    return list;
+  };
+  const ensureThread=(assistant=currentAssistant,create=true)=>{
+    const list=migrateLegacyConversation(assistant);
+    let thread=list.find(t=>t.id===currentThreads[assistant]);
+    if(!thread&&list.length){thread=list[list.length-1];currentThreads[assistant]=thread.id;}
+    if(!thread&&create){
+      thread={id:uid(),title:'New conversation',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:[]};
+      list.push(thread);currentThreads[assistant]=thread.id;saveHistory();
+    }
+    return thread;
+  };
+  const loadConversation=assistant=>{
+    const thread=ensureThread(assistant,false);
+    conversations[assistant]=thread?thread.messages:[];
     return conversations[assistant];
   };
   const saveConversation=assistant=>{
-    try{localStorage.setItem(CONVERSATION_PREFIX+assistant,JSON.stringify((conversations[assistant]||[]).slice(-MAX_CONTEXT_MESSAGES)));}catch{}
+    const thread=ensureThread(assistant,false);
+    if(!thread)return;
+    thread.messages=(conversations[assistant]||[]).slice(-MAX_CONTEXT_MESSAGES);
+    const firstUser=thread.messages.find(m=>m.role==='user');
+    if(firstUser&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(firstUser.content);
+    thread.updatedAt=new Date().toISOString();
+    const list=ensureAssistantHistory(assistant);
+    const index=list.findIndex(t=>t.id===thread.id);
+    if(index>=0)list.splice(index,1);
+    list.push(thread);
+    saveHistory();
+    renderHistory();
   };
-  const currentConversation=()=>conversations[currentAssistant]||(conversations[currentAssistant]=loadConversation(currentAssistant));
+  const currentConversation=()=>loadConversation(currentAssistant);
 
   const MENUS = Object.freeze({
     assistants:{label:'Assistants',capabilities:['saarthi','coding','research','create','analyze','plan']},
@@ -246,9 +304,12 @@ const SaarthiApp = (() => {
   };
   const appendConversation=(role,content)=>{
     if(!content)return;
-    const messages=currentConversation();
+    const thread=ensureThread(currentAssistant,true);
+    const messages=thread.messages||[];
     messages.push({role,content:String(content),at:new Date().toISOString()});
     conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
+    if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
+    thread.updatedAt=new Date().toISOString();
     saveConversation(currentAssistant);
     renderConversation();
   };
@@ -290,23 +351,64 @@ const SaarthiApp = (() => {
 
   const startNewConversation=()=>{
     const id=currentAssistant;
+    const list=ensureAssistantHistory(id);
+    const thread={id:uid(),title:'New conversation',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:[]};
+    list.push(thread);
+    currentThreads[id]=thread.id;
     conversations[id]=[];
-    try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}
+    saveHistory();
     document.body.classList.remove('chat-active');
     renderConversation();
+    renderHistory();
     closePickers();
     command?.focus();
     addActivity('New conversation started',id);
   };
 
+  const renderHistory=()=>{
+    const list=ensureAssistantHistory(currentAssistant);
+    const nav=document.querySelector('.sidebar .nav');
+    if(!nav)return;
+    let box=document.querySelector('.assistant-history');
+    if(!box){
+      box=document.createElement('section');box.className='assistant-history';
+      nav.insertAdjacentElement('afterend',box);
+    }
+    const active=currentThreads[currentAssistant];
+    const rows=list.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(t=>
+      '<button class="history-thread '+(t.id===active?'active':'')+'" data-thread-id="'+escapeHtml(t.id)+'"><span class="history-thread-icon">'+escapeHtml(assistantInfo(currentAssistant).icon)+'</span><span><b>'+escapeHtml(t.title||'New conversation')+'</b><small>'+new Date(t.updatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</small></span></button>'
+    ).join('');
+    box.innerHTML='<div class="history-head"><div><small>CONVERSATIONS</small><b>'+escapeHtml(assistantInfo(currentAssistant).name)+'</b></div><button type="button" class="history-new" aria-label="New conversation">＋</button></div><div class="history-search"><span>⌕</span><input type="search" placeholder="Search conversations…" aria-label="Search conversations"></div><div class="history-list">'+(rows||'<div class="history-empty">No conversations yet.</div>')+'</div>';
+    box.querySelector('.history-new')?.addEventListener('click',startNewConversation);
+    box.querySelector('.history-search input')?.addEventListener('input',e=>{
+      const q=e.target.value.trim().toLowerCase();
+      box.querySelectorAll('.history-thread').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(q);});
+    });
+    box.querySelectorAll('.history-thread').forEach(row=>row.addEventListener('click',()=>openConversation(row.dataset.threadId)));
+  };
+  const openConversation=threadId=>{
+    const list=ensureAssistantHistory(currentAssistant);
+    const thread=list.find(t=>t.id===threadId);
+    if(!thread)return;
+    currentThreads[currentAssistant]=thread.id;
+    conversations[currentAssistant]=thread.messages.slice(-MAX_CONTEXT_MESSAGES);
+    saveHistory();
+    closePickers();
+    renderConversation();
+    renderHistory();
+    window.scrollTo({top:0,behavior:'smooth'});
+    command?.focus();
+  };
+
   const renderMenuRoot=()=>{
     const target=$('#menuPicker');if(!target)return;
-    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option menu-option-new" data-new-conversation="true"><span class="menu-option-icon">＋</span><span><b>New conversation</b><small>Start a clean conversation with '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
+    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-history-root="true"><span class="menu-option-icon">☷</span><span><b>Conversation history</b><small>Open +(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'s conversations.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-new" data-new-conversation="true"><span class="menu-option-icon">＋</span><span><b>New conversation</b><small>Start a clean conversation with '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Assistants</b><small>Switch between Saarthi, Coding, Research, Create, Analyze and Plan.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
     closePickers();
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
     target.querySelectorAll('[data-root-menu]').forEach(btn=>btn.addEventListener('click',()=>selectMenu(btn.dataset.rootMenu)));
     target.querySelector('[data-new-conversation]')?.addEventListener('click',startNewConversation);
+    target.querySelector('[data-history-root]')?.addEventListener('click',()=>{closePickers();renderHistory();document.querySelector('.assistant-history')?.classList.toggle('history-mobile-open');});
     target.querySelector('[data-root-usage]')?.addEventListener('click',()=>{
       addActivity('AI Usage opened','Session telemetry');
       renderUsagePanel();
@@ -411,6 +513,7 @@ const SaarthiApp = (() => {
     applyAssistantEnvironment(item);
     loadConversation(item.id);
     renderConversation();
+    renderHistory();
     setStatus(item.name+' ready');
     setCoreState('ready',item.name+' environment is ready.');
     addActivity('Assistant selected',item.name+' · '+item.environment);
@@ -472,9 +575,11 @@ const SaarthiApp = (() => {
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
+  loadHistory();
   loadConversation('saarthi');
   applyAssistantEnvironment(ASSISTANTS[0]);
   renderConversation();
+  renderHistory();
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
@@ -485,6 +590,6 @@ const SaarthiApp = (() => {
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
-  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;conversations[id]=[];try{localStorage.removeItem(CONVERSATION_PREFIX+id);}catch{}if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();}},startNewConversation,voiceTurn:false};
+  window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;const list=ensureAssistantHistory(id);const tid=currentThreads[id];const index=list.findIndex(t=>t.id===tid);if(index>=0)list.splice(index,1);currentThreads[id]=null;conversations[id]=[];saveHistory();if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();renderHistory();}},startNewConversation,voiceTurn:false};
   return window.SaarthiApp;
 })()
