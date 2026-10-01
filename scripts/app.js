@@ -6,7 +6,8 @@ const SaarthiApp = (() => {
   const liveDay = $('#liveDay'), liveLow = $('#liveLow'), liveHigh = $('#liveHigh');
   const weatherSymbol = $('#weatherSymbol'), topClock = $('#topClock');
   const liveLocation = $('#liveLocation'), liveWeather = $('#liveWeather'), liveTemp = $('#liveTemp');
-  const greeting = $('#greeting'), coreStatus = $('.core-status'), chatText = $('.chat-strip p');
+  const greeting = $('#greeting'), coreStatus = $('.core-status');
+  const responseCard = $('#assistantResponse'), responseBody = $('#assistantResponseBody'), responseMeta = $('#assistantResponseMeta');
   const runs = [];
 
   const MENUS = Object.freeze({
@@ -115,9 +116,62 @@ const SaarthiApp = (() => {
     item.querySelector('b').textContent=title;item.querySelector('span').textContent=detail;activity.prepend(item);
   };
   const setStatus=value=>{if(status)status.textContent=value;};
-  const setCoreState=(value,detail)=>{
+  const setCoreState=(value)=>{
     if(coreStatus)coreStatus.innerHTML='<b>सारथी CORE</b> · '+value;
-    if(chatText&&detail)chatText.innerHTML='<b>'+detail+'</b> Saarthi is working through the request. You keep the final call.';
+  };
+
+  const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const inlineMarkdown=value=>escapeHtml(value)
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/__([^_]+)__/g,'<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g,'<em>$1</em>')
+    .replace(/_([^_]+)_/g,'<em>$1</em>');
+
+  const renderMarkdown=markdown=>{
+    const lines=String(markdown||'').replace(/\r/g,'').split('\n');
+    const out=[];let inCode=false,code=[];let listType=null,tableMode=false;
+    const closeList=()=>{if(listType){out.push('</'+listType+'>');listType=null;}};
+    const closeTable=()=>{if(tableMode){out.push('</tbody></table>');tableMode=false;}};
+    for(let i=0;i<lines.length;i++){
+      const raw=lines[i], line=raw.trim();
+      if(line.startsWith('```')){closeList();closeTable();if(inCode){out.push('<pre><code>'+escapeHtml(code.join('\n'))+'</code></pre>');code=[];inCode=false;}else inCode=true;continue;}
+      if(inCode){code.push(raw);continue;}
+      if(!line){closeList();closeTable();continue;}
+      if(/^\|.*\|$/.test(line)){
+        const cells=line.slice(1,-1).split('|').map(x=>x.trim());
+        if(cells.every(x=>/^:?-{3,}:?$/.test(x))){continue;}
+        closeList();
+        if(!tableMode){tableMode=true;out.push('<table><thead><tr>'+cells.map(x=>'<th>'+inlineMarkdown(x)+'</th>').join('')+'</tr></thead><tbody>');}
+        else out.push('<tr>'+cells.map(x=>'<td>'+inlineMarkdown(x)+'</td>').join('')+'</tr>');
+        continue;
+      }
+      closeTable();
+      const heading=line.match(/^(#{1,3})\s+(.+)$/);
+      if(heading){closeList();const level=heading[1].length;out.push('<h'+level+'>'+inlineMarkdown(heading[2])+'</h'+level+'>');continue;}
+      const bullet=line.match(/^[-*•]\s+(.+)$/);
+      if(bullet){if(listType!=='ul'){closeList();listType='ul';out.push('<ul>');}out.push('<li>'+inlineMarkdown(bullet[1])+'</li>');continue;}
+      const numbered=line.match(/^\d+[.)]\s+(.+)$/);
+      if(numbered){if(listType!=='ol'){closeList();listType='ol';out.push('<ol>');}out.push('<li>'+inlineMarkdown(numbered[1])+'</li>');continue;}
+      if(/^>\s?/.test(line)){closeList();out.push('<blockquote>'+inlineMarkdown(line.replace(/^>\s?/,''))+'</blockquote>');continue;}
+      if(/^---+$/.test(line)){closeList();out.push('<hr>');continue;}
+      closeList();out.push('<p>'+inlineMarkdown(line)+'</p>');
+    }
+    if(inCode)out.push('<pre><code>'+escapeHtml(code.join('\n'))+'</code></pre>');
+    closeList();closeTable();
+    return out.join('');
+  };
+
+  const showResponse=(reply,result)=>{
+    if(!responseCard||!responseBody)return;
+    responseBody.innerHTML=renderMarkdown(reply||'Command completed.');
+    if(responseMeta){
+      const intent=result?.intent?.name||'chat';
+      const provider=result?.provider||'runtime';
+      responseMeta.textContent='SAARTHI RESPONSE · '+intent.toUpperCase()+' · '+provider;
+    }
+    responseCard.hidden=false;
+    responseCard.scrollIntoView({behavior:'smooth',block:'nearest'});
   };
 
   const speak=text=>{
@@ -156,7 +210,7 @@ const SaarthiApp = (() => {
     runs.unshift({id:result.run_id,intent,provider:result.provider,at:new Date().toISOString(),message:value});runs.splice(20);
     setStatus('Ready');setCoreState('ready','Saarthi has a response.');
     addActivity('Run completed',result.run_id+' · '+intent+' · '+result.provider);
-    if(chatText)chatText.innerHTML='<b>'+String(result.reply||'Command completed.').replace(/</g,'&lt;')+'</b>';
+    showResponse(result.reply,result);
     return result;
   };
 
@@ -168,7 +222,7 @@ const SaarthiApp = (() => {
     catch(error){
       setStatus('Connection issue');setCoreState('offline','Cloud runtime is unavailable.');
       addActivity('Run failed',error?.message||'Cloud runtime unavailable.');
-      if(chatText)chatText.innerHTML='<b>SAARTHI could not reach the cloud runtime.</b> Check the backend connection and try again.';
+      showResponse('### Connection issue\n\nSAARTHI could not reach the cloud runtime. Check the backend connection and try again.',{intent:{name:'runtime'},provider:'unavailable'});
     }finally{window.SaarthiApp.voiceTurn=false;command.value='';command.disabled=false;setTimeout(()=>setStatus('Saarthi is present'),1200);}
   };
 
