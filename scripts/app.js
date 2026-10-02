@@ -408,7 +408,7 @@ const SaarthiApp = (() => {
 
   const normalizeLegacyToolVisual=(raw)=>{
     let text=String(raw||'');
-    const toolPattern=/<\|toolcall\|>\s*python\(code=(?:"|\\")([\s\S]*?)(?:"|\\")\)\s*<\|toolcall_end\|>/gi;
+    const toolPattern=/<\|toolcall\|>[\s|]*python\(code=(?:"|'|\\")([\s\S]*?)(?:"|'|\\")\)[\s|]*<\|toolcall_end\|>/gi;
     text=text.replace(toolPattern,(_,code)=>{
       const source=String(code).replace(/\\n/g,'\n').replace(/\\'/g,"'");
       const chartType=/\bplt\.pie\s*\(/i.test(source)?'pie':/\bplt\.bar\s*\(/i.test(source)?'bar':'line';
