@@ -473,16 +473,34 @@ const SaarthiApp = (() => {
       if(type==='chart'){
         const data=Array.isArray(spec.data)?spec.data:[];const series=Array.isArray(spec.series)?spec.series:[];
         if(!data.length)return ''; if(spec.chartType!=='pie'&&spec.chartType!=='heatmap'&&!series.length)return '';
-        const w=720,h=300,pad=42;
+        const w=720,h=340,pad=42;
         const values=series.flatMap(se=>data.map(row=>Number(row[se.dataKey]))).filter(Number.isFinite);
         const max=Math.max(...values,1),min=Math.min(0,...values);
         const sx=i=>pad+i*Math.max(1,(w-pad*2)/Math.max(1,data.length-1));
         const sy=v=>h-pad-((v-min)/Math.max(1,max-min))*(h-pad*2);
         const palette=['#6f8fa8','#a38b6a','#6d927a','#8b7ba8'];
-        let svg='<svg class="saarthi-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+escapeHtml(chartTitle)+'"><line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" class="chart-axis"/>';
+        let svg='<svg class="saarthi-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+escapeHtml(chartTitle)+'">'+(spec.chartType==='pie'||spec.chartType==='heatmap'?'':'<line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" class="chart-axis"/>');
         if(spec.chartType==='pie'){
-          const total=data.reduce((a,r)=>a+Number(r[spec.valueKey]||0),0);let angle=-Math.PI/2;const cx=w/2,cy=h/2,r=95;
-          data.forEach((row,i)=>{const val=Number(row[spec.valueKey]||0),a=total?val/total*Math.PI*2:0, x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+a),y2=cy+r*Math.sin(angle+a),large=a>Math.PI?1:0;svg+='<path d="M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' Z" fill="'+palette[i%palette.length]+'"/>';angle+=a;});
+          const total=data.reduce((a,row)=>a+Math.max(0,Number(row[spec.valueKey]||0)),0);
+          const cx=190,cy=154,r=104,inner=62; let angle=-Math.PI/2;
+          data.forEach((row,i)=>{
+            const val=Math.max(0,Number(row[spec.valueKey]||0)),a=total?val/total*Math.PI*2:0;
+            const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+a),y2=cy+r*Math.sin(angle+a);
+            const ix1=cx+inner*Math.cos(angle),iy1=cy+inner*Math.sin(angle),ix2=cx+inner*Math.cos(angle+a),iy2=cy+inner*Math.sin(angle+a);
+            const large=a>Math.PI?1:0;
+            svg+='<path d="M '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' L '+ix2+' '+iy2+' A '+inner+' '+inner+' 0 '+large+' 0 '+ix1+' '+iy1+' Z" fill="'+palette[i%palette.length]+'" stroke="rgba(255,255,255,.92)" stroke-width="2"/>';
+            angle+=a;
+          });
+          svg+='<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" class="chart-center-total">'+escapeHtml(String(total))+'</text><text x="'+cx+'" y="'+(cy+18)+'" text-anchor="middle" class="chart-center-label">Total</text>';
+          data.forEach((row,i)=>{
+            const label=String(row[spec.nameKey]??row.category??('Item '+(i+1)));
+            const value=Number(row[spec.valueKey]||0);
+            const pct=total?(value/total*100):0;
+            const y=48+i*40;
+            svg+='<rect x="386" y="'+(y-10)+'" width="12" height="12" rx="4" fill="'+palette[i%palette.length]+'"/>';
+            svg+='<text x="406" y="'+y+'" class="chart-legend-label">'+escapeHtml(label.slice(0,20))+'</text>';
+            svg+='<text x="694" y="'+y+'" text-anchor="end" class="chart-legend-value">'+escapeHtml(Number.isInteger(value)?String(value):value.toFixed(1))+' · '+pct.toFixed(0)+'%</text>';
+          });
         }else if(spec.chartType==='heatmap'){
           const rows=data.map(r=>Array.isArray(r.values)?r.values.map(Number):[]).filter(r=>r.length);
           const cols=Math.max(0,...rows.map(r=>r.length)); const left=72,top=32,cellW=50,cellH=34;
@@ -607,7 +625,10 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const messages=thread.messages||[];
     const message={role,content:String(content),at:new Date().toISOString()};
     if(role==='assistant'&&workProduct&&typeof workProduct==='object')message.workProduct=workProduct;
-    if(role==='assistant')message.showIntelligence=Boolean(showIntelligence);
+    if(role==='assistant'){
+      messages.forEach(existing=>{if(existing.role==='assistant')existing.showIntelligence=false;});
+      message.showIntelligence=Boolean(showIntelligence);
+    }
     messages.push(message);
     conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
     if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
