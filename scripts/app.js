@@ -284,8 +284,8 @@ const SaarthiApp = (() => {
     if(intelligenceContext){
       if(state==='complete'&&result?.orchestration){
         intelligenceContext.textContent=industry && industry!=='General'
-          ? 'Context selected for this objective · '+industry+(workflow?' · '+workflow:'')
-          : 'Saarthi selected the operating path for this objective.';
+          ? industry
+          : 'Saarthi selected the operating path.';
       }else{
         intelligenceContext.textContent=state==='running'
           ? 'SAARTHI is contextualizing the objective, selecting the right capability and validating the path.'
@@ -295,16 +295,16 @@ const SaarthiApp = (() => {
     const wf=document.getElementById('activeWorkflow');
     const exec=document.getElementById('executionStatus');
     const contextLabel=result?.orchestration?.industry
-      ? 'Context selected: '+result.orchestration.industry+(workflow?' · '+workflow:'')
-      : 'Saarthi selected the operating path for this objective.';
+      ? result.orchestration.industry
+      : 'Saarthi selected the operating path.';
     setAutonomousContext(state==='running'
       ? 'Saarthi is deciding the right operating path…'
       : state==='complete'
         ? contextLabel
         : 'Saarthi will determine the right operating path from your objective.',
       state==='running'?'DECIDING':state==='complete'?'READY':'AUTO');
-    if(wf)wf.textContent=state==='complete'?(workflow||'Objective workflow'):'Saarthi decides';
-    if(exec)exec.textContent=state==='running'?'EXECUTING':state==='complete'?'VERIFIED':'READY';
+    if(wf)wf.textContent=state==='complete'?(industry && industry!=='General'?industry:'Saarthi'):'Saarthi';
+    if(exec)exec.textContent=state==='running'?'WORKING':state==='complete'?'READY':'READY';
   };
 
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
