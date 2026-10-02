@@ -283,6 +283,8 @@ def build_orchestration(assistant: str, intent: Intent, message: str, context: d
         "decision_frameworks": runtime["industry_decision_frameworks"],
         "constraints": runtime["industry_constraints"],
         "artifacts": runtime["industry_artifacts"],
+        "industry_coverage": runtime.get("industry_coverage", {}),
+        "agent_playbook": runtime.get("agent_playbook", {}),
         "stages": ["understand", "contextualize", "reason", "execute", "verify", "deliver"],
         "handoff": "internal" if internal and assistant == "saarthi" else "direct",
     }
@@ -491,6 +493,9 @@ class OpenAICompatibleProvider(LLMProvider):
             f"Industry constraints: {', '.join(runtime_capabilities['industry_constraints']) or 'none'}. "
             f"Industry decision frameworks: {', '.join(runtime_capabilities['industry_decision_frameworks']) or 'none'}. "
             f"Industry work products: {', '.join(runtime_capabilities['industry_artifacts']) or 'none'}. "
+            f"Industry journey coverage: {', '.join(runtime_capabilities.get('industry_coverage', {}).get('coverage', [])) or 'none'}. "
+            f"Industry artifact bundle: {', '.join(runtime_capabilities.get('industry_coverage', {}).get('artifact_bundle', [])) or 'none'}. "
+            f"Agent playbook sequence: {', '.join(runtime_capabilities.get('agent_playbook', {}).get('sequence', [])) or 'none'}. "
             "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints, KPIs and decision framework where applicable. "
             "Prefer a decision-ready work product over generic advice. Do not merely mention the industry name. "
             "SAARTHI is an intelligence operating system, not a collection of personas: orchestrate the selected capability internally, preserve conversation continuity, and move from understanding to a verified deliverable. "
