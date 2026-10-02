@@ -6,6 +6,10 @@ const SaarthiApp = (() => {
   const liveDay = $('#liveDay');
   const topClock = $('#topClock');
   const greeting = $('#greeting'), coreStatus = $('.core-status');
+  const intelligenceFlow = $('#intelligenceFlow');
+  const intelligenceFlowTitle = $('#intelligenceFlowTitle');
+  const intelligenceFlowState = $('#intelligenceFlowState');
+  const intelligenceContext = $('#intelligenceContext');
   const responseCard = $('#assistantResponse'), responseBody = $('#assistantResponseBody'), responseMeta = $('#assistantResponseMeta');
   const runs = [];
   const usageTotals = {
@@ -272,6 +276,28 @@ const SaarthiApp = (() => {
   const setStatus=value=>{if(status)status.textContent=value;};
   const setCoreState=(value)=>{
     if(coreStatus)coreStatus.innerHTML='<b>सारथी CORE</b> · '+value;
+  };
+
+  const updateIntelligenceFlow=(state='idle',result=null)=>{
+    if(!intelligenceFlow)return;
+    const labels={idle:'Ready to reason',running:'Working the objective',complete:'Decision-ready result'};
+    if(intelligenceFlowTitle)intelligenceFlowTitle.textContent=labels[state]||labels.idle;
+    if(intelligenceFlowState)intelligenceFlowState.textContent=state.toUpperCase();
+    const stages=[...intelligenceFlow.querySelectorAll('.intelligence-stage')];
+    const active=result?.orchestration?.stages||['understand','contextualize','reason','execute','verify','deliver'];
+    const activeCapability=result?.orchestration?.active_capability;
+    const industry=result?.orchestration?.industry||INDUSTRIES[currentIndustry]||'General';
+    stages.forEach((el,index)=>el.classList.toggle('active',state==='running'?index<4:state==='complete'?index<active.length:index===0));
+    if(intelligenceContext){
+      if(state==='complete'&&result?.orchestration){
+        const workflow=(result.orchestration.workflow||[]).join(' · ');
+        intelligenceContext.textContent=industry+' · '+(activeCapability||assistantInfo(currentAssistant).name)+(workflow?' · '+workflow:'')+' · verified delivery path';
+      }else{
+        intelligenceContext.textContent=state==='running'
+          ? 'SAARTHI is contextualizing the objective, selecting the right capability and validating the path.'
+          : 'SAARTHI is ready to turn an objective into a decision-ready result.';
+      }
+    }
   };
 
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -690,6 +716,7 @@ const SaarthiApp = (() => {
   };
 
   const runCommand=async(value,mode)=>{
+    updateIntelligenceFlow('running');
     setStatus('Routing…');setCoreState('routing','Request received.');await new Promise(r=>setTimeout(r,90));
     setStatus('Understanding…');setCoreState('understanding','Separating intent from noise.');
     const request=apiCommand(value,mode);await new Promise(r=>setTimeout(r,120));
@@ -699,6 +726,7 @@ const SaarthiApp = (() => {
     await new Promise(r=>setTimeout(r,120));
     runs.unshift({id:result.run_id,intent,provider:result.provider,at:new Date().toISOString(),message:value});runs.splice(20);
     setStatus('Ready');setCoreState('ready','Saarthi has a response.');
+    updateIntelligenceFlow('complete',result);
     addActivity('Run completed',result.run_id+' · '+intent+' · '+result.provider);
     showResponse(result.reply,result);
     return result;
@@ -711,6 +739,7 @@ const SaarthiApp = (() => {
     command.disabled=true;
     try{const result=await runCommand(value,mode);if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);}
     catch(error){
+      updateIntelligenceFlow('idle');
       setStatus('Connection issue');setCoreState('offline','Cloud runtime is unavailable.');
       addActivity('Run failed',error?.message||'Cloud runtime unavailable.');
       showResponse('### Connection issue\n\nSAARTHI could not reach the cloud runtime. Check the backend connection and try again.',{intent:{name:'runtime'},provider:'unavailable'});
@@ -728,7 +757,8 @@ const SaarthiApp = (() => {
   };
 
   loadIndustry();
-  industrySelector()?.addEventListener('change',e=>setIndustry(e.target.value));
+  updateIntelligenceFlow('idle');
+  industrySelector()?.addEventListener('change',e=>{setIndustry(e.target.value);updateIntelligenceFlow('idle');});
   loadHistory();
   attachmentsByAssistant.saarthi=[];
   loadConversation('saarthi');
