@@ -845,7 +845,8 @@ class SaarthiEngine:
                     tool_results["data.chart"] = build_chart(
                         dataset["rows"], chart_match.group(1).lower(), x_key, series_key,
                         f"{series_key} by {x_key}",
-                    )                elif re.search(r"\b(dashboard|visuali[sz]e|visualization|visualisation|show me|plot|graph|chart)\b", message, re.IGNORECASE):
+                    )
+                elif re.search(r"\b(dashboard|visuali[sz]e|visualization|visualisation|show me|plot|graph|chart)\b", message, re.IGNORECASE):
                     tool_results["data.charts"] = recommend_visuals(dataset["columns"], dataset["rows"])
 
         if assistant_id == "analyze":
