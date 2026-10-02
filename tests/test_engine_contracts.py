@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from backend.work_product import build_work_product, infer_deliverable_type
 from backend.engine import (
     ASSISTANT_PROFILES,
     ToolRegistry,
@@ -50,6 +51,32 @@ class EngineContractTests(unittest.TestCase):
         )
         self.assertTrue(result["decision_frameworks"])
         self.assertTrue(result["artifacts"])
+
+    def test_work_product_contract_is_structured(self):
+        result = build_work_product(
+            objective="Create a manufacturing improvement plan",
+            intent="plan",
+            reply="Prioritize downtime reduction.",
+            orchestration={
+                "industry": "Manufacturing",
+                "active_capability": "Plan",
+                "internal_specialist": "plan",
+                "workflow": ["capacity_planning"],
+                "artifacts": ["capacity_plan"],
+            },
+            tool_results={"system.status": {"service": "saarthi-engine", "state": "ready"}},
+            verification={"claims": "runtime path completed"},
+        )
+        self.assertEqual(result["version"], "1.0")
+        self.assertEqual(result["industry"], "Manufacturing")
+        self.assertEqual(result["deliverable_type"], "capacity_plan")
+        self.assertTrue(result["actions_taken"])
+        self.assertTrue(result["evidence"])
+        self.assertEqual(result["verification"]["status"], "runtime_verified")
+
+    def test_deliverable_type_defaults_to_intent(self):
+        self.assertEqual(infer_deliverable_type("plan", {}), "execution_plan")
+        self.assertEqual(infer_deliverable_type("research", {}), "research_brief")
 
     def test_specialist_profiles_remain_available(self):
         self.assertEqual(
