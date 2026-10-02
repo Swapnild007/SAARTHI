@@ -577,6 +577,7 @@ class OpenAICompatibleProvider(LLMProvider):
         active_assistant = str(internal_specialist or assistant)
         profile = assistant_profile(active_assistant)
         runtime_capabilities = build_runtime_context(active_assistant, context.get("industry") if isinstance(context, dict) else None)
+        agent_knowledge = runtime_capabilities.get("agent_knowledge", {})
         coding_context = ""
         if profile["name"] == "AI Coding":
             has_code = bool(re.search(r"\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\b", message, re.IGNORECASE))
@@ -630,6 +631,9 @@ class OpenAICompatibleProvider(LLMProvider):
             f"Industry journey coverage: {', '.join(runtime_capabilities.get('industry_coverage', {}).get('coverage', [])) or 'none'}. "
             f"Industry artifact bundle: {', '.join(runtime_capabilities.get('industry_coverage', {}).get('artifact_bundle', [])) or 'none'}. "
             f"Agent playbook sequence: {', '.join(runtime_capabilities.get('agent_playbook', {}).get('sequence', [])) or 'none'}. "
+            f"Agent knowledge principles: {' | '.join(agent_knowledge.get('principles', [])) or 'none'}. "
+            f"Agent quality gates: {', '.join(agent_knowledge.get('quality_gates', [])) or 'none'}. "
+            "Treat these principles as execution guidance, not as a source of factual claims. "
             "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints, KPIs and decision framework where applicable. "
             "Prefer a decision-ready work product over generic advice. Do not merely mention the industry name. "
             "For broad or end-to-end requests, cover the important journey without producing an unnecessarily long wall of prose: lead with a concise executive answer, then use compact headings, bullets or tables, and put secondary diagnostics in structured sections. "
