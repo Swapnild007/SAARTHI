@@ -21,6 +21,88 @@ INDUSTRY_PACKS: dict[str, dict[str, Any]] = {
     "manufacturing": {"name":"Manufacturing","vocabulary":["production","line","downtime","yield","quality","maintenance","capacity"],"workflows":["production_analysis","quality_review","capacity_planning","maintenance_review"],"agent_mapping":{"research":["process_research"],"data_analyst":["production_analysis"],"analyze":["root_cause"],"plan":["capacity_plan"],"create":["operations_report"]},"kpis":["oee","yield","downtime","throughput","defect_rate"],"constraints":["machine_capacity","maintenance_windows","quality_limits","material_availability","safety"],"decision_frameworks":["throughput_vs_quality","maintenance_vs_availability","capacity_vs_oee"],"artifacts":["production_analysis","downtime_pareto","capacity_plan","operations_report"]},
 }
 
+
+# End-to-end domain coverage. These are product playbooks, not extra bots.
+# Each pack tells SAARTHI what a complete user journey should cover when relevant.
+INDUSTRY_COVERAGE: dict[str, dict[str, Any]] = {
+    "travel": {
+        "journey": "destination_to_return",
+        "coverage": [
+            "destination_research", "dates_and_seasonality", "visa_and_documents",
+            "flight_options", "train_options", "bus_options", "car_rental",
+            "self_drive", "bike_or_motorbike", "airport_transfer",
+            "hotel", "airbnb_or_vacation_rental", "hostel", "lodge", "resort",
+            "local_transport", "activities", "food", "travel_insurance",
+            "budget", "itinerary", "packing", "weather", "safety", "contingency",
+            "booking_checklist", "return_journey"
+        ],
+        "artifact_bundle": ["trip_brief", "transport_comparison", "stay_comparison", "day_by_day_itinerary", "budget", "document_checklist", "risk_and_contingency_brief"]
+    },
+    "financial_services": {
+        "journey": "financial_question_to_decision",
+        "coverage": ["goal_definition", "cash_flow", "income_and_expense", "account_review", "portfolio_review", "investment_research", "risk", "fees", "tax_and_compliance", "scenario_analysis", "liquidity", "decision_summary", "action_checklist"],
+        "artifact_bundle": ["financial_summary", "cash_flow_view", "risk_register", "scenario_table", "decision_brief"]
+    },
+    "healthcare": {
+        "journey": "care_question_to_next_step",
+        "coverage": ["symptom_or_need_context", "care_setting", "provider_options", "appointment_preparation", "care_pathway", "clinical_information", "medication_information", "test_and_report_review", "follow_up", "cost_and_access", "privacy", "safety", "red_flags", "care_checklist"],
+        "artifact_bundle": ["care_navigation_brief", "appointment_checklist", "information_summary", "follow_up_plan"]
+    },
+    "retail": {
+        "journey": "customer_or_product_question_to_action",
+        "coverage": ["product_discovery", "price_comparison", "promotion", "availability", "inventory", "customer_segment", "basket", "conversion", "fulfillment", "returns", "margin", "promotion_effect", "recommendation", "action_plan"],
+        "artifact_bundle": ["product_comparison", "sales_analysis", "inventory_review", "promotion_plan", "action_brief"]
+    },
+    "logistics": {
+        "journey": "shipment_to_delivery",
+        "coverage": ["demand", "shipment", "route", "carrier", "warehouse", "inventory", "load", "capacity", "lead_time", "delivery_window", "tracking", "exceptions", "cost", "service_level", "root_cause", "contingency"],
+        "artifact_bundle": ["network_view", "route_comparison", "capacity_plan", "exception_report", "delivery_action_plan"]
+    },
+    "manufacturing": {
+        "journey": "order_to_production_to_quality",
+        "coverage": ["demand", "production_plan", "material_availability", "line_capacity", "machine_capacity", "scheduling", "maintenance", "downtime", "oee", "yield", "quality", "defects", "labor", "safety", "root_cause", "throughput", "capacity", "continuous_improvement"],
+        "artifact_bundle": ["production_analysis", "downtime_pareto", "capacity_plan", "quality_review", "improvement_roadmap"]
+    },
+}
+
+AGENT_PLAYBOOKS: dict[str, dict[str, Any]] = {
+    "saarthi": {
+        "role": "orchestrator",
+        "sequence": ["understand_objective", "infer_context", "select_capabilities", "coordinate_execution", "verify", "deliver"],
+        "handoffs": ["research", "data_analyst", "analyze", "plan", "coding", "create"]
+    },
+    "coding": {
+        "role": "software_engineering",
+        "sequence": ["inspect", "design", "implement", "test", "review", "ship"],
+        "quality_gates": ["requirements", "correctness", "tests", "security", "maintainability"]
+    },
+    "research": {
+        "role": "evidence_engineering",
+        "sequence": ["frame", "retrieve", "evaluate_sources", "compare", "synthesize", "cite"],
+        "quality_gates": ["source_quality", "recency", "cross_checking", "uncertainty"]
+    },
+    "create": {
+        "role": "content_and_concept_production",
+        "sequence": ["brief", "ideate", "draft", "refine", "finalize"],
+        "quality_gates": ["brief_alignment", "clarity", "consistency", "format"]
+    },
+    "data_analyst": {
+        "role": "quantitative_decision_support",
+        "sequence": ["profile", "validate", "analyze", "visualize", "explain", "recommend"],
+        "quality_gates": ["data_quality", "calculation_integrity", "method_fit", "interpretation"]
+    },
+    "analyze": {
+        "role": "evidence_and_problem_analysis",
+        "sequence": ["scope", "extract", "test_assumptions", "find_patterns", "root_cause", "conclude"],
+        "quality_gates": ["evidence", "assumptions", "alternative_explanations", "traceability"]
+    },
+    "plan": {
+        "role": "execution_and_operations_planning",
+        "sequence": ["define", "decompose", "prioritize", "sequence", "resource", "validate", "execute", "review"],
+        "quality_gates": ["dependencies", "constraints", "owners", "milestones", "contingencies"]
+    },
+}
+
 def agent_capability(assistant: str) -> dict[str, Any]:
     return AGENT_CAPABILITIES.get(str(assistant or "").lower(), AGENT_CAPABILITIES["saarthi"])
 
@@ -41,4 +123,6 @@ def build_runtime_context(assistant: str, industry: str | None = None) -> dict[s
         "industry_constraints": pack.get("constraints", []) if pack else [],
         "industry_decision_frameworks": pack.get("decision_frameworks", []) if pack else [],
         "industry_artifacts": pack.get("artifacts", []) if pack else [],
+        "industry_coverage": INDUSTRY_COVERAGE.get(str(industry).lower(), {}) if industry else {},
+        "agent_playbook": AGENT_PLAYBOOKS.get(str(assistant).lower(), AGENT_PLAYBOOKS["saarthi"]),
     }
