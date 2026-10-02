@@ -1613,3 +1613,27 @@ body.chat-active .assistant-selector b{font-size:15px}
   .mobile-control-trigger{display:inline-flex!important}
   .menu-trigger{display:inline-flex!important}
 }
+
+/* Production visualization polish */
+.saarthi-visual{
+  margin:16px 0 4px;
+  padding:16px 16px 12px;
+  border:1px solid rgba(32,78,88,.12);
+  border-radius:22px;
+  background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(242,249,248,.82));
+  box-shadow:0 10px 30px rgba(32,78,88,.07),inset 0 1px 0 rgba(255,255,255,.95);
+  overflow:hidden;
+}
+.visual-title{font-size:17px;font-weight:760;letter-spacing:-.01em;color:#17313a;margin:0 2px 8px}
+.saarthi-chart-svg{display:block;width:100%;height:auto;min-height:250px;overflow:visible}
+.chart-center-total{font-size:26px;font-weight:780;fill:#17313a}
+.chart-center-label{font-size:11px;font-weight:650;fill:#6b7d83;letter-spacing:.08em;text-transform:uppercase}
+.chart-legend-label{font-size:13px;font-weight:650;fill:#29434a}
+.chart-legend-value{font-size:12px;font-weight:650;fill:#60757b}
+@media(max-width:680px){
+  .saarthi-visual{margin:14px 0 2px;padding:14px 10px 8px;border-radius:20px}
+  .visual-title{font-size:16px;margin-left:3px}
+  .saarthi-chart-svg{min-height:270px}
+  .chart-legend-label{font-size:12px}
+  .chart-legend-value{font-size:11px}
+}
