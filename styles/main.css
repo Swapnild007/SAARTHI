@@ -1491,3 +1491,13 @@ body.chat-active .assistant-selector b{font-size:15px}
   .intelligence-stage i{flex:0 0 auto;width:14px!important;height:14px!important;font-size:6px!important}
   .intelligence-stage:not(.active){opacity:.48}
 }
+
+
+/* Final mobile identity sizing — prevent supplied logo from dominating the viewport */
+@media(max-width:900px){
+  .saarthi-wordmark{width:120px!important;height:78px!important;overflow:hidden!important;flex:0 0 78px!important}
+  .saarthi-logo-image{width:120px!important;height:78px!important;max-width:120px!important;max-height:78px!important;object-fit:contain!important;object-position:left center!important}
+  .identity-stack{gap:8px!important}
+  .greeting-block{gap:6px!important}
+  .greeting-block h2{font-size:31px!important;line-height:1!important}
+}
