@@ -581,9 +581,16 @@ class OpenAICompatibleProvider(LLMProvider):
                 reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
                 chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
                 sample_requested = bool(re.search(r"\b(sample|synthetic|example|demo)\b", message, re.IGNORECASE))
-                if chart_type and sample_requested and not context.get("attachments") and "<saarthi-chart>" not in reply.lower():
+                if chart_type and sample_requested and not context.get("attachments"):
                     spec = _sample_chart_spec(chart_type)
-                    reply = reply.rstrip() + "\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>"
+                    intro = {
+                        "pie": "Here is a sample distribution using synthetic data.",
+                        "bar": "Here is a sample comparison using synthetic data.",
+                        "line": "Here is a sample trend using synthetic data.",
+                        "scatter": "Here is a sample relationship using synthetic data.",
+                        "heatmap": "Here is a sample heatmap using synthetic data."
+                    }.get(chart_type, "Here is a sample visualization using synthetic data.")
+                    reply = intro + "\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>"
                 self.last_failures = failures
                 return reply, usage
             except Exception as exc:
