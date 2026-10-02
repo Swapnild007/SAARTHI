@@ -85,3 +85,27 @@
   });
   input?.addEventListener('keydown',e=>{if(e.key==='Enter' && !window.SaarthiApp?.submit) fallbackSend();});
 })();
+
+  // Splash lifecycle moved here so production CSP can keep script-src self.
+  const splash = document.getElementById('sudarshanSplash');
+  const splashVideo = document.getElementById('saarthiSplashVideo');
+  const fallback = document.getElementById('splashFallbackBrand');
+  if (fallback) fallback.style.display = 'none';
+  let splashClosed = false;
+  const closeSplash = () => {
+    if (splashClosed) return;
+    splashClosed = true;
+    splash?.classList.add('hide');
+  };
+  const showFallback = (delay = 900) => {
+    if (fallback) fallback.style.display = 'grid';
+    window.setTimeout(closeSplash, delay);
+  };
+  splashVideo?.addEventListener('error', () => showFallback());
+  splashVideo?.addEventListener('ended', closeSplash);
+  if (splashVideo) {
+    splashVideo.play?.().catch(() => showFallback());
+  } else {
+    closeSplash();
+  }
+  window.setTimeout(closeSplash, 6000);
