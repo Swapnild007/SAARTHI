@@ -717,7 +717,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
         addActivity('Control opened',id);
         closePickers();
         if(id==='usage') renderUsagePanel();
-        else showResponse('### '+(CONTROLS.find(x=>x.id===id)?.name||'Control')+'\\n\\nThis control is ready to become a dedicated Saarthi surface without adding another primary navigation page.',{intent:{name:id},provider:'Saarthi'});
+        else showResponse('### '+(CONTROLS.find(x=>x.id===id)?.name||'Control')+'\\n\\nThis control is available from the Saarthi Control Center.',{intent:{name:id},provider:'Saarthi'});
       }
     }));
   };
@@ -754,7 +754,8 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   const selectMenu=menuId=>{
     const id=MENUS[menuId]?menuId:'assistants';
     closePickers();
-    renderPicker(id);
+    if(id==='control') renderControlCenter();
+    else renderPicker(id);
     document.querySelectorAll('[data-menu]').forEach(button=>button.classList.toggle('active',button.dataset.menu===id));
     addActivity('Menu selected',MENUS[id].label);
     return MENUS[id];
