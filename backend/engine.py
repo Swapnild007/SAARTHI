@@ -498,6 +498,8 @@ class OpenAICompatibleProvider(LLMProvider):
             f"Agent playbook sequence: {', '.join(runtime_capabilities.get('agent_playbook', {}).get('sequence', [])) or 'none'}. "
             "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints, KPIs and decision framework where applicable. "
             "Prefer a decision-ready work product over generic advice. Do not merely mention the industry name. "
+            "For broad or end-to-end requests, cover the important journey without producing an unnecessarily long wall of prose: lead with a concise executive answer, then use compact headings, bullets or tables, and put secondary diagnostics in structured sections. "
+            "Do not repeat the user's request, internal routing, or capability names. The user should experience one coherent Saarthi intelligence system, not a chain of bots. "
             "SAARTHI is an intelligence operating system, not a collection of personas: orchestrate the selected capability internally, preserve conversation continuity, and move from understanding to a verified deliverable. "
             "If the request contains enough information to act, act first and state only material assumptions; ask questions only when missing information would materially change the result."
         )
