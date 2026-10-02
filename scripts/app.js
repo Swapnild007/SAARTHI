@@ -524,6 +524,23 @@ const SaarthiApp = (() => {
         svg+='</svg>';
         return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(chartTitle)+'</div>'+svg+'</div>';
       }
+      if(type==='heatmap'){
+        const rows=Array.isArray(spec.data)?spec.data:[];
+        if(!rows.length||!Array.isArray(rows[0]))return '';
+        const flat=rows.flat().map(Number).filter(Number.isFinite);
+        if(!flat.length)return '';
+        const min=Math.min(...flat),max=Math.max(...flat),range=Math.max(1e-9,max-min);
+        const rowLabels=Array.isArray(spec.rowLabels)?spec.rowLabels:[];
+        const colLabels=Array.isArray(spec.colLabels)?spec.colLabels:[];
+        const cells=rows.map((row,r)=>'<div class="heatmap-row">'+row.map((v,c)=>{
+          const n=Number(v); const ratio=Number.isFinite(n)?(n-min)/range:0;
+          const alpha=(0.14+ratio*0.70).toFixed(2);
+          const label=Number.isFinite(n)?(Number.isInteger(n)?n:n.toFixed(2)):'';
+          return '<div class="heatmap-cell" style="--heat-alpha:'+alpha+'" title="'+escapeHtml(String(label))+'">'+escapeHtml(String(label))+'</div>';
+        }).join('')+'</div>').join('');
+        const cols=rows[0].map((_,i)=>'<span>'+escapeHtml(String(colLabels[i]??i+1))+'</span>').join('');
+        return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(chartTitle)+'</div><div class="heatmap-wrap"><div class="heatmap-col-labels">'+cols+'</div>'+rows.map((_,r)=>'<div class="heatmap-labeled-row"><span class="heatmap-row-label">'+escapeHtml(String(rowLabels[r]??r+1))+'</span>'+cells.split('</div><div class="heatmap-row">')[r]+'</div>').join('')+'</div></div>';
+      }
       if(type==='diagram'){
         const nodes=Array.isArray(spec.nodes)?spec.nodes:[],edges=Array.isArray(spec.edges)?spec.edges:[];
         return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(spec.title||'Diagram')+'</div><div class="diagram-flow">'+nodes.map((n,i)=>'<div class="diagram-node"><span>'+escapeHtml(String(n.label||n.id||i+1))+'</span></div>').join('<div class="diagram-arrow">→</div>')+'</div>'+ (edges.length?'<div class="diagram-edges">'+edges.map(e=>escapeHtml(String(e.from||''))+' → '+escapeHtml(String(e.to||''))).join(' · ')+'</div>':'')+'</div>';
