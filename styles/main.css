@@ -43,7 +43,7 @@ button,input{font:inherit}button{cursor:pointer}
 
 .mobile-nav{display:none}
 @media(max-width:1080px){.app{grid-template-columns:198px 1fr}.main{padding:18px}.dashboard{grid-template-columns:1fr}.side-rail{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:720px){
+@media(max-width:900px){
  body{padding-bottom:78px}.app{display:block}
   .home-live-context{margin:0 0 10px;padding:12px;border-radius:22px}
   .live-context-head{padding:1px 3px 9px}
@@ -214,7 +214,7 @@ body{
   background:rgba(0,127,146,.085);
   color:var(--s-blue);
 }
-@media(max-width:720px){
+@media(max-width:900px){
   body{background:#f5f5f7}
   .main{padding:10px 12px 22px}
   .topbar{margin:0 3px 10px}
@@ -244,7 +244,7 @@ body{
 .live-context-grid{grid-template-columns:1fr 1.5fr}
 .live-tile{min-height:56px}
 @media(max-width:1080px){.dashboard{grid-template-columns:1fr}}
-@media(max-width:720px){
+@media(max-width:900px){
   .live-context-grid{grid-template-columns:1fr}
   .home-live-context{margin-bottom:9px}
 }
@@ -278,7 +278,7 @@ body{
 .live-widget span,.live-weather-copy span{display:block;margin-top:3px;font-size:8px;line-height:1.35;color:var(--s-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-weather-copy{min-width:0;flex:1}
 .live-widget-weather>strong{font-size:16px;font-weight:650;color:var(--s-blue);font-variant-numeric:tabular-nums;white-space:nowrap}
-@media(max-width:720px){
+@media(max-width:900px){
   .clock-chip{min-width:90px;height:34px;padding:0 10px}
   .clock-chip strong{font-size:11px}
   .live-widget{grid-template-columns:1fr;min-height:0;border-radius:15px}
@@ -313,7 +313,7 @@ body{
 .weather-copy span{display:block;font-size:9px;margin-top:4px;opacity:.82}
 .weather-footer{display:flex;align-items:center;justify-content:space-between;margin-top:38px;padding-top:10px;border-top:1px solid rgba(255,255,255,.26);font-size:9px;color:rgba(255,255,255,.86)}
 .weather-footer strong{font-size:11px;font-weight:550;color:#fff}
-@media(max-width:720px){
+@media(max-width:900px){
   .home-live-context{margin-bottom:10px}
   .home-live-context .live-context-head{padding:0 4px 8px}
   .weather-widget{min-height:210px;padding:17px 16px 13px;border-radius:23px}
@@ -378,7 +378,7 @@ body{
   padding:8px 9px;text-align:left;border-bottom:1px solid rgba(60,60,67,.09);vertical-align:top;
 }
 .assistant-response-body th{color:var(--s-ink);font-weight:700;background:rgba(0,127,146,.045)}
-@media(max-width:720px){
+@media(max-width:900px){
   .assistant-response{border-radius:17px;margin-top:9px}
   .assistant-response-head{padding:12px}
   .assistant-response-head>span{max-width:145px;font-size:7px}
@@ -429,7 +429,7 @@ body{
   bottom:17px;
 }
 
-@media(max-width:720px){
+@media(max-width:900px){
   .core-panel{
     min-height:405px;
     border-radius:24px;
@@ -535,7 +535,7 @@ body{
 .quick-row{left:32px;bottom:73px}
 .command{left:24px;right:24px;bottom:16px}
 
-@media(max-width:720px){
+@media(max-width:900px){
   .core-panel{
     min-height:365px;
     border-radius:23px;
@@ -572,7 +572,7 @@ body{
 .picker-item:hover{transform:translateY(-1px);background:rgba(255,255,255,.88);border-color:rgba(17,139,131,.18)}
 .picker-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(17,139,131,.09);color:var(--s-blue);font-size:18px}
 .picker-item b{display:block;font-size:11px}.picker-item small{display:block;color:var(--s-muted);font-size:9px;line-height:1.4;margin-top:3px}
-@media(max-width:720px){.assistant-picker,.control-picker{padding:11px;align-items:end}.picker-panel{border-radius:25px 25px 18px 18px;padding:15px;max-height:82vh}.picker-grid{grid-template-columns:1fr}.picker-head h3{font-size:21px}.picker-item{padding:11px}}
+@media(max-width:900px){.assistant-picker,.control-picker{padding:11px;align-items:end}.picker-panel{border-radius:25px 25px 18px 18px;padding:15px;max-height:82vh}.picker-grid{grid-template-columns:1fr}.picker-head h3{font-size:21px}.picker-item{padding:11px}}
 
 /* Final mobile refinement: clear menu trigger + non-orb Saarthi mark */
 .menu-trigger{border:1px solid rgba(20,45,59,.09);background:rgba(255,255,255,.76);color:var(--s-blue);height:38px;padding:0 13px;border-radius:19px;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;box-shadow:0 8px 24px rgba(32,45,50,.08)}
@@ -586,7 +586,7 @@ body{
 .mark-letter{position:absolute;z-index:3;left:66px;top:54px;color:#fff9df;font-family:"Noto Sans Devanagari",sans-serif;font-size:58px;font-weight:500;line-height:1;transform:rotate(7deg);text-shadow:0 4px 18px rgba(0,0,0,.12)}
 .core-visual .core-status{bottom:0}
 .core-ring,.core-dot,.core-halo,.core-emblem{display:none!important}
-@media(max-width:720px){
+@media(max-width:900px){
   .menu-trigger{height:34px;padding:0 10px;border-radius:17px;font-size:11px}
   .menu-trigger span{font-size:9px}
   .saarthi-mark{width:138px;height:138px}
@@ -605,7 +605,7 @@ body{
 .mark-stroke.one{width:57px;left:47px;top:62px;transform:rotate(30deg)}
 .mark-stroke.two{width:48px;left:55px;top:91px;transform:rotate(-28deg)}
 .mark-letter{left:61px;top:48px;font-size:48px;transform:none}
-@media(max-width:720px){
+@media(max-width:900px){
   .core-visual{right:0;top:96px;width:148px;height:165px;opacity:.78}
   .saarthi-mark{width:125px;height:125px}
   .saarthi-mark:before{inset:17px 25px 19px 21px}
@@ -639,7 +639,7 @@ body{
 .voice svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .core-copy .core-kicker{margin-top:4px}
 .core-status{font-size:9px!important;letter-spacing:.06em}
-@media(max-width:720px){
+@media(max-width:900px){
   .topbar{padding-top:3px;gap:12px}
   .identity-stack{gap:10px;min-width:0}
   .saarthi-wordmark{height:48px}
@@ -673,7 +673,7 @@ body{
 .core-copy{max-width:100%}
 .core-panel{min-height:390px}
 .core-visual{display:none!important}
-@media(max-width:720px){
+@media(max-width:900px){
   .menu-picker{padding:11px;align-items:end}
   .menu-panel{border-radius:25px 25px 18px 18px}
   .core-copy{max-width:100%;padding-right:17px}
@@ -690,7 +690,7 @@ body{
 .brandmark{display:flex;align-items:center;justify-content:center}
 .brandmark .saarthi-logo-image{width:54px;height:auto;max-height:54px;object-fit:contain}
 .wordmark-type{display:none!important}
-@media(max-width:720px){.saarthi-logo-image{width:142px;max-height:88px}.identity-stack{gap:10px}.saarthi-wordmark{margin-bottom:-2px}.brandmark .saarthi-logo-image{width:48px;max-height:48px}}
+@media(max-width:900px){.saarthi-logo-image{width:142px;max-height:88px}.identity-stack{gap:10px}.saarthi-wordmark{margin-bottom:-2px}.brandmark .saarthi-logo-image{width:48px;max-height:48px}}
 
 
 /* SAARTHI BRAND PALETTE + HEADER FINAL — supplied logo is the sole brand mark */
@@ -835,7 +835,7 @@ body{
   background:linear-gradient(145deg,#126b80,#159a91);
 }
 
-@media(max-width:720px){
+@media(max-width:900px){
   body{padding-bottom:18px!important}
   .main{padding:10px 11px 18px}
   .topbar{
@@ -1051,7 +1051,7 @@ body[data-assistant] .picker-icon{
 .conversation-content p:first-child{margin-top:0}
 .conversation-content p:last-child{margin-bottom:0}
 .conversation-message.user .conversation-content code{background:rgba(255,255,255,.16);color:#fff}
-@media(max-width:720px){
+@media(max-width:900px){
   .conversation-message{max-width:96%;padding:12px 13px;border-radius:17px}
 }
 
@@ -1074,7 +1074,7 @@ body[data-assistant] .picker-icon{
 .assistant-response-body{
   scroll-behavior:smooth;
 }
-@media(max-width:720px){
+@media(max-width:900px){
   .conversation-composer{
     width:calc(100% - 20px);
     margin:10px auto 8px;
@@ -1165,7 +1165,7 @@ body.chat-active .greeting-block>h2{display:none}
 body.chat-active .assistant-selector{border:0;background:transparent;box-shadow:none;padding-left:2px}
 body.chat-active .assistant-selector small{display:none}
 body.chat-active .assistant-selector b{font-size:15px}
-@media(max-width:720px){
+@media(max-width:900px){
   body{padding-bottom:0}
   body.chat-active .main{padding:7px 10px calc(92px + env(safe-area-inset-bottom))}
   body.chat-active .topbar{margin:0 2px 2px}
@@ -1233,7 +1233,7 @@ body.chat-active .assistant-selector b{font-size:15px}
 .mobile-history-agent{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--s-blue);padding:0 5px 12px}
 .mobile-history-content .history-head{display:none}
 
-@media(max-width:720px){
+@media(max-width:900px){
   .history-trigger{display:grid}
   .top-actions{gap:5px}
   .assistant-history{display:none}
@@ -1288,6 +1288,19 @@ body.chat-active .assistant-selector b{font-size:15px}
 }
 
 
+/* Mobile web / Chrome responsive correction: many Android browsers expose a wider CSS viewport than the physical screen. */
+@media(max-width:900px){
+  .app{display:block!important;min-height:100vh}
+  .sidebar{display:none!important}
+  .main{padding:11px 11px 88px!important}
+  .dashboard{display:block!important;max-width:none!important}
+  .topbar{margin:0 3px 11px!important}
+  .topbar h2{font-size:21px!important}
+  .core-panel{min-height:365px!important}
+  .side-rail{display:grid!important;grid-template-columns:1fr!important}
+  .industry-context{margin:0 0 9px!important}
+}
+
 /* Industry intelligence layer */
 .industry-context{
   max-width:1320px;margin:0 auto 12px;padding:10px 13px;
@@ -1309,7 +1322,7 @@ body.chat-active .assistant-selector b{font-size:15px}
   font-size:10px;outline:none;
 }
 .industry-select-wrap select:focus{border-color:rgba(0,127,146,.35);box-shadow:0 0 0 3px rgba(0,127,146,.08)}
-@media(max-width:720px){
+@media(max-width:900px){
   .industry-context{margin:0 0 9px;padding:9px 10px;border-radius:16px}
   .industry-context-copy small{font-size:6px}
   .industry-context-copy strong{font-size:10px}
