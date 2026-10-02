@@ -1286,3 +1286,34 @@ body.chat-active .assistant-selector b{font-size:15px}
   .attachment-chip{max-width:calc(100vw - 60px)}
   .saarthi-chart-svg{min-height:190px}
 }
+
+
+/* Industry intelligence layer */
+.industry-context{
+  max-width:1320px;margin:0 auto 12px;padding:10px 13px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid rgba(60,60,67,.10);border-radius:18px;
+  background:rgba(255,255,255,.68);backdrop-filter:blur(25px) saturate(145%);
+  -webkit-backdrop-filter:blur(25px) saturate(145%);
+  box-shadow:0 5px 20px rgba(0,0,0,.035),inset 0 1px 0 rgba(255,255,255,.82);
+}
+.industry-context-copy{display:flex;align-items:center;gap:9px;min-width:0}
+.industry-context-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(0,127,146,.09);color:var(--s-blue);font-size:13px}
+.industry-context-copy small{display:block;font-size:7px;letter-spacing:.15em;color:#9a7627;font-weight:750}
+.industry-context-copy strong{display:block;font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.industry-select-wrap{display:flex;align-items:center;gap:8px}
+.industry-select-wrap>span{font-size:8px;color:var(--s-muted)}
+.industry-select-wrap select{
+  min-width:175px;border:1px solid rgba(60,60,67,.11);border-radius:11px;
+  padding:8px 28px 8px 10px;background:rgba(248,248,250,.82);color:var(--s-ink);
+  font-size:10px;outline:none;
+}
+.industry-select-wrap select:focus{border-color:rgba(0,127,146,.35);box-shadow:0 0 0 3px rgba(0,127,146,.08)}
+@media(max-width:720px){
+  .industry-context{margin:0 0 9px;padding:9px 10px;border-radius:16px}
+  .industry-context-copy small{font-size:6px}
+  .industry-context-copy strong{font-size:10px}
+  .industry-select-wrap{flex:1;justify-content:flex-end}
+  .industry-select-wrap>span{display:none}
+  .industry-select-wrap select{min-width:145px;max-width:52vw}
+}
