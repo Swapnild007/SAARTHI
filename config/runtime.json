@@ -1,8 +1,8 @@
 {
-  "api_base_url": "https://eeldalviz-1192.vercel.app",
+  "api_base_url": "https://saarthi-nine-chi.vercel.app",
   "fallback_api_base_urls": [
-    "https://saarthi-nine-chi.vercel.app"
+    "https://eeldalviz-1192.vercel.app"
   ],
   "environment": "cloud",
-  "version": 5
+  "version": 6
 }
