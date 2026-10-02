@@ -88,8 +88,10 @@ def inspect_attachment(item: dict[str, Any]) -> dict[str, Any]:
                 rows = list(csv.reader(io.StringIO(text), delimiter=delimiter))
                 result["tabular"] = {
                     "columns": rows[0][:50] if rows else [],
-                    "rows": len(rows),
+                    "rows": max(0, len(rows) - 1),
                     "preview": rows[1:21],
+                    "analysis_rows": rows[1:10001],
+                    "analysis_row_count": max(0, len(rows) - 1),
                 }
             except Exception:
                 pass
@@ -99,6 +101,15 @@ def inspect_attachment(item: dict[str, Any]) -> dict[str, Any]:
                 result["json_shape"] = type(parsed).__name__
                 if isinstance(parsed, list):
                     result["rows"] = len(parsed)
+                    if parsed and all(isinstance(row, dict) for row in parsed[:10000]):
+                        columns = list(dict.fromkeys(str(key) for row in parsed[:10000] for key in row.keys()))[:50]
+                        result["tabular"] = {
+                            "columns": columns,
+                            "rows": len(parsed),
+                            "preview": [[row.get(col, "") for col in columns] for row in parsed[:20]],
+                            "analysis_rows": [{col: row.get(col, "") for col in columns} for row in parsed[:10000]],
+                            "analysis_row_count": len(parsed),
+                        }
             except Exception:
                 pass
         result["summary"] = f"Text/document attachment: {name}, {len(text):,} characters extracted."
@@ -113,9 +124,9 @@ def build_tabular_dataset(item: dict[str, Any]) -> dict[str, Any]:
         return {
             "name": item.get("name", "dataset"),
             "columns": [str(c) for c in tab["columns"][:50]],
-            "rows": tab["preview"][:100],
-            "row_count": len(tab["preview"]),
-            "source": "attachment-preview",
+            "rows": tab.get("analysis_rows", tab["preview"][:100])[:10000],
+            "row_count": int(tab.get("analysis_row_count", tab.get("rows", len(tab["preview"])))),
+            "source": "attachment-deterministic-sample" if tab.get("analysis_row_count") and tab.get("analysis_row_count") > len(tab["analysis_rows"]) else "attachment",
         }
     return {"name": item.get("name", "dataset"), "columns": [], "rows": [], "row_count": 0, "source": "unsupported"}
 
