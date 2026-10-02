@@ -408,12 +408,12 @@ const SaarthiApp = (() => {
 
   const normalizeLegacyToolVisual=(raw)=>{
     let text=String(raw||'');
-    const toolPattern=/<\\|toolcall\\|>\\s*python\\(code=(?:\\\\"|")([\\s\\S]*?)(?:\\\\"|")\\)\\s*<\\|toolcall_end\\|>/gi;
+    const toolPattern=/<\|toolcall\|>\s*python\(code=(?:"|\\")([\s\S]*?)(?:"|\\")\)\s*<\|toolcall_end\|>/gi;
     text=text.replace(toolPattern,(_,code)=>{
-      const source=String(code).replace(/\\\\n/g,'\\n').replace(/\\\\'/g,"'");
-      const chartType=/\\bplt\\.pie\\s*\\(/i.test(source)?'pie':/\\bplt\\.bar\\s*\\(/i.test(source)?'bar':'line';
+      const source=String(code).replace(/\\n/g,'\n').replace(/\\'/g,"'");
+      const chartType=/\bplt\.pie\s*\(/i.test(source)?'pie':/\bplt\.bar\s*\(/i.test(source)?'bar':'line';
       const arrays={};
-      const arrayPattern=/\\b([A-Za-z_]\\w*)\\s*=\\s*\\[([^\\]]*)\\]/g;
+      const arrayPattern=/\b([A-Za-z_]\w*)\s*=\s*\[([^\]]*)\]/g;
       let match;
       while((match=arrayPattern.exec(source))){
         const values=match[2].split(',').map(v=>v.trim()).filter(Boolean).map(v=>{
@@ -423,13 +423,13 @@ const SaarthiApp = (() => {
         });
         arrays[match[1]]=values;
       }
-      const plotCalls=[...source.matchAll(/plt\\.plot\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)[^\\n]*?(?:label\\s*=\\s*['"]([^'"]+)['"])?/gi)];
-      const barCall=source.match(/plt\\.bar\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)/i);
-      const pieCall=source.match(/plt\\.pie\\(\\s*([A-Za-z_]\\w*)/i);
-      let xKey='category',series=[],data=[];
+      const plotCalls=[...source.matchAll(/plt\.plot\(\s*([A-Za-z_]\w*)\s*,\s*([A-Za-z_]\w*)[^\n]*?(?:label\s*=\s*['"]([^'"]+)['"])?/gi)];
+      const barCall=source.match(/plt\.bar\(\s*([A-Za-z_]\w*)\s*,\s*([A-Za-z_]\w*)/i);
+      const pieCall=source.match(/plt\.pie\(\s*([A-Za-z_]\w*)/i);
+      let series=[],data=[];
       if(chartType==='pie'&&pieCall&&arrays[pieCall[1]]){
         const values=arrays[pieCall[1]];
-        const labels=(arrays.categories||arrays.labels||values.map((_,i)=>String(i+1)));
+        const labels=arrays.categories||arrays.labels||values.map((_,i)=>String(i+1));
         data=values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}));
         return '<saarthi-chart>'+JSON.stringify({chartType:'pie',meta:{title:'Generated chart'},nameKey:'category',valueKey:'value',data})+'</saarthi-chart>';
       }
@@ -439,12 +439,11 @@ const SaarthiApp = (() => {
         return '<saarthi-chart>'+JSON.stringify({chartType:'bar',meta:{title:'Generated chart'},xKey:'category',series:[{dataKey:'value',label:'Value'}],data})+'</saarthi-chart>';
       }
       if(plotCalls.length){
-        xKey=plotCalls[0][1];
+        const xKey=plotCalls[0][1];
         plotCalls.forEach((call,i)=>{
           const key=call[2];
           if(!arrays[key])return;
-          const label=call[3]||key;
-          series.push({dataKey:'s'+i,label});
+          series.push({dataKey:'s'+i,label:call[3]||key});
         });
         const xValues=arrays[xKey]||[];
         data=xValues.map((x,i)=>{
