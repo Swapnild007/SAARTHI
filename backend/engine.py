@@ -470,7 +470,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 "Cite source URLs exactly as supplied. Distinguish retrieved evidence from inference, "
                 "state uncertainty and do not invent sources, quotes, dates or findings."
             )
-        if assistant == "data_analyst":
+        if active_assistant == "data_analyst":
             chart_hint = (
                 " For charts use <saarthi-chart>{JSON}</saarthi-chart>. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. "
                 "Keep JSON valid and concise. Do not put prose inside these blocks."
