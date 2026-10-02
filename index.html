@@ -131,17 +131,5 @@
 <div class="menu-picker" id="menuPicker" hidden aria-label="Saarthi menu"></div>
 <div class="assistant-picker" id="assistantPicker" hidden aria-label="Saarthi assistants"></div>
 <div class="control-picker" id="controlPicker" hidden aria-label="Saarthi controls"></div>
-</main></div><script>const splash=document.getElementById('sudarshanSplash');
-const splashVideo=document.getElementById('saarthiSplashVideo');
-const fallback=document.getElementById('splashFallbackBrand');
-if(fallback) fallback.style.display='none';
-let splashClosed=false;
-function closeSplash(){if(splashClosed)return;splashClosed=true;splash?.classList.add('hide')}
-function showFallback(delay=900){if(fallback)fallback.style.display='grid';setTimeout(closeSplash,delay)}
-splashVideo?.addEventListener('error',()=>showFallback());
-splashVideo?.addEventListener('ended',closeSplash);
-if(splashVideo){splashVideo.play?.().catch(()=>showFallback())}else{closeSplash()}
-setTimeout(closeSplash,6000);
-
-</script><script src="./scripts/app.js?v=20261002-05" defer></script><script>(function(){try{var h=Number(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",hour12:false}).format(new Date())),p=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<21?"evening":"night";var e=document.getElementById("greeting");if(e)e.textContent="Good "+p+", Swapnil";}catch(e){}})();</script><script src="./scripts/boot.js?v=20261002-06" defer></script>
+</main></div><script src="./scripts/app.js?v=20261002-05" defer></script><script src="./scripts/boot.js?v=20261002-06" defer></script>
 </body></html>
