@@ -760,7 +760,7 @@ class SaarthiEngine:
                 reply, usage = provider.generate(
                     message=message,
                     intent=intent,
-                    context={**ctx, "execution_results": tool_results},
+                    context={**ctx, "execution_results": tool_results, "orchestration": orchestration},
                     assistant=assistant_id,
                 )
             else:
