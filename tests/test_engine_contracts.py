@@ -78,6 +78,35 @@ class EngineContractTests(unittest.TestCase):
         self.assertEqual(infer_deliverable_type("plan", {}), "execution_plan")
         self.assertEqual(infer_deliverable_type("research", {}), "research_brief")
 
+
+    def test_all_specialists_have_runnable_capability_contracts(self):
+        cases = [
+            ("saarthi", "Help me decide how to organize this objective.", "saarthi"),
+            ("coding", "Build a Python API endpoint and add tests.", "coding"),
+            ("research", "Compare two approaches and identify the evidence needed.", "research"),
+            ("create", "Draft a product launch concept and refine the messaging.", "create"),
+            ("data_analyst", "Analyze this KPI dataset and identify trends.", "data_analyst"),
+            ("analyze", "Analyze the situation, assumptions, risks and root causes.", "analyze"),
+            ("plan", "Create a roadmap with dependencies and checkpoints.", "plan"),
+        ]
+        for assistant, message, expected in cases:
+            intent = classify(message)
+            orchestration = build_orchestration(assistant, intent, message, {"industry": "manufacturing"})
+            self.assertEqual(orchestration["active_capability"], ASSISTANT_PROFILES[expected]["name"])
+            self.assertEqual(orchestration["internal_specialist"], expected if assistant == "saarthi" else assistant)
+            self.assertEqual(orchestration["industry"], "Manufacturing")
+            self.assertEqual(len(orchestration["stages"]), 6)
+            self.assertTrue(orchestration["workflow"])
+            self.assertTrue(orchestration["artifacts"])
+
+    def test_saarthi_internal_route_uses_specialist_industry_mapping(self):
+        message = "We have production downtime and capacity pressure. Build a capacity improvement plan."
+        intent = classify(message)
+        orchestration = build_orchestration("saarthi", intent, message, {"industry": "manufacturing"})
+        self.assertEqual(orchestration["active_capability"], "Plan")
+        self.assertEqual(orchestration["internal_specialist"], "plan")
+        self.assertIn("capacity_plan", orchestration["workflow"])
+
     def test_specialist_profiles_remain_available(self):
         self.assertEqual(
             set(ASSISTANT_PROFILES),
