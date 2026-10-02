@@ -92,6 +92,48 @@ def _sample_chart_spec(chart_type: str) -> dict[str, Any]:
     }
 
 
+def _sample_kpi_dashboard() -> list[dict[str, Any]]:
+    return [
+        {
+            "chartType": "line",
+            "meta": {"title": "Monthly revenue trend"},
+            "xKey": "month",
+            "series": [{"dataKey": "revenue", "label": "Revenue"}],
+            "data": [
+                {"month": "Jan", "revenue": 420},
+                {"month": "Feb", "revenue": 510},
+                {"month": "Mar", "revenue": 470},
+                {"month": "Apr", "revenue": 590},
+                {"month": "May", "revenue": 560},
+            ],
+        },
+        {
+            "chartType": "pie",
+            "meta": {"title": "Market share distribution"},
+            "nameKey": "channel",
+            "valueKey": "share",
+            "data": [
+                {"channel": "Online", "share": 45},
+                {"channel": "Retail", "share": 30},
+                {"channel": "Wholesale", "share": 15},
+                {"channel": "Direct", "share": 10},
+            ],
+        },
+        {
+            "chartType": "heatmap",
+            "meta": {"title": "Regional performance vs target"},
+            "rowLabels": ["North", "South", "East", "West"],
+            "colLabels": ["Q1", "Q2", "Q3", "Q4"],
+            "data": [
+                {"row": "North", "values": [78, 82, 85, 79]},
+                {"row": "South", "values": [65, 70, 72, 68]},
+                {"row": "East", "values": [90, 92, 88, 85]},
+                {"row": "West", "values": [55, 60, 62, 58]},
+            ],
+        },
+    ]
+
+
 @dataclass(frozen=True)
 class Intent:
     name: str
@@ -581,7 +623,15 @@ class OpenAICompatibleProvider(LLMProvider):
                 reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
                 chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
                 sample_requested = bool(re.search(r"\b(sample|synthetic|example|demo)\b", message, re.IGNORECASE))
-                if chart_type and sample_requested and not context.get("attachments"):
+                dashboard_requested = bool(re.search(r"\b(kpi|dashboard)\b", message, re.IGNORECASE))
+                if sample_requested and dashboard_requested and not context.get("attachments") and chart_type:
+                    specs = _sample_kpi_dashboard()
+                    reply = (
+                        "Here is a sample KPI dashboard using synthetic data. "
+                        "The figures are illustrative, not from a real business dataset."
+                        + "".join("\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>" for spec in specs)
+                    )
+                elif chart_type and sample_requested and not context.get("attachments"):
                     spec = _sample_chart_spec(chart_type)
                     intro = {
                         "pie": "Here is a sample distribution using synthetic data.",
