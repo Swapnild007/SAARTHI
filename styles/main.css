@@ -1446,3 +1446,12 @@ body.chat-active .assistant-selector b{font-size:15px}
   .work-product-head{padding-bottom:7px}
   .work-product-primary{padding:8px 0 1px}
 }
+
+
+/* Adaptive intelligence surface: simple requests stay conversational; complex work reveals the OS. */
+#intelligenceFlow[hidden],#autonomousContext[hidden],#intelligenceCommandbar[hidden]{display:none!important}
+@media(max-width:900px){
+  body.chat-active .assistant-response-body{padding-top:8px}
+  body.chat-active:not(.intelligence-expanded) .conversation-content{font-size:15px;line-height:1.65}
+  body.chat-active:not(.intelligence-expanded) .conversation-message.assistant{padding:4px 2px}
+}
