@@ -130,3 +130,91 @@ def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str,
             "missing_columns": [c for c in columns if any(_is_missing(r.get(c)) for r in rows)],
         },
     }
+
+
+def _date_like(value: Any) -> bool:
+    if _is_missing(value):
+        return False
+    text = str(value).strip()
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%Y/%m/%d", "%b %Y", "%B %Y"):
+        try:
+            datetime.strptime(text, fmt)
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def _column_roles(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, list[str]]:
+    numeric, categorical, temporal = [], [], []
+    for col in columns:
+        values = [r.get(col) for r in rows if not _is_missing(r.get(col))]
+        if not values:
+            categorical.append(col)
+            continue
+        if all(_num(v) is not None for v in values):
+            numeric.append(col)
+        elif sum(_date_like(v) for v in values) / len(values) >= 0.8:
+            temporal.append(col)
+        else:
+            categorical.append(col)
+    return {"numeric": numeric, "categorical": categorical, "temporal": temporal}
+
+
+def recommend_visuals(columns: list[str], rows: list[dict[str, Any]], *, limit: int = 4) -> list[dict[str, Any]]:
+    """Choose useful visual forms from the supplied data shape.
+
+    This function only uses supplied rows and deterministic rules. It never
+    creates values and is intentionally conservative about pie charts.
+    """
+    if not rows or len(columns) < 2:
+        return []
+    roles = _column_roles(columns, rows)
+    numeric, categorical, temporal = roles["numeric"], roles["categorical"], roles["temporal"]
+    specs: list[dict[str, Any]] = []
+
+    if temporal and numeric:
+        specs.append(build_chart(rows, "line", temporal[0], numeric[0], f"{numeric[0]} over {temporal[0]}"))
+
+    if categorical and numeric:
+        group = categorical[0]
+        value = numeric[0]
+        grouped = group_by(rows, group, value, "sum")
+        grouped.sort(key=lambda item: float(item.get(value) or 0), reverse=True)
+        specs.append(build_chart(grouped[:12], "bar", group, value, f"{value} by {group}"))
+        if len(grouped) <= 6:
+            specs.append(build_chart(grouped, "pie", group, value, f"{value} share by {group}"))
+
+    if len(numeric) >= 2:
+        x_key, y_key = numeric[:2]
+        specs.append(build_chart(rows[:5000], "scatter", x_key, y_key, f"{y_key} vs {x_key}"))
+
+    if len(categorical) >= 2 and numeric:
+        row_key, col_key, value_key = categorical[0], categorical[1], numeric[0]
+        row_values = list(dict.fromkeys(str(r.get(row_key)) for r in rows if not _is_missing(r.get(row_key))))[:12]
+        col_values = list(dict.fromkeys(str(r.get(col_key)) for r in rows if not _is_missing(r.get(col_key))))[:12]
+        matrix = []
+        for rv in row_values:
+            row = []
+            for cv in col_values:
+                vals = [_num(r.get(value_key)) for r in rows if str(r.get(row_key)) == rv and str(r.get(col_key)) == cv]
+                vals = [v for v in vals if v is not None]
+                row.append(round(statistics.fmean(vals), 4) if vals else None)
+            matrix.append({"row": rv, "values": row})
+        if row_values and col_values:
+            specs.append({
+                "chartType": "heatmap",
+                "meta": {"title": f"{value_key} by {row_key} and {col_key}"},
+                "rowLabels": row_values,
+                "colLabels": col_values,
+                "data": matrix,
+            })
+
+    unique = []
+    seen = set()
+    for spec in specs:
+        key = (spec.get("chartType"), (spec.get("meta") or {}).get("title"))
+        if key not in seen:
+            seen.add(key)
+            unique.append(spec)
+    return unique[:max(1, limit)]
