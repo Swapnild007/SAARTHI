@@ -219,21 +219,32 @@ const SaarthiApp = (() => {
     '/settings':'settings','/voice':'voice'
   });
   let API_BASE='';
+  let API_BASES=[];
   const loadRuntimeConfig=async()=>{
     try{
       const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
       if(response.ok){
         const config=await response.json();
-        API_BASE=String(config.api_base_url||'').replace(/\/$/,'');
+        const configured=[
+          config.api_base_url,
+          ...(Array.isArray(config.fallback_api_base_urls)?config.fallback_api_base_urls:[])
+        ]
+          .map(value=>String(value||'').replace(/\/$/,''))
+          .filter(Boolean);
+        API_BASES=[...new Set(configured)];
+        API_BASE=API_BASES[0]||'';
       }
     }catch{}
   };
   const ensureApiBase=async()=>{
-    if(!API_BASE)await loadRuntimeConfig();
-    if(!API_BASE)API_BASE=window.location.origin;
+    if(!API_BASES.length)await loadRuntimeConfig();
+    if(!API_BASES.length){
+      API_BASE=window.location.origin;
+      API_BASES=[API_BASE];
+    }
     return API_BASE;
   };
-  const apiUrl=path=>API_BASE+(path.startsWith('/')?path:'/'+path);
+  const apiUrl=(path,base=API_BASE)=>base+(path.startsWith('/')?path:'/'+path);
 
   const weatherDescription=code=>({
     0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',
@@ -906,8 +917,24 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       conversation:currentConversation().map(({role,content})=>({role,content})),
       attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
-    const response=await fetch(apiUrl('/api/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,assistant:currentAssistant,context})});
-    if(!response.ok)throw new Error('API '+response.status);return response.json();
+    let lastError=null;
+    for(const base of API_BASES){
+      try{
+        const response=await fetch(apiUrl('/api/command',base),{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({message:value,mode,assistant:currentAssistant,context})
+        });
+        if(response.ok){
+          API_BASE=base;
+          return response.json();
+        }
+        lastError=new Error('API '+response.status+' from '+base);
+      }catch(error){
+        lastError=error;
+      }
+    }
+    throw lastError||new Error('No cloud runtime configured');
   };
 
   const runCommand=async(value,mode)=>{
