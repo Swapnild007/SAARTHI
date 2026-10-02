@@ -496,8 +496,8 @@ const SaarthiApp = (() => {
           });
           svg+='<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" class="chart-center-total">'+escapeHtml(String(total))+'</text><text x="'+cx+'" y="'+(cy+18)+'" text-anchor="middle" class="chart-center-label">Total</text>';
           data.forEach((row,i)=>{
-            const label=String(row[spec.nameKey]??row.category??('Item '+(i+1)));
-            const value=Number(row[spec.valueKey]||0);
+            const label=String(row[labelKey]??row.category??('Item '+(i+1)));
+            const value=pieValue(row);
             const pct=total?(value/total*100):0;
             const y=48+i*40;
             svg+='<rect x="386" y="'+(y-10)+'" width="12" height="12" rx="4" fill="'+palette[i%palette.length]+'"/>';
