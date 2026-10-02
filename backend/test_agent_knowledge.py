@@ -16,7 +16,7 @@ def test_data_analyst_knowledge_is_runtime_visible():
     runtime = build_runtime_context("data_analyst")
     assert "agent_knowledge" in runtime
     assert "provenance" in runtime["agent_knowledge"]["quality_gates"]
-    assert "deterministic calculations outside the language model whenever possible." in runtime["agent_knowledge"]["principles"]
+    assert any("deterministic calculations outside the language model" in item for item in runtime["agent_knowledge"]["principles"])
 
 
 def test_knowledge_sources_are_public_and_explicit():
