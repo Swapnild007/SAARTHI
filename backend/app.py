@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 from urllib.request import Request as UrlRequest, urlopen
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,15 +18,95 @@ from pydantic import BaseModel, Field
 from .engine import SaarthiEngine
 from .agent_capabilities import AGENT_CAPABILITIES, INDUSTRY_PACKS
 
-app = FastAPI(title="SAARTHI Cloud API", version="0.3.0")
+_docs_enabled = os.getenv("SAARTHI_ENABLE_DOCS", "").lower() in {"1", "true", "yes"}
+app = FastAPI(
+    title="SAARTHI Cloud API",
+    version="0.4.0",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
+
+_allowed_origins_raw = os.getenv("SAARTHI_ALLOWED_ORIGINS", "").strip()
+ALLOWED_ORIGINS = (
+    [origin.strip() for origin in _allowed_origins_raw.split(",") if origin.strip()]
+    if _allowed_origins_raw
+    else [
+        "https://saarthi-nine-chi.vercel.app",
+        "https://swapnild007.github.io",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("SAARTHI_ALLOWED_ORIGINS", "*").split(","),
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type"],
+    max_age=600,
 )
+
+# Defense-in-depth controls. Production-grade distributed rate limiting should
+# also be enforced at the edge/API gateway because serverless instances are ephemeral.
+_RATE_LIMIT = max(1, int(os.getenv("SAARTHI_RATE_LIMIT_PER_MINUTE", "60")))
+_rate_buckets: dict[str, deque[float]] = defaultdict(deque)
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    if request.url.path.startswith("/api/"):
+        now = time.monotonic()
+        forwarded = request.headers.get("x-forwarded-for", "")
+        client_id = forwarded.split(",", 1)[0].strip() or (
+            request.client.host if request.client else "unknown"
+        )
+        bucket = _rate_buckets[client_id]
+        cutoff = now - 60.0
+        while bucket and bucket[0] <= cutoff:
+            bucket.popleft()
+        if len(bucket) >= _RATE_LIMIT:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please retry shortly."},
+                headers={"Retry-After": "60", "Cache-Control": "no-store"},
+            )
+        bucket.append(now)
+
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "camera=(), geolocation=(self), microphone=(self), payment=(), usb=()",
+    )
+    response.headers.setdefault("X-DNS-Prefetch-Control", "off")
+    if request.url.scheme == "https":
+        response.headers.setdefault(
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains",
+        )
+    if request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-store")
+    if request.url.path == "/":
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com data:; "
+            "img-src 'self' data: blob:; "
+            "media-src 'self' blob:; "
+            "connect-src 'self' https://saarthi-nine-chi.vercel.app https://api.open-meteo.com https://api.bigdatacloud.net https://ipwho.is; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "frame-ancestors 'none'; "
+            "form-action 'self'",
+        )
+    return response
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -70,15 +152,13 @@ engine = SaarthiEngine()
 
 @app.get("/api/health")
 def health():
+    # Keep infrastructure details out of the public health contract.
     return {
         "ok": True,
         "service": "saarthi-api",
         "architecture": "cloud",
-        "engine": "jarvis-runtime-v1",
+        "engine": "saarthi-runtime-v1",
         "provider_configured": engine.cloud.configured,
-        "ai_gateway_routes": len(engine.cloud.routes),
-        "ai_gateway_active_route": engine.cloud.last_route if engine.cloud.configured else None,
-        "tools": engine.tools.names(),
     }
 
 
