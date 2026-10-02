@@ -398,6 +398,7 @@ class OpenAICompatibleProvider(LLMProvider):
             f"{profile['instruction']} {coding_context}{attachment_hint}{chart_hint}{research_hint} "
             "Treat the selected assistant as the user's current working environment, not as a superficial label. "
             "Answer the user's actual request first. Do not reveal hidden chain-of-thought. "
+            "Never output internal safety classifications, moderation labels, policy checks, routing metadata or phrases such as 'User Safety: safe' unless the user explicitly asks about safety classification. "
             "Never claim a tool ran unless its result is present. Do not invent access to tools, files, browsing, memory or external services. "
             f"The selected assistant boundary is: {profile.get('boundary', 'general assistance')}. Enforce that boundary explicitly. "
             f"Runtime capability focus: {runtime_capabilities['focus']}. Supported capabilities: {', '.join(runtime_capabilities['capabilities'])}. "
@@ -406,7 +407,8 @@ class OpenAICompatibleProvider(LLMProvider):
             f"Industry vocabulary: {', '.join(runtime_capabilities['industry_vocabulary']) or 'none'}. "
             f"Industry workflows: {', '.join(runtime_capabilities['industry_workflows']) or 'none'}. "
             f"Industry KPIs: {', '.join(runtime_capabilities['industry_kpis']) or 'none'}. "
-            f"Industry-specific workflows for this assistant: {', '.join(runtime_capabilities['industry_agent_mapping']) or 'none'}."
+            f"Industry-specific workflows for this assistant: {', '.join(runtime_capabilities['industry_agent_mapping']) or 'none'}. "
+            "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints and KPIs where applicable. Do not merely mention the industry name."
         )
         failures: list[dict[str, str]] = []
         for route in self.routes:
