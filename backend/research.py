@@ -6,10 +6,19 @@ import socket
 from html import unescape
 from typing import Any
 from urllib.parse import quote_plus, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 SEARCH_ENDPOINT = "https://html.duckduckgo.com/html/?q={query}"
+
+
+class _NoRedirectHandler(HTTPRedirectHandler):
+    """Reject redirects so URL validation cannot be bypassed by a remote server."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("redirects are disabled for remote research sources")
+
+
+_SAFE_OPENER = build_opener(_NoRedirectHandler())
 MAX_SOURCE_BYTES = 1_500_000
 DEFAULT_RESULTS = 5
 
@@ -48,6 +57,10 @@ def _public_url(url: str) -> bool:
         return False
     host = parsed.hostname.lower()
     if host in {"localhost", "localhost.localdomain"}:
+        return False
+    if parsed.username or parsed.password:
+        return False
+    if parsed.port not in {None, 80, 443}:
         return False
     try:
         addresses = socket.getaddrinfo(host, None)
@@ -131,7 +144,7 @@ def search_web(query: str, limit: int = DEFAULT_RESULTS) -> list[dict[str, str]]
         return []
     url = SEARCH_ENDPOINT.format(query=quote_plus(query[:500]))
     request = Request(url, headers={"User-Agent": "SAARTHI-Research/1.0"})
-    with urlopen(request, timeout=12) as response:
+    with _SAFE_OPENER.open(request, timeout=12) as response:
         html = response.read().decode("utf-8", errors="replace")
     return [item for item in _parse_search_results(html, limit) if _public_url(item["url"])]
 
@@ -140,7 +153,7 @@ def fetch_source(url: str) -> dict[str, Any]:
     if not _public_url(url):
         raise ValueError("source URL is not a permitted public HTTP(S) URL")
     request = Request(url, headers={"User-Agent": "SAARTHI-Research/1.0"})
-    with urlopen(request, timeout=15) as response:
+    with _SAFE_OPENER.open(request, timeout=15) as response:
         content_type = str(response.headers.get("Content-Type") or "")
         body = response.read(MAX_SOURCE_BYTES).decode("utf-8", errors="replace")
     return {"url": url, "title": url, "text": _clean_text(body), "content_type": content_type}
