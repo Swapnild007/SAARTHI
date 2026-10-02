@@ -458,6 +458,12 @@ const SaarthiApp = (() => {
       const workProductHtml=message.role==='assistant'&&wp&&message.showIntelligence?renderWorkProduct(wp):'';
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
     }).join('');
+    const lastAssistant=[...messages].reverse().find(m=>m.role==='assistant');
+    const expanded=Boolean(lastAssistant?.showIntelligence);
+    document.body.classList.toggle('intelligence-expanded',expanded);
+    ['intelligenceFlow','autonomousContext','intelligenceCommandbar'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.hidden=!expanded;
+    });
     const eyebrow=$('#assistantResponseEyebrow');
     const title=$('#assistantResponseTitle');
     if(eyebrow) eyebrow.textContent=item.name.toUpperCase()+' • CONVERSATION';
