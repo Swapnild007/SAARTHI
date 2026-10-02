@@ -453,9 +453,10 @@ class LLMProvider:
 
 def _parse_tabular_attachment(item: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
     tab = item.get("tabular") if isinstance(item, dict) else None
-    if isinstance(tab, dict) and isinstance(tab.get("columns"), list) and isinstance(tab.get("preview"), list):
+    if isinstance(tab, dict) and isinstance(tab.get("columns"), list):
         cols = [str(c) for c in tab["columns"]]
-        rows = [{cols[i]: row[i] if i < len(row) else None for i in range(len(cols))} for row in tab["preview"] if isinstance(row, list)]
+        raw_rows = tab.get("analysis_rows") or tab.get("preview") or []
+        rows = [{cols[i]: row[i] if i < len(row) else None for i in range(len(cols))} for row in raw_rows if isinstance(row, list)]
         return cols, rows
     return [], []
 
@@ -484,7 +485,13 @@ def analyze_attachments_for_data(attachments: list[dict[str, Any]]) -> dict[str,
     for item in attachments:
         cols, rows = _parse_tabular_attachment(item)
         if cols:
-            datasets.append({"name": item.get("name", "dataset"), "columns": cols, "preview_rows": rows, "profile": _numeric_profile(cols, rows)})
+            datasets.append({
+                "name": item.get("name", "dataset"),
+                "columns": cols,
+                "rows": rows,
+                "row_count": int((item.get("tabular") or {}).get("rows", len(rows))),
+                "profile": _numeric_profile(cols, rows),
+            })
     return {"datasets": datasets, "dataset_count": len(datasets)}
 
 
@@ -826,13 +833,13 @@ class SaarthiEngine:
             datasets = tool_results["data.profile"].get("datasets", [])
             if datasets:
                 dataset = datasets[0]
-                tool_results["data.analysis"] = analyze_dataset(dataset["columns"], dataset["preview_rows"])
-                # Build a deterministic chart when the user explicitly asks for one.
+                tool_results["data.analysis"] = analyze_dataset(dataset["columns"], dataset["rows"])
+                # Build deterministic visuals from the supplied dataset, not from model-generated values.
                 chart_match = re.search(r"\b(bar|line|pie|scatter)\b.*?\b(?:chart|graph)\b", message, re.IGNORECASE)
                 if chart_match and len(dataset["columns"]) >= 2:
                     x_key, series_key = dataset["columns"][0], dataset["columns"][1]
                     tool_results["data.chart"] = build_chart(
-                        dataset["preview_rows"], chart_match.group(1).lower(), x_key, series_key,
+                        dataset["rows"], chart_match.group(1).lower(), x_key, series_key,
                         f"{series_key} by {x_key}",
                     )
         if assistant_id == "analyze":
