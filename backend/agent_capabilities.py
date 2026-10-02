@@ -69,6 +69,7 @@ AGENT_PLAYBOOKS: dict[str, dict[str, Any]] = {
     "saarthi": {
         "role": "orchestrator",
         "sequence": ["understand_objective", "infer_context", "select_capabilities", "coordinate_execution", "verify", "deliver"],
+        "quality_gates": ["objective_clarity", "context_integrity", "routing_fit", "execution_integrity", "verification", "delivery_quality"],
         "handoffs": ["research", "data_analyst", "analyze", "plan", "coding", "create"]
     },
     "coding": {
