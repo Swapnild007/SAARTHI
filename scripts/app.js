@@ -30,27 +30,16 @@ const SaarthiApp = (() => {
   const conversations=Object.create(null);
   const currentThreads=Object.create(null);
   const historyState={assistants:Object.create(null)};
-  const INDUSTRY_KEY='saarthi.industry.v1';
   const INDUSTRIES=Object.freeze({
     '':'General','travel':'Travel & Tourism','financial_services':'Financial Services','healthcare':'Healthcare & Life Sciences',
     'retail':'Retail & E-commerce','logistics':'Logistics & Supply Chain','manufacturing':'Manufacturing'
   });
   let currentIndustry='';
-  const industrySelector=()=>document.getElementById('industrySelector');
-  const industryLabel=()=>document.getElementById('industryLabel');
-  const loadIndustry=()=>{
-    try{const saved=String(localStorage.getItem(INDUSTRY_KEY)||'');currentIndustry=Object.prototype.hasOwnProperty.call(INDUSTRIES,saved)?saved:'';}catch{currentIndustry='';}
-    const select=industrySelector();if(select)select.value=currentIndustry;
-    const label=industryLabel();if(label)label.textContent=INDUSTRIES[currentIndustry]||'General';
-  };
-  const setIndustry=value=>{
-    currentIndustry=Object.prototype.hasOwnProperty.call(INDUSTRIES,value)?value:'';
-    try{localStorage.setItem(INDUSTRY_KEY,currentIndustry);}catch{}
-    const select=industrySelector();if(select)select.value=currentIndustry;
-    const label=industryLabel();if(label)label.textContent=INDUSTRIES[currentIndustry]||'General';
-    setStatus((INDUSTRIES[currentIndustry]||'General')+' context ready');
-    setCoreState('ready',(INDUSTRIES[currentIndustry]||'General')+' industry layer active.');
-    addActivity('Industry context changed',INDUSTRIES[currentIndustry]||'General');
+  const setAutonomousContext=(label,status='AUTO')=>{
+    const el=document.getElementById('autonomousContextLabel');
+    const st=document.getElementById('autonomousContextStatus');
+    if(el)el.textContent=label;
+    if(st)st.textContent=status;
   };
 
   const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
@@ -301,13 +290,18 @@ const SaarthiApp = (() => {
           : 'SAARTHI is ready to turn an objective into a decision-ready result.';
       }
     }
-    const cap=document.getElementById('activeCapability');
     const wf=document.getElementById('activeWorkflow');
-    const lens=document.getElementById('activeDecisionLens');
     const exec=document.getElementById('executionStatus');
-    if(cap)cap.textContent=activeCapability;
-    if(wf)wf.textContent=workflow||'Objective intake';
-    if(lens)lens.textContent=decisionLens||'Context-aware reasoning';
+    const contextLabel=result?.orchestration?.industry
+      ? 'Context detected: '+result.orchestration.industry+(workflow?' · '+workflow:'')
+      : 'Saarthi will determine the capability, industry and workflow from your objective.';
+    setAutonomousContext(state==='running'
+      ? 'Saarthi is deciding the right capability and operating context…'
+      : state==='complete'
+        ? contextLabel
+        : 'Saarthi will determine the capability, industry and workflow from your objective.',
+      state==='running'?'DECIDING':state==='complete'?'DETECTED':'AUTO');
+    if(wf)wf.textContent=state==='complete'?(workflow||'Objective workflow'):'Saarthi decides';
     if(exec)exec.textContent=state==='running'?'EXECUTING':state==='complete'?'VERIFIED':'READY';
   };
 
@@ -609,7 +603,7 @@ const SaarthiApp = (() => {
 
   const renderMenuRoot=()=>{
     const target=$('#menuPicker');if(!target)return;
-    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-history-root="true"><span class="menu-option-icon">☷</span><span><b>Conversation history</b><small>Open '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'\'s conversations.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="assistants"><span class="menu-option-icon">✦</span><span><b>Intelligence</b><small>Choose the internal capability that best fits the objective.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
+    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-history-root="true"><span class="menu-option-icon">☷</span><span><b>Conversation history</b><small>Open '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'\'s conversations.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
     closePickers();
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
@@ -741,7 +735,7 @@ const SaarthiApp = (() => {
       client_time:new Date().toISOString(),
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
       locale:navigator.language||'en-IN',
-      industry:currentIndustry||null,
+      industry:null,
       conversation:currentConversation().map(({role,content})=>({role,content})),
       attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
@@ -790,9 +784,8 @@ const SaarthiApp = (() => {
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
-  loadIndustry();
+  setAutonomousContext('Saarthi will determine the capability, industry and workflow from your objective.','AUTO');
   updateIntelligenceFlow('idle');
-  industrySelector()?.addEventListener('change',e=>{setIndustry(e.target.value);updateIntelligenceFlow('idle');});
   loadHistory();
   attachmentsByAssistant.saarthi=[];
   loadConversation('saarthi');
