@@ -316,7 +316,8 @@ const SaarthiApp = (() => {
     .replace(/_([^_]+)_/g,'<em>$1</em>');
 
   const renderMarkdown=markdown=>{
-    const lines=String(markdown||'').replace(/\r/g,'').split('\n');
+    const source=String(markdown||'').replace(new RegExp('<toolcall>[\\s\\S]*?</toolcall>','gi'),'').trim();
+    const lines=source.replace(/\r/g,'').split('\n');
     const out=[];let inCode=false,code=[];let listType=null,tableMode=false;
     const closeList=()=>{if(listType){out.push('</'+listType+'>');listType=null;}};
     const closeTable=()=>{if(tableMode){out.push('</tbody></table>');tableMode=false;}};
