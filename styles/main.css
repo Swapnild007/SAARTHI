@@ -1426,3 +1426,23 @@ body.chat-active .assistant-selector b{font-size:15px}
 .work-product-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .work-product-tags span{display:inline-flex;padding:5px 8px;border:1px solid rgba(60,60,67,.08);border-radius:999px;background:rgba(255,255,255,.62);font-size:7px;color:var(--s-muted);line-height:1.2}
 @media(max-width:900px){.work-product-tags{gap:5px}.work-product-tags span{font-size:6.5px;padding:4px 7px}}
+
+
+/* Compact intelligence delivery: keep the answer primary; diagnostics and journey coverage stay one tap away. */
+.work-product-primary{padding:10px 0 2px}
+.work-product-primary small{display:block;font-size:7px;letter-spacing:.13em;color:#9a7627;font-weight:750}
+.work-product-primary strong{display:block;margin-top:3px;font-size:11px;color:var(--s-ink)}
+.work-product-details{margin-top:9px;border-top:1px solid rgba(60,60,67,.075);padding-top:8px}
+.work-product-details summary{cursor:pointer;list-style:none;font-size:8px;font-weight:700;letter-spacing:.08em;color:var(--s-blue);padding:4px 0}
+.work-product-details summary::-webkit-details-marker{display:none}
+.work-product-details summary:before{content:'＋';display:inline-block;margin-right:6px;font-weight:800}
+.work-product-details[open] summary:before{content:'−'}
+.work-product-details .work-product-meta{margin-top:7px}
+@media(max-width:900px){
+  .assistant-response-body{padding:10px 4px 120px;gap:12px}
+  body.chat-active .conversation-content{font-size:13px;line-height:1.55}
+  body.chat-active .conversation-message{margin-bottom:9px}
+  .work-product{margin-top:8px;border-radius:15px;padding:10px 11px}
+  .work-product-head{padding-bottom:7px}
+  .work-product-primary{padding:8px 0 1px}
+}
