@@ -1637,3 +1637,12 @@ body.chat-active .assistant-selector b{font-size:15px}
   .chart-legend-label{font-size:12px}
   .chart-legend-value{font-size:11px}
 }
+
+/* Inline AI visualization layout */
+.saarthi-visual{margin:12px 0 2px;padding:14px 14px 10px;border-radius:20px}
+.saarthi-visual .visual-title{margin-bottom:2px}
+@media(max-width:680px){
+  .saarthi-visual{margin:10px 0 0;padding:12px 8px 8px;border-radius:18px}
+  .saarthi-chart-svg{min-height:0;height:auto}
+  .chart-heat-value{font-size:12px}
+}
