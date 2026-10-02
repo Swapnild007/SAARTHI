@@ -1580,3 +1580,13 @@ body.chat-active .assistant-selector b{font-size:15px}
   .main{padding-left:8px!important;padding-right:8px!important}
   .topbar h2{font-size:19px!important}
 }
+
+.mobile-control-trigger{display:none}
+@media (pointer:coarse) and (max-width:1200px){
+  .mobile-control-trigger{
+    display:inline-flex!important;align-items:center;justify-content:center;gap:5px;
+    min-height:34px;padding:7px 10px;border:1px solid rgba(20,40,50,.08);
+    border-radius:999px;background:rgba(255,255,255,.72);color:inherit;
+    font:600 9px/1 Inter,sans-serif;box-shadow:0 4px 14px rgba(40,70,80,.06);
+  }
+}
