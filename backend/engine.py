@@ -139,7 +139,7 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
             "Use the current Saarthi conversation as the only conversational working memory for this turn. Do not assume context from another assistant or another thread. "
             "For decisions, separate facts, assumptions, constraints, trade-offs and options and leave decision authority with the user. "
             "For planning, convert outcomes into ordered actions, dependencies and checkpoints. For problems, diagnose before prescribing. "
-            "When a specialist task clearly belongs to Coding, Research, Create, Analyze or Plan, explain briefly that the specialist environment is designed for that task and ask the user whether they want to switch; do not silently impersonate the specialist. "
+            "When a specialist task clearly belongs to Coding, Research, Create, Analyze or Plan, route it internally to that capability while keeping the user in the Saarthi workspace; do not force a manual assistant switch. "
             "This environment may still answer ordinary coding, research, writing, analysis or planning questions when they are part of a broader personal-assistant request, because Saarthi is the general assistant. "
             "Stay calm, practical and conversational. Do not fabricate facts, citations, access, memory, tool results or completed actions."
         ),
@@ -413,8 +413,11 @@ class OpenAICompatibleProvider(LLMProvider):
     def generate(self, *, message: str, intent: Intent, context: dict[str, Any], assistant: str = "saarthi") -> tuple[str, dict[str, Any] | None]:
         if not self.configured:
             raise RuntimeError("no AI gateway route is configured")
-        profile = assistant_profile(assistant)
-        runtime_capabilities = build_runtime_context(assistant, context.get("industry") if isinstance(context, dict) else None)
+        orchestration = context.get("orchestration", {}) if isinstance(context, dict) else {}
+        internal_specialist = orchestration.get("internal_specialist") if isinstance(orchestration, dict) else None
+        active_assistant = str(internal_specialist or assistant)
+        profile = assistant_profile(active_assistant)
+        runtime_capabilities = build_runtime_context(active_assistant, context.get("industry") if isinstance(context, dict) else None)
         coding_context = ""
         if profile["name"] == "AI Coding":
             has_code = bool(re.search(r"\b(def|class|function|const|let|var|import|from|SELECT|<\\/?[A-Za-z])\b", message, re.IGNORECASE))
