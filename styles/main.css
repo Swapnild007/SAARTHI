@@ -1590,3 +1590,16 @@ body.chat-active .assistant-selector b{font-size:15px}
     font:600 9px/1 Inter,sans-serif;box-shadow:0 4px 14px rgba(40,70,80,.06);
   }
 }
+
+/* Generated visualization hardening */
+.heatmap-wrap{display:grid;gap:6px;overflow:auto;padding:8px 4px 4px}
+.heatmap-col-labels{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(34px,1fr);gap:4px;margin-left:58px;font-size:9px;text-align:center;opacity:.72}
+.heatmap-labeled-row{display:grid;grid-template-columns:54px auto;gap:4px;align-items:center}
+.heatmap-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(34px,1fr);gap:4px}
+.heatmap-row-label{font-size:9px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.heatmap-cell{min-height:30px;display:grid;place-items:center;border-radius:7px;background:rgba(35,151,155,var(--heat-alpha));font-size:9px;font-weight:700}
+@media (pointer:coarse) and (max-width:560px){
+  .heatmap-cell{min-height:34px;font-size:10px}
+  .heatmap-col-labels{font-size:8px}
+  .heatmap-row-label{font-size:8px}
+}
