@@ -1603,3 +1603,13 @@ body.chat-active .assistant-selector b{font-size:15px}
   .heatmap-col-labels{font-size:8px}
   .heatmap-row-label{font-size:8px}
 }
+
+/* Touch-first shell: never expose the desktop sidebar on phone/tablet pointer devices. */
+@media (pointer:coarse) and (max-width:1200px){
+  .app{display:block!important}
+  .sidebar{display:none!important}
+  .main{width:100%!important;max-width:none!important}
+  .top-actions{gap:6px!important}
+  .mobile-control-trigger{display:inline-flex!important}
+  .menu-trigger{display:inline-flex!important}
+}
