@@ -1646,3 +1646,24 @@ body.chat-active .assistant-selector b{font-size:15px}
   .saarthi-chart-svg{min-height:0;height:auto}
   .chart-heat-value{font-size:12px}
 }
+
+/* Visualization system: consistent, readable decision graphics across desktop and touch layouts. */
+.saarthi-visual{
+  margin:16px 0;
+  padding:18px 18px 16px;
+  border:1px solid rgba(11,98,119,.12);
+  border-radius:22px;
+  background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(244,250,248,.72));
+  box-shadow:0 10px 28px rgba(11,98,119,.055),inset 0 1px 0 rgba(255,255,255,.9);
+}
+.visual-title{font-size:16px;letter-spacing:-.02em;margin:0 0 12px}
+.saarthi-chart-svg{min-height:260px}
+.chart-label{font-size:11px;fill:currentColor;opacity:.68}
+.chart-legend-label{font-size:11px;fill:currentColor;opacity:.78}
+.chart-center-total{font-size:25px;font-weight:750;fill:currentColor}
+.chart-center-label{font-size:10px;fill:currentColor;opacity:.52}
+@media(max-width:680px){
+  .saarthi-visual{margin:14px 0;padding:15px 14px 13px;border-radius:20px}
+  .visual-title{font-size:15px}
+  .saarthi-chart-svg{min-height:220px}
+}
