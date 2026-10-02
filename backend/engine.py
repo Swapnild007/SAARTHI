@@ -20,6 +20,78 @@ from .work_product import build_work_product
 from urllib.request import Request, urlopen
 
 
+def _requested_chart_type(message: str) -> str | None:
+    text = str(message or "").lower()
+    if not re.search(r"\b(chart|graph|plot|visuali[sz]ation|heat ?map)\b", text):
+        return None
+    if re.search(r"\bheat ?map\b", text):
+        return "heatmap"
+    if re.search(r"\bpie\b", text):
+        return "pie"
+    if re.search(r"\bscatter\b", text):
+        return "scatter"
+    if re.search(r"\bline\b", text):
+        return "line"
+    if re.search(r"\bbar\b", text):
+        return "bar"
+    return "bar"
+
+
+def _sample_chart_spec(chart_type: str) -> dict[str, Any]:
+    if chart_type == "pie":
+        return {
+            "chartType": "pie",
+            "meta": {"title": "Sample distribution"},
+            "nameKey": "category",
+            "valueKey": "value",
+            "data": [
+                {"category": "Product A", "value": 35},
+                {"category": "Product B", "value": 25},
+                {"category": "Product C", "value": 20},
+                {"category": "Product D", "value": 12},
+                {"category": "Product E", "value": 8},
+            ],
+        }
+    if chart_type == "heatmap":
+        return {
+            "chartType": "heatmap",
+            "meta": {"title": "Sample heat map"},
+            "rowLabels": ["North", "South", "East", "West"],
+            "colLabels": ["Q1", "Q2", "Q3", "Q4"],
+            "data": [
+                {"row": "North", "values": [72, 81, 68, 90]},
+                {"row": "South", "values": [64, 76, 73, 84]},
+                {"row": "East", "values": [88, 79, 91, 86]},
+                {"row": "West", "values": [59, 71, 67, 78]},
+            ],
+        }
+    labels = ["A", "B", "C", "D", "E"]
+    values = [35, 25, 20, 12, 8]
+    if chart_type == "line":
+        return {
+            "chartType": "line",
+            "meta": {"title": "Sample trend"},
+            "xKey": "category",
+            "series": [{"dataKey": "value", "label": "Value"}],
+            "data": [{"category": label, "value": value} for label, value in zip(labels, values)],
+        }
+    if chart_type == "scatter":
+        return {
+            "chartType": "scatter",
+            "meta": {"title": "Sample relationship"},
+            "xKey": "x",
+            "series": [{"dataKey": "y", "label": "Y"}],
+            "data": [{"x": x, "y": y} for x, y in [(1, 35), (2, 25), (3, 20), (4, 12), (5, 8)]],
+        }
+    return {
+        "chartType": "bar",
+        "meta": {"title": "Sample values"},
+        "xKey": "category",
+        "series": [{"dataKey": "value", "label": "Value"}],
+        "data": [{"category": label, "value": value} for label, value in zip(labels, values)],
+    }
+
+
 @dataclass(frozen=True)
 class Intent:
     name: str
@@ -507,6 +579,10 @@ class OpenAICompatibleProvider(LLMProvider):
         for route in self.routes:
             try:
                 reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
+                chart_type = _requested_chart_type(message) if assistant_id == "data_analyst" else None
+                if chart_type and "<saarthi-chart>" not in reply.lower():
+                    spec = _sample_chart_spec(chart_type)
+                    reply = reply.rstrip() + "\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>"
                 self.last_failures = failures
                 return reply, usage
             except Exception as exc:
