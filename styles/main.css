@@ -1400,3 +1400,24 @@ body.chat-active .assistant-selector b{font-size:15px}
   .work-product-section ul{font-size:9px}
   .work-product-foot{font-size:7px}
 }
+
+
+/* Intelligence OS command context */
+.intelligence-commandbar{
+  max-width:1320px;margin:0 auto 12px;padding:9px 12px;
+  display:grid;grid-template-columns:1fr 1.25fr 1.35fr auto;align-items:center;gap:8px;
+  border:1px solid rgba(60,60,67,.10);border-radius:16px;background:rgba(255,255,255,.58);
+  backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);
+  box-shadow:0 5px 20px rgba(0,0,0,.03),inset 0 1px 0 rgba(255,255,255,.85);
+}
+.commandbar-item{min-width:0;padding:4px 9px;border-right:1px solid rgba(60,60,67,.07)}
+.commandbar-item small{display:block;font-size:6px;letter-spacing:.15em;color:#9a7627;font-weight:750}
+.commandbar-item strong{display:block;margin-top:3px;font-size:9px;font-weight:650;color:var(--s-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.commandbar-status{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;background:rgba(21,154,145,.07);color:var(--s-teal);font-size:7px;letter-spacing:.1em;font-weight:750;white-space:nowrap}
+.commandbar-dot{width:6px;height:6px;border-radius:50%;background:var(--s-teal);box-shadow:0 0 0 4px rgba(21,154,145,.08)}
+@media(max-width:900px){
+  .intelligence-commandbar{margin:0 0 9px;padding:7px;border-radius:15px;grid-template-columns:1fr 1fr;gap:5px}
+  .commandbar-item{padding:5px 7px;border-right:0}
+  .commandbar-item:nth-child(3){grid-column:1/-1;border-top:1px solid rgba(60,60,67,.06);padding-top:7px}
+  .commandbar-status{justify-self:end;grid-column:2;grid-row:1;font-size:6px;padding:5px 7px}
+}
