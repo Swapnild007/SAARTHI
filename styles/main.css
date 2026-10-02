@@ -1372,3 +1372,31 @@ body.chat-active .assistant-selector b{font-size:15px}
   .intelligence-stage i{width:16px;height:16px;font-size:7px}
   .intelligence-context{font-size:7px}
 }
+
+
+/* First-class work product delivery */
+.work-product{
+  margin-top:16px;padding:14px;border:1px solid rgba(0,127,146,.13);border-radius:17px;
+  background:linear-gradient(145deg,rgba(255,255,255,.86),rgba(244,249,248,.68));
+  box-shadow:0 10px 28px rgba(18,63,82,.07),inset 0 1px 0 rgba(255,255,255,.9);
+}
+.work-product-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+.work-product-head>div{display:flex;flex-direction:column;gap:3px}
+.work-product-head small,.work-product-section>small{font-size:7px;letter-spacing:.15em;color:#9a7627;font-weight:750;text-transform:uppercase}
+.work-product-head strong{font-size:13px;color:var(--s-ink)}
+.work-product-status{font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:var(--s-teal);padding:5px 8px;border-radius:999px;background:rgba(21,154,145,.08);border:1px solid rgba(21,154,145,.12);white-space:nowrap}
+.work-product-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:11px}
+.work-product-meta span{display:flex;flex-direction:column;gap:3px;padding:8px 9px;border-radius:11px;background:rgba(248,250,250,.75);border:1px solid rgba(60,60,67,.07);min-width:0}
+.work-product-meta small{font-size:6px;letter-spacing:.12em;color:var(--s-muted)}
+.work-product-meta b{font-size:9px;line-height:1.35;color:var(--s-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}
+.work-product-section{padding-top:10px;margin-top:9px;border-top:1px solid rgba(60,60,67,.07)}
+.work-product-section ul{margin:6px 0 0;padding-left:17px;color:var(--s-ink);font-size:10px;line-height:1.55}
+.work-product-section li+li{margin-top:3px}
+.work-product-foot{margin-top:11px;padding-top:9px;border-top:1px solid rgba(60,60,67,.07);font-size:8px;line-height:1.45;color:var(--s-muted)}
+@media(max-width:900px){
+  .work-product{margin-top:13px;padding:12px;border-radius:15px}
+  .work-product-meta{grid-template-columns:1fr 1fr}
+  .work-product-head strong{font-size:12px}
+  .work-product-section ul{font-size:9px}
+  .work-product-foot{font-size:7px}
+}
