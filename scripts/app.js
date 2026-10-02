@@ -503,23 +503,33 @@ const SaarthiApp = (() => {
           });
         }else if(spec.chartType==='heatmap'){
           const rows=data.map(r=>Array.isArray(r.values)?r.values.map(Number):[]).filter(r=>r.length);
-          const cols=Math.max(0,...rows.map(r=>r.length)); const left=72,top=32,cellW=50,cellH=34;
+          const cols=Math.max(0,...rows.map(r=>r.length)); const gridW=Math.min(520,Math.max(260,cols*104));
+          const cellW=gridW/Math.max(1,cols),cellH=52,left=(w-gridW)/2+18,top=58;
+          const rowLabels=Array.isArray(spec.rowLabels)?spec.rowLabels:[],colLabels=Array.isArray(spec.colLabels)?spec.colLabels:[];
           const values=rows.flat().filter(Number.isFinite); const lo=Math.min(...values,0),hi=Math.max(...values,1);
-          const cellColor=(v)=>{const t=(v-lo)/Math.max(1,hi-lo);const a=Math.round(25+190*t);return 'rgb('+a+','+(235-Math.round(110*t))+','+(245-Math.round(35*t))+')';};
-          rows.forEach((row,ri)=>row.forEach((v,ci)=>{
-            const x=left+ci*cellW,y=top+ri*cellH;
-            svg+='<rect x="'+x+'" y="'+y+'" width="'+(cellW-4)+'" height="'+(cellH-4)+'" rx="5" fill="'+cellColor(v)+'"/>';
-            svg+='<text x="'+(x+(cellW-4)/2)+'" y="'+(y+21)+'" text-anchor="middle" class="chart-heat-value">'+escapeHtml(Number.isInteger(v)?String(v):v.toFixed(1))+'</text>';
-          }));
-          rows.forEach((_,ri)=>{svg+='<text x="'+(left-10)+'" y="'+(top+ri*cellH+20)+'" text-anchor="end" class="chart-label">'+(ri+1)+'</text>';});
-          for(let ci=0;ci<cols;ci++)svg+='<text x="'+(left+ci*cellW+(cellW-4)/2)+'" y="'+(top-10)+'" text-anchor="middle" class="chart-label">'+(ci+1)+'</text>';
+          const cellColor=(v)=>{const t=(v-lo)/Math.max(1,hi-lo);const a=Math.round(35+175*t);return 'rgb('+a+','+(232-Math.round(105*t))+','+(244-Math.round(25*t))+')';};
+          for(let ci=0;ci<cols;ci++){
+            const x=left+ci*cellW+(cellW/2);
+            svg+='<text x="'+x+'" y="'+(top-16)+'" text-anchor="middle" class="chart-label">'+escapeHtml(String(colLabels[ci]??('Q'+(ci+1))))+'</text>';
+          }
+          rows.forEach((row,ri)=>{
+            const y=top+ri*cellH;
+            svg+='<text x="'+(left-14)+'" y="'+(y+30)+'" text-anchor="end" class="chart-label">'+escapeHtml(String(rowLabels[ri]??('R'+(ri+1))))+'</text>';
+            row.forEach((v,ci)=>{
+              const x=left+ci*cellW;
+              svg+='<rect x="'+x+'" y="'+y+'" width="'+Math.max(4,cellW-7)+'" height="'+(cellH-7)+'" rx="9" fill="'+cellColor(v)+'"/>';
+              svg+='<text x="'+(x+(cellW-7)/2)+'" y="'+(y+29)+'" text-anchor="middle" class="chart-heat-value">'+escapeHtml(Number.isInteger(v)?String(v):v.toFixed(1))+'</text>';
+            });
+          });
         }else if(spec.chartType==='bar'){
           const bw=Math.max(10,(w-pad*2)/Math.max(1,data.length*series.length)-6);
           data.forEach((row,i)=>series.forEach((se,j)=>{const v=Number(row[se.dataKey]);if(!Number.isFinite(v))return;const x=pad+i*((w-pad*2)/Math.max(1,data.length))+j*bw,y=sy(v),height=h-pad-y;svg+='<rect x="'+x+'" y="'+y+'" width="'+Math.max(4,bw-3)+'" height="'+Math.max(1,height)+'" rx="5" fill="'+palette[j%palette.length]+'"/>';}));
         }else{
           series.forEach((se,j)=>{const pts=data.map((row,i)=>{const v=Number(row[se.dataKey]);return Number.isFinite(v)?sx(i)+','+sy(v):null;}).filter(Boolean).join(' ');svg+='<polyline points="'+pts+'" fill="none" stroke="'+palette[j%palette.length]+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';});
         }
-        data.forEach((row,i)=>{const label=String(row[spec.xKey]??'');svg+='<text x="'+sx(i)+'" y="'+(h-15)+'" text-anchor="middle" class="chart-label">'+escapeHtml(label.slice(0,14))+'</text>';});
+        if(spec.chartType!=='pie'&&spec.chartType!=='heatmap'){
+          data.forEach((row,i)=>{const label=String(row[spec.xKey]??'');svg+='<text x="'+sx(i)+'" y="'+(h-15)+'" text-anchor="middle" class="chart-label">'+escapeHtml(label.slice(0,14))+'</text>';});
+        }
         svg+='</svg>';
         return '<div class="saarthi-visual"><div class="visual-title">'+escapeHtml(chartTitle)+'</div>'+svg+'</div>';
       }
@@ -558,6 +568,7 @@ const SaarthiApp = (() => {
       const role=message.role==='user'?'You':'Saarthi';
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
       let raw=normalizeLegacyToolVisual(String(message.content||''));
+      raw=raw.replace(/^\s*(?:User Safety|Response Safety)\s*:\s*(?:safe|unsafe|blocked)\s*$/gim,'').trim();
       const visuals=[];
       raw=raw.replace(/<saarthi-chart>([\s\S]*?)<\/saarthi-chart>/gi,(_,json)=>{
         const index=visuals.length;
@@ -575,7 +586,8 @@ const SaarthiApp = (() => {
         html=html.replaceAll(token,visual||'');
       });
       const wp=message.workProduct&&typeof message.workProduct==='object'?message.workProduct:null;
-      const workProductHtml=message.role==='assistant'&&wp&&message.showIntelligence?renderWorkProduct(wp):'';
+      const isVisualization=/<saarthi-(?:chart|diagram)>/i.test(String(message.content||''));
+      const workProductHtml=message.role==='assistant'&&wp&&message.showIntelligence&&!isVisualization?renderWorkProduct(wp):'';
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
     }).join('');
     const lastAssistant=[...messages].reverse().find(m=>m.role==='assistant');
