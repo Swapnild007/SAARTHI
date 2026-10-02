@@ -248,9 +248,10 @@ def infer_internal_specialist(assistant: str, intent: Intent, message: str) -> s
     return None
 
 def build_orchestration(assistant: str, intent: Intent, message: str, context: dict[str, Any]) -> dict[str, Any]:
-    runtime = build_runtime_context(assistant, context.get("industry") if isinstance(context, dict) else None)
     internal = infer_internal_specialist(assistant, intent, message)
-    route_name = assistant_profile(internal)["name"] if internal else assistant_profile(assistant)["name"]
+    execution_agent = internal or assistant
+    runtime = build_runtime_context(execution_agent, context.get("industry") if isinstance(context, dict) else None)
+    route_name = assistant_profile(execution_agent)["name"]
     return {
         "mode": "orchestrated",
         "entry": assistant_profile(assistant)["name"],
