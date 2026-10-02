@@ -115,9 +115,23 @@ def correlation(rows: list[dict[str, Any]], x_column: str, y_column: str) -> flo
     return sum((x - mx) * (y - my) for x, y in pairs) / (dx * dy)
 
 def build_chart(rows: list[dict[str, Any]], chart_type: str, x_key: str, series_key: str, title: str) -> dict[str, Any]:
-    chart_type = chart_type if chart_type in {"bar", "line", "pie", "scatter"} else "bar"
+    chart_type = chart_type if chart_type in {"bar", "line", "pie", "scatter", "heatmap"} else "bar"
     data = [{x_key: r.get(x_key), series_key: r.get(series_key)} for r in rows]
-    return {"chartType": chart_type, "title": title, "xKey": x_key, "series": [{"key": series_key, "label": series_key}], "data": data}
+    if chart_type == "pie":
+        return {
+            "chartType": "pie",
+            "meta": {"title": title},
+            "nameKey": x_key,
+            "valueKey": series_key,
+            "data": data,
+        }
+    return {
+        "chartType": chart_type,
+        "meta": {"title": title},
+        "xKey": x_key,
+        "series": [{"dataKey": series_key, "label": series_key}],
+        "data": data,
+    }
 
 def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
     numeric = _numeric_columns(columns, rows)
