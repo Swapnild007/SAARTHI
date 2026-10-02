@@ -579,7 +579,7 @@ class OpenAICompatibleProvider(LLMProvider):
         for route in self.routes:
             try:
                 reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
-                chart_type = _requested_chart_type(message) if assistant_id == "data_analyst" else None
+                chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
                 if chart_type and "<saarthi-chart>" not in reply.lower():
                     spec = _sample_chart_spec(chart_type)
                     reply = reply.rstrip() + "\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>"
