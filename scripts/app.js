@@ -444,7 +444,7 @@ const SaarthiApp = (() => {
     document.body.classList.toggle('chat-active',messages.length>0);
     if(!messages.length){responseCard.hidden=true;return;}
     responseBody.innerHTML=messages.map(message=>{
-      const role=message.role==='user'?'You':item.name;
+      const role=message.role==='user'?'You':'Saarthi';
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
       let raw=String(message.content||'');
       const visuals=[];
@@ -460,7 +460,7 @@ const SaarthiApp = (() => {
     const title=$('#assistantResponseTitle');
     if(eyebrow) eyebrow.textContent=item.name.toUpperCase()+' • CONVERSATION';
     if(title) title.textContent='Conversation';
-    if(responseMeta)responseMeta.textContent=item.name.toUpperCase()+' · '+(INDUSTRIES[currentIndustry]||'GENERAL')+' · ORCHESTRATED WORKSPACE';
+    if(responseMeta)responseMeta.textContent='SAARTHI · AUTONOMOUS INTELLIGENCE · ORCHESTRATED WORKSPACE';
     responseCard.dataset.assistant=item.id;
     responseCard.hidden=false;
     requestAnimationFrame(()=>{
@@ -480,12 +480,16 @@ const SaarthiApp = (() => {
     if(wp.journey)rows.push('<span><small>JOURNEY</small><b>'+escapeHtml(String(wp.journey).replace(/_/g,' '))+'</b></span>');
     return '<section class="work-product">'+
       '<div class="work-product-head"><div><small>WORK PRODUCT</small><strong>Decision-ready delivery</strong></div><span class="work-product-status">'+escapeHtml(String(verification.status||'runtime_verified').replace(/_/g,' '))+'</span></div>'+
-      (rows.length?'<div class="work-product-meta">'+rows.join('')+'</div>':'')+
-      (actions.length?'<div class="work-product-section"><small>ACTIONS TAKEN</small><ul>'+actions.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
-      (evidence.length?'<div class="work-product-section"><small>EVIDENCE / EXECUTION</small><ul>'+evidence.map(x=>'<li><b>'+escapeHtml(x.source||'runtime')+'</b> · '+escapeHtml(x.summary||'execution result available')+'</li>').join('')+'</ul></div>':'')+
-      (next.length?'<div class="work-product-section"><small>NEXT ACTIONS</small><ul>'+next.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
-      (Array.isArray(wp.coverage)&&wp.coverage.length?'<div class="work-product-section"><small>DOMAIN COVERAGE</small><div class="work-product-tags">'+wp.coverage.map(x=>'<span>'+escapeHtml(String(x).replace(/_/g,' '))+'</span>').join('')+'</div></div>':'')+
-      '<div class="work-product-foot">'+escapeHtml(verification.scope||'Runtime path verified; model-generated prose is not independently fact-checked.')+'</div>'+
+      (wp.deliverable_type?'<div class="work-product-primary"><small>DELIVERABLE</small><strong>'+escapeHtml(String(wp.deliverable_type).replace(/_/g,' '))+'</strong></div>':'')+
+      ((rows.length||actions.length||evidence.length||next.length||(Array.isArray(wp.coverage)&&wp.coverage.length))?
+        '<details class="work-product-details"><summary>Execution details</summary>'+
+        (rows.length?'<div class="work-product-meta">'+rows.join('')+'</div>':'')+
+        (actions.length?'<div class="work-product-section"><small>ACTIONS TAKEN</small><ul>'+actions.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
+        (evidence.length?'<div class="work-product-section"><small>EVIDENCE / EXECUTION</small><ul>'+evidence.map(x=>'<li><b>'+escapeHtml(x.source||'runtime')+'</b> · '+escapeHtml(x.summary||'execution result available')+'</li></ul></div>':'')+
+        (next.length?'<div class="work-product-section"><small>NEXT ACTIONS</small><ul>'+next.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
+        (Array.isArray(wp.coverage)&&wp.coverage.length?'<div class="work-product-section"><small>DOMAIN COVERAGE</small><div class="work-product-tags">'+wp.coverage.map(x=>'<span>'+escapeHtml(String(x).replace(/_/g,' '))+'</span>').join('')+'</div></div>':'')+
+        '<div class="work-product-foot">'+escapeHtml(verification.scope||'Runtime path verified; model-generated prose is not independently fact-checked.')+'</div></details>'
+      :'')+
     '</section>';
   };
 
