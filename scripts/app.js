@@ -26,6 +26,28 @@ const SaarthiApp = (() => {
   const conversations=Object.create(null);
   const currentThreads=Object.create(null);
   const historyState={assistants:Object.create(null)};
+  const INDUSTRY_KEY='saarthi.industry.v1';
+  const INDUSTRIES=Object.freeze({
+    '':'General','travel':'Travel & Tourism','financial_services':'Financial Services','healthcare':'Healthcare & Life Sciences',
+    'retail':'Retail & E-commerce','logistics':'Logistics & Supply Chain','manufacturing':'Manufacturing'
+  });
+  let currentIndustry='';
+  const industrySelector=()=>document.getElementById('industrySelector');
+  const industryLabel=()=>document.getElementById('industryLabel');
+  const loadIndustry=()=>{
+    try{const saved=String(localStorage.getItem(INDUSTRY_KEY)||'');currentIndustry=Object.prototype.hasOwnProperty.call(INDUSTRIES,saved)?saved:'';}catch{currentIndustry='';}
+    const select=industrySelector();if(select)select.value=currentIndustry;
+    const label=industryLabel();if(label)label.textContent=INDUSTRIES[currentIndustry]||'General';
+  };
+  const setIndustry=value=>{
+    currentIndustry=Object.prototype.hasOwnProperty.call(INDUSTRIES,value)?value:'';
+    try{localStorage.setItem(INDUSTRY_KEY,currentIndustry);}catch{}
+    const select=industrySelector();if(select)select.value=currentIndustry;
+    const label=industryLabel();if(label)label.textContent=INDUSTRIES[currentIndustry]||'General';
+    setStatus((INDUSTRIES[currentIndustry]||'General')+' context ready');
+    setCoreState('ready',(INDUSTRIES[currentIndustry]||'General')+' industry layer active.');
+    addActivity('Industry context changed',INDUSTRIES[currentIndustry]||'General');
+  };
 
   const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
   const assistantInfo=id=>ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
@@ -405,7 +427,7 @@ const SaarthiApp = (() => {
     const title=$('#assistantResponseTitle');
     if(eyebrow) eyebrow.textContent=item.name.toUpperCase()+' • CONVERSATION';
     if(title) title.textContent='Conversation';
-    if(responseMeta)responseMeta.textContent=item.name.toUpperCase()+' · ISOLATED CONVERSATION';
+    if(responseMeta)responseMeta.textContent=item.name.toUpperCase()+' · '+(INDUSTRIES[currentIndustry]||'GENERAL')+' · ISOLATED CONVERSATION';
     responseCard.dataset.assistant=item.id;
     responseCard.hidden=false;
     requestAnimationFrame(()=>{
@@ -659,6 +681,7 @@ const SaarthiApp = (() => {
       client_time:new Date().toISOString(),
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
       locale:navigator.language||'en-IN',
+      industry:currentIndustry||null,
       conversation:currentConversation().map(({role,content})=>({role,content})),
       attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
@@ -704,6 +727,8 @@ const SaarthiApp = (() => {
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
+  loadIndustry();
+  industrySelector()?.addEventListener('change',e=>setIndustry(e.target.value));
   loadHistory();
   attachmentsByAssistant.saarthi=[];
   loadConversation('saarthi');
