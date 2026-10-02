@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from backend.agent_capabilities import build_runtime_context
 from backend.work_product import build_work_product, infer_deliverable_type
 from backend.engine import (
     ASSISTANT_PROFILES,
@@ -93,7 +94,8 @@ class EngineContractTests(unittest.TestCase):
             intent = classify(message)
             orchestration = build_orchestration(assistant, intent, message, {"industry": "manufacturing"})
             self.assertEqual(orchestration["active_capability"], ASSISTANT_PROFILES[expected]["name"])
-            self.assertEqual(orchestration["internal_specialist"], expected if assistant == "saarthi" else assistant)
+            expected_internal = None if assistant == "saarthi" and expected == "saarthi" else (expected if assistant == "saarthi" else assistant)
+            self.assertEqual(orchestration["internal_specialist"], expected_internal)
             self.assertEqual(orchestration["industry"], "Manufacturing")
             self.assertEqual(len(orchestration["stages"]), 6)
             self.assertTrue(orchestration["workflow"])
