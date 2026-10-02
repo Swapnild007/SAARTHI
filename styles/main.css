@@ -1330,3 +1330,45 @@ body.chat-active .assistant-selector b{font-size:15px}
   .industry-select-wrap>span{display:none}
   .industry-select-wrap select{min-width:145px;max-width:52vw}
 }
+
+
+/* Intelligence OS pipeline — make orchestration visible instead of presenting seven bots as separate products. */
+.intelligence-flow{
+  max-width:1320px;margin:0 auto 12px;padding:12px 14px 11px;
+  border:1px solid rgba(60,60,67,.10);border-radius:18px;
+  background:rgba(255,255,255,.62);
+  backdrop-filter:blur(28px) saturate(155%);-webkit-backdrop-filter:blur(28px) saturate(155%);
+  box-shadow:0 6px 24px rgba(0,0,0,.035),inset 0 1px 0 rgba(255,255,255,.88);
+}
+.intelligence-flow-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.intelligence-flow-head small{display:block;font-size:7px;letter-spacing:.16em;color:#9a7627;font-weight:750}
+.intelligence-flow-head strong{display:block;font-size:12px;margin-top:2px;color:var(--s-ink)}
+.intelligence-flow-head>span{
+  font-size:7px;letter-spacing:.12em;color:var(--s-teal);font-weight:750;
+  padding:5px 8px;border-radius:999px;background:rgba(21,154,145,.07);border:1px solid rgba(21,154,145,.10)
+}
+.intelligence-stages{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:1px 0 5px;scrollbar-width:none}
+.intelligence-stages::-webkit-scrollbar{display:none}
+.intelligence-stages>b{font-size:9px;color:#aab1b2;font-weight:500;flex:none}
+.intelligence-stage{
+  display:flex;align-items:center;gap:5px;flex:none;
+  padding:6px 8px;border-radius:9px;
+  border:1px solid rgba(60,60,67,.075);background:rgba(248,248,250,.55);
+  color:#929a9d;font-size:8px;font-weight:600;transition:all .25s ease;
+}
+.intelligence-stage i{
+  width:17px;height:17px;border-radius:50%;display:grid;place-items:center;
+  background:#e9eaec;color:#8c9496;font-style:normal;font-size:8px;
+}
+.intelligence-stage.active{
+  color:var(--s-blue);border-color:rgba(0,127,146,.16);background:rgba(0,127,146,.07);
+}
+.intelligence-stage.active i{background:var(--s-blue);color:#fff}
+.intelligence-context{font-size:8px;color:var(--s-muted);line-height:1.45;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:900px){
+  .intelligence-flow{margin:0 0 9px;padding:10px;border-radius:16px}
+  .intelligence-flow-head{margin-bottom:7px}
+  .intelligence-stage{padding:6px 7px;font-size:7px}
+  .intelligence-stage i{width:16px;height:16px;font-size:7px}
+  .intelligence-context{font-size:7px}
+}
