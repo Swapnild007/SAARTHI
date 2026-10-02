@@ -220,6 +220,50 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
 def assistant_profile(assistant: str | None) -> dict[str, str]:
     return ASSISTANT_PROFILES.get(str(assistant or "").lower(), ASSISTANT_PROFILES["saarthi"])
 
+SPECIALIST_BY_INTENT = {
+    "research": "research",
+    "search": "research",
+    "analyze": "analyze",
+    "plan": "plan",
+    "calculate": "data_analyst",
+    "convert": "data_analyst",
+}
+
+def infer_internal_specialist(assistant: str, intent: Intent, message: str) -> str | None:
+    """Select an internal capability without turning SAARTHI into a menu of bots."""
+    if assistant != "saarthi":
+        return assistant
+    if intent.name in SPECIALIST_BY_INTENT:
+        return SPECIALIST_BY_INTENT[intent.name]
+    text = message.lower()
+    if re.search(r"\b(code|coding|debug|refactor|repository|api|python|javascript|typescript)\b", text):
+        return "coding"
+    if re.search(r"\b(dataset|csv|excel|spreadsheet|kpi|metrics|statistics|chart|dashboard)\b", text):
+        return "data_analyst"
+    if re.search(r"\b(write|draft|rewrite|story|copy|prompt|presentation)\b", text):
+        return "create"
+    if re.search(r"\b(plan|roadmap|schedule|prioritize|timeline|dependencies)\b", text):
+        return "plan"
+    return None
+
+def build_orchestration(assistant: str, intent: Intent, message: str, context: dict[str, Any]) -> dict[str, Any]:
+    runtime = build_runtime_context(assistant, context.get("industry") if isinstance(context, dict) else None)
+    internal = infer_internal_specialist(assistant, intent, message)
+    route_name = assistant_profile(internal)["name"] if internal else assistant_profile(assistant)["name"]
+    return {
+        "mode": "orchestrated",
+        "entry": assistant_profile(assistant)["name"],
+        "active_capability": route_name,
+        "internal_specialist": internal,
+        "industry": runtime["industry"],
+        "workflow": runtime["industry_agent_mapping"] or runtime["workflows"],
+        "decision_frameworks": runtime["industry_decision_frameworks"],
+        "constraints": runtime["industry_constraints"],
+        "artifacts": runtime["industry_artifacts"],
+        "stages": ["understand", "contextualize", "reason", "execute", "verify", "deliver"],
+        "handoff": "internal" if internal and assistant == "saarthi" else "direct",
+    }
+
 def specialist_boundary_response(assistant: str, message: str) -> str | None:
     """Deterministic scope guard for specialist agents before any model call."""
     text = message.strip().lower()
@@ -329,12 +373,22 @@ class OpenAICompatibleProvider(LLMProvider):
     def _request(self, route: dict[str, str], *, message: str, system: str, context: dict[str, Any], assistant: str) -> tuple[str, dict[str, Any] | None]:
         inspected = inspect_attachments(context.get("attachments") if isinstance(context, dict) else [])
         _, content_parts = provider_content_parts(message, inspected)
+        conversation = context.get("conversation", []) if isinstance(context, dict) else []
+        messages = [{"role": "system", "content": system}]
+        if isinstance(conversation, list):
+            # The frontend stores the current user turn before calling the API.
+            # Exclude that duplicate turn; attachments belong to the current user message below.
+            prior = conversation[:-1] if conversation and isinstance(conversation[-1], dict) and conversation[-1].get("role") == "user" else conversation
+            for item in prior[-12:]:
+                if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
+                    continue
+                text_content = str(item.get("content") or "").strip()
+                if text_content:
+                    messages.append({"role": item["role"], "content": text_content})
+        messages.append({"role": "user", "content": content_parts if len(content_parts) > 1 else content_parts[0]["text"]})
         payload = {
             "model": route["model"],
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": content_parts if len(content_parts) > 1 else content_parts[0]["text"]},
-            ],
+            "messages": messages,
             "temperature": 0.3,
             "usage": {"include": True},
         }
@@ -408,7 +462,13 @@ class OpenAICompatibleProvider(LLMProvider):
             f"Industry workflows: {', '.join(runtime_capabilities['industry_workflows']) or 'none'}. "
             f"Industry KPIs: {', '.join(runtime_capabilities['industry_kpis']) or 'none'}. "
             f"Industry-specific workflows for this assistant: {', '.join(runtime_capabilities['industry_agent_mapping']) or 'none'}. "
-            "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints and KPIs where applicable. Do not merely mention the industry name."
+            f"Industry constraints: {', '.join(runtime_capabilities['industry_constraints']) or 'none'}. "
+            f"Industry decision frameworks: {', '.join(runtime_capabilities['industry_decision_frameworks']) or 'none'}. "
+            f"Industry work products: {', '.join(runtime_capabilities['industry_artifacts']) or 'none'}. "
+            "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints, KPIs and decision framework where applicable. "
+            "Prefer a decision-ready work product over generic advice. Do not merely mention the industry name. "
+            "SAARTHI is an intelligence operating system, not a collection of personas: orchestrate the selected capability internally, preserve conversation continuity, and move from understanding to a verified deliverable. "
+            "If the request contains enough information to act, act first and state only material assumptions; ask questions only when missing information would materially change the result."
         )
         failures: list[dict[str, str]] = []
         for route in self.routes:
@@ -566,6 +626,7 @@ class SaarthiEngine:
             assistant_id = "saarthi"
         intent = classify(message, mode)
         plan = build_plan(intent)
+        orchestration = build_orchestration(assistant_id, intent, message, ctx)
         if assistant_id == "data_analyst":
             plan = [PlanStep("profile", "Profile supplied data"), PlanStep("validate", "Validate data quality"), PlanStep("analyze", "Calculate and analyze"), PlanStep("visualize", "Create requested visualization"), PlanStep("respond", "Explain findings")]
         tool_results: dict[str, Any] = {}
@@ -634,6 +695,7 @@ class SaarthiEngine:
                 },
                 "intent": {"name": intent.name, "confidence": intent.confidence, "reason": intent.reason},
                 "plan": [step.__dict__ for step in plan],
+                "orchestration": orchestration,
                 "reply": boundary_reply,
                 "provider": "boundary-guard",
                 "usage": None,
@@ -676,6 +738,7 @@ class SaarthiEngine:
                 },
                 "intent": {"name": intent.name, "confidence": intent.confidence, "reason": intent.reason},
                 "plan": [step.__dict__ for step in plan],
+                "orchestration": orchestration,
                 "reply": reply,
                 "provider": f"system.{intent.name}",
                 "route": None,
@@ -720,6 +783,7 @@ class SaarthiEngine:
                 "reason": intent.reason,
             },
             "plan": [step.__dict__ for step in plan],
+            "orchestration": orchestration,
             "reply": reply,
             "provider": provider_name,
             "route": self.cloud.last_route if self.cloud.configured else None,
