@@ -1487,7 +1487,7 @@ body.chat-active .assistant-selector b{font-size:15px}
 @media(max-width:900px){
   .intelligence-stages{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px!important;overflow:visible!important}
   .intelligence-stages>b{display:none!important}
-  .intelligence-stage{justify-content:center;min-width:0;padding:4px 2px!important}
-  .intelligence-stage i{flex:0 0 auto}
+  .intelligence-stage{justify-content:center;min-width:0;padding:4px 2px!important;font-size:7.2px!important}
+  .intelligence-stage i{flex:0 0 auto;width:14px!important;height:14px!important;font-size:6px!important}
   .intelligence-stage:not(.active){opacity:.48}
 }
