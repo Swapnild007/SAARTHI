@@ -247,10 +247,31 @@ def infer_internal_specialist(assistant: str, intent: Intent, message: str) -> s
         return "plan"
     return None
 
+def infer_industry(message: str, context: dict[str, Any] | None = None) -> str | None:
+    """Infer an operating industry from explicit context or strong domain signals in the objective."""
+    if isinstance(context, dict):
+        explicit = str(context.get("industry") or "").strip().lower()
+        if explicit in INDUSTRY_PACKS:
+            return explicit
+    text = str(message or "").lower()
+    signals = {
+        "travel": r"\b(flight|hotel|visa|itinerary|destination|tourism|trip|travell?ing|airline|luggage)\b",
+        "financial_services": r"\b(bank|banking|portfolio|transaction|cash flow|investment|loan|credit|compliance|financial|revenue|margin)\b",
+        "healthcare": r"\b(patient|hospital|clinic|clinical|care pathway|appointment|healthcare|medical|diagnosis|outcome)\b",
+        "retail": r"\b(retail|e-?commerce|product|inventory|order|conversion|basket|promotion|customer|shopping)\b",
+        "logistics": r"\b(shipment|warehouse|route|delivery|supply chain|lead time|fleet|dispatch|fulfillment)\b",
+        "manufacturing": r"\b(manufacturing|production line|downtime|oee|yield|defect|maintenance|throughput|machine capacity)\b",
+    }
+    scores = {industry: len(re.findall(pattern, text, re.IGNORECASE)) for industry, pattern in signals.items()}
+    winner = max(scores, key=scores.get) if scores else None
+    return winner if winner and scores[winner] > 0 else None
+
+
 def build_orchestration(assistant: str, intent: Intent, message: str, context: dict[str, Any]) -> dict[str, Any]:
+    resolved_industry = infer_industry(message, context)
     internal = infer_internal_specialist(assistant, intent, message)
     execution_agent = internal or assistant
-    runtime = build_runtime_context(execution_agent, context.get("industry") if isinstance(context, dict) else None)
+    runtime = build_runtime_context(execution_agent, resolved_industry)
     route_name = assistant_profile(execution_agent)["name"]
     return {
         "mode": "orchestrated",
