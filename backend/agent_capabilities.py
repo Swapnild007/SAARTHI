@@ -38,4 +38,7 @@ def build_runtime_context(assistant: str, industry: str | None = None) -> dict[s
         "industry_workflows": pack["workflows"] if pack else [],
         "industry_kpis": pack["kpis"] if pack else [],
         "industry_agent_mapping": pack.get("agent_mapping", {}).get(assistant, []) if pack else [],
+        "industry_constraints": pack.get("constraints", []) if pack else [],
+        "industry_decision_frameworks": pack.get("decision_frameworks", []) if pack else [],
+        "industry_artifacts": pack.get("artifacts", []) if pack else [],
     }
