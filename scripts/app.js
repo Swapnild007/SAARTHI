@@ -514,6 +514,18 @@ const SaarthiApp = (() => {
         if(spec.chartType==='pie'){
           const total=data.reduce((a,r)=>a+Number(r[spec.valueKey]||0),0);let angle=-Math.PI/2;const cx=w/2,cy=h/2,r=95;
           data.forEach((row,i)=>{const val=Number(row[spec.valueKey]||0),a=total?val/total*Math.PI*2:0, x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+a),y2=cy+r*Math.sin(angle+a),large=a>Math.PI?1:0;svg+='<path d="M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' Z" fill="'+palette[i%palette.length]+'"/>';angle+=a;});
+        }else if(spec.chartType==='heatmap'){
+          const rows=data.map(r=>Array.isArray(r.values)?r.values.map(Number):[]).filter(r=>r.length);
+          const cols=Math.max(0,...rows.map(r=>r.length)); const left=72,top=32,cellW=50,cellH=34;
+          const values=rows.flat().filter(Number.isFinite); const lo=Math.min(...values,0),hi=Math.max(...values,1);
+          const cellColor=(v)=>{const t=(v-lo)/Math.max(1,hi-lo);const a=Math.round(25+190*t);return 'rgb('+a+','+(235-Math.round(110*t))+','+(245-Math.round(35*t))+')';};
+          rows.forEach((row,ri)=>row.forEach((v,ci)=>{
+            const x=left+ci*cellW,y=top+ri*cellH;
+            svg+='<rect x="'+x+'" y="'+y+'" width="'+(cellW-4)+'" height="'+(cellH-4)+'" rx="5" fill="'+cellColor(v)+'"/>';
+            svg+='<text x="'+(x+(cellW-4)/2)+'" y="'+(y+21)+'" text-anchor="middle" class="chart-heat-value">'+escapeHtml(Number.isInteger(v)?String(v):v.toFixed(1))+'</text>';
+          }));
+          rows.forEach((_,ri)=>{svg+='<text x="'+(left-10)+'" y="'+(top+ri*cellH+20)+'" text-anchor="end" class="chart-label">'+(ri+1)+'</text>';});
+          for(let ci=0;ci<cols;ci++)svg+='<text x="'+(left+ci*cellW+(cellW-4)/2)+'" y="'+(top-10)+'" text-anchor="middle" class="chart-label">'+(ci+1)+'</text>';
         }else if(spec.chartType==='bar'){
           const bw=Math.max(10,(w-pad*2)/Math.max(1,data.length*series.length)-6);
           data.forEach((row,i)=>series.forEach((se,j)=>{const v=Number(row[se.dataKey]);if(!Number.isFinite(v))return;const x=pad+i*((w-pad*2)/Math.max(1,data.length))+j*bw,y=sy(v),height=h-pad-y;svg+='<rect x="'+x+'" y="'+y+'" width="'+Math.max(4,bw-3)+'" height="'+Math.max(1,height)+'" rx="5" fill="'+palette[j%palette.length]+'"/>';}));
