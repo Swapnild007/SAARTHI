@@ -409,7 +409,7 @@ const SaarthiApp = (() => {
   const normalizeLegacyToolVisual=(raw)=>{
     let text=String(raw||'');
     text=text.replace(/\\r?\\n/g,'\n');
-    const toolPattern=/<\|toolcall\|>[\s\S]*?python\(code=([\s\S]*?)\)\s*<\|toolcall_end\|>/gi;
+    const toolPattern=/<\|toolcall(?:_start)?\|>[\s\S]*?python\(code=([\s\S]*?)\)\s*<\|toolcall(?:_end)?\|>/gi;
 
     const parseArrayLiteral=(literal)=>{
       try{return JSON.parse(String(literal).replace(/'/g,'"').replace(/\bNone\b/g,'null').replace(/\bTrue\b/g,'true').replace(/\bFalse\b/g,'false'));}catch{return null;}
@@ -432,7 +432,7 @@ const SaarthiApp = (() => {
 
       if(chartType==='heatmap'){
         const matrix=arrays.data||arrays.values||arrays.matrix||Object.values(arrays).find(v=>Array.isArray(v)&&Array.isArray(v[0]));
-        if(Array.isArray(matrix)&&Array.isArray(matrix[0]))return '<saarthi-chart>'+JSON.stringify({chartType:'heatmap',meta:{title:'Generated heat map'},data:matrix.map(row=>row.map(Number)),rowLabels:Array.isArray(arrays.labels)?arrays.labels.map(String):[],colLabels:Array.isArray(arrays.columns)?arrays.columns.map(String):[]})+'</saarthi-chart>';
+        if(Array.isArray(matrix)&&Array.isArray(matrix[0]))return '<saarthi-chart>'+JSON.stringify({chartType:'heatmap',meta:{title:'Generated heat map'},data:matrix.map((row,i)=>({row:String((arrays.labels?.[i]??i+1)),values:row.map(Number)})),rowLabels:Array.isArray(arrays.labels)?arrays.labels.map(String):[],colLabels:Array.isArray(arrays.columns)?arrays.columns.map(String):[]})+'</saarthi-chart>';
       }
       const pieCall=source.match(/plt\.pie\s*\(\s*([A-Za-z_]\w*)/i);
       if(chartType==='pie'&&pieCall&&Array.isArray(arrays[pieCall[1]])){
@@ -461,7 +461,7 @@ const SaarthiApp = (() => {
       const spec=JSON.parse(json); const meta=spec.meta&&typeof spec.meta==='object'?spec.meta:{}; const chartTitle=spec.title||meta.title||'Visualization';
       if(type==='chart'){
         const data=Array.isArray(spec.data)?spec.data:[];const series=Array.isArray(spec.series)?spec.series:[];
-        if(!data.length)return ''; if(spec.chartType!=='pie'&&!series.length)return '';
+        if(!data.length)return ''; if(spec.chartType!=='pie'&&spec.chartType!=='heatmap'&&!series.length)return '';
         const w=720,h=300,pad=42;
         const values=series.flatMap(se=>data.map(row=>Number(row[se.dataKey]))).filter(Number.isFinite);
         const max=Math.max(...values,1),min=Math.min(0,...values);
