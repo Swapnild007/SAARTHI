@@ -1455,3 +1455,30 @@ body.chat-active .assistant-selector b{font-size:15px}
   body.chat-active:not(.intelligence-expanded) .conversation-content{font-size:15px;line-height:1.65}
   body.chat-active:not(.intelligence-expanded) .conversation-message.assistant{padding:4px 2px}
 }
+
+
+/* Final compact intelligence chrome */
+.intelligence-presence{max-width:1320px;margin:0 auto 7px;padding:6px 9px;display:flex;align-items:center;gap:7px;color:var(--s-muted);font-size:8px}
+.intelligence-presence .presence-spark{width:18px;height:18px;display:grid;place-items:center;border-radius:50%;background:rgba(21,154,145,.09);color:var(--s-teal);font-size:9px}
+.intelligence-presence .presence-copy{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.intelligence-presence .presence-copy b{font-weight:600;color:var(--s-muted)}
+.intelligence-presence .autonomous-context-status{font-size:6px;letter-spacing:.12em;padding:4px 7px;border-radius:999px;background:rgba(21,154,145,.07);color:var(--s-teal);white-space:nowrap}
+.intelligence-flow{margin-bottom:9px!important;padding:9px 11px!important;border-radius:14px!important}
+.intelligence-flow-head{margin-bottom:6px!important}
+.intelligence-flow-head small{font-size:6px!important;letter-spacing:.14em!important}
+.intelligence-flow-head strong{font-size:10px!important}
+.intelligence-flow-head span{font-size:6px!important;padding:4px 7px!important}
+.intelligence-stages{gap:3px!important;overflow:hidden}
+.intelligence-stage{padding:4px 5px!important;font-size:6.5px!important;gap:3px!important;white-space:nowrap}
+.intelligence-stage i{width:14px!important;height:14px!important;font-size:6px!important}
+.intelligence-stages>b{font-size:7px!important}
+.intelligence-context{font-size:6.5px!important;margin-top:5px!important}
+@media(max-width:900px){
+ .intelligence-presence{margin:0 0 5px;padding:3px 5px;font-size:7px}
+ .intelligence-presence .presence-spark{width:16px;height:16px;font-size:8px}
+ .intelligence-presence .autonomous-context-status{font-size:5.5px;padding:3px 6px}
+ .intelligence-flow{padding:7px 8px!important;border-radius:13px!important}
+ .intelligence-stage{padding:3px 4px!important;font-size:5.8px!important}
+ .intelligence-stage i{width:13px!important;height:13px!important;font-size:5.5px!important}
+ .intelligence-context{display:none}
+}
