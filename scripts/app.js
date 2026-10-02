@@ -604,6 +604,21 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     saveConversation(currentAssistant);
     renderConversation();
   };
+  const clearRecoveredRuntimeErrors=()=>{
+    const thread=ensureThread(currentAssistant,true);
+    const messages=Array.isArray(thread.messages)?thread.messages:[];
+    const filtered=messages.filter(message=>!(
+      message?.role==='assistant' &&
+      /^###\\s*Connection issue\\b/i.test(String(message.content||'')) &&
+      /could not reach the cloud runtime/i.test(String(message.content||''))
+    ));
+    if(filtered.length!==messages.length){
+      thread.messages=filtered;
+      conversations[currentAssistant]=filtered.slice(-MAX_CONTEXT_MESSAGES);
+      thread.updatedAt=new Date().toISOString();
+      saveConversation(currentAssistant);
+    }
+  };
   const showResponse=(reply,result)=>{
     const text=String(reply||'');
     const orchestration=result?.orchestration||{};
@@ -944,6 +959,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const request=apiCommand(value,mode);await new Promise(r=>setTimeout(r,120));
     setStatus('Planning…');setCoreState('planning','Building an execution path.');
     const result=await request;if(!result?.ok)throw new Error('SAARTHI runtime rejected the command');
+    clearRecoveredRuntimeErrors();
     const intent=result?.intent?.name||mode;setStatus('Verifying…');setCoreState('verifying','Checking the execution result.');
     await new Promise(r=>setTimeout(r,120));
     runs.unshift({id:result.run_id,intent,provider:result.provider,at:new Date().toISOString(),message:value});runs.splice(20);
