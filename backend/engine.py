@@ -580,7 +580,8 @@ class OpenAICompatibleProvider(LLMProvider):
             try:
                 reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
                 chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
-                if chart_type and "<saarthi-chart>" not in reply.lower():
+                sample_requested = bool(re.search(r"\b(sample|synthetic|example|demo)\b", message, re.IGNORECASE))
+                if chart_type and sample_requested and not context.get("attachments") and "<saarthi-chart>" not in reply.lower():
                     spec = _sample_chart_spec(chart_type)
                     reply = reply.rstrip() + "\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>"
                 self.last_failures = failures
