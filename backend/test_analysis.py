@@ -62,3 +62,16 @@ def test_data_analysis_quality_detects_duplicates_and_missing_values():
     result = analyze_dataset(["region", "sales"], rows)
     assert result["quality"]["duplicate_rows"] == 1
     assert "region" in result["quality"]["missing_columns"]
+
+
+def test_visual_recommendations_use_dataset_shape():
+    from backend.data_analysis import recommend_visuals
+    rows = [
+        {"month": "2026-01-01", "region": "North", "sales": 100},
+        {"month": "2026-02-01", "region": "South", "sales": 140},
+        {"month": "2026-03-01", "region": "North", "sales": 180},
+    ]
+    specs = recommend_visuals(["month", "region", "sales"], rows)
+    assert specs
+    assert all(spec["chartType"] in {"bar", "line", "pie", "scatter", "heatmap"} for spec in specs)
+    assert all(spec.get("data") for spec in specs)
