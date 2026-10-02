@@ -32,6 +32,7 @@ ALLOWED_ORIGINS = (
     [origin.strip() for origin in _allowed_origins_raw.split(",") if origin.strip()]
     if _allowed_origins_raw
     else [
+        "https://eeldalviz-1192.vercel.app",
         "https://saarthi-nine-chi.vercel.app",
         "https://swapnild007.github.io",
         "http://localhost:8000",
@@ -100,7 +101,7 @@ async def security_middleware(request: Request, call_next):
             "font-src 'self' https://fonts.gstatic.com data:; "
             "img-src 'self' data: blob:; "
             "media-src 'self' blob:; "
-            "connect-src 'self' https://saarthi-nine-chi.vercel.app https://api.open-meteo.com https://api.bigdatacloud.net https://ipwho.is; "
+            "connect-src 'self' https://eeldalviz-1192.vercel.app https://saarthi-nine-chi.vercel.app https://api.open-meteo.com https://api.bigdatacloud.net https://ipwho.is; "
             "object-src 'none'; "
             "base-uri 'self'; "
             "frame-ancestors 'none'; "
