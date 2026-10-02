@@ -477,12 +477,14 @@ const SaarthiApp = (() => {
     if(wp.industry&&wp.industry!=='General')rows.push('<span><small>INDUSTRY</small><b>'+escapeHtml(wp.industry)+'</b></span>');
     if(wp.capability)rows.push('<span><small>CAPABILITY</small><b>'+escapeHtml(wp.capability)+'</b></span>');
     if(wp.deliverable_type)rows.push('<span><small>DELIVERABLE</small><b>'+escapeHtml(String(wp.deliverable_type).replace(/_/g,' '))+'</b></span>');
+    if(wp.journey)rows.push('<span><small>JOURNEY</small><b>'+escapeHtml(String(wp.journey).replace(/_/g,' '))+'</b></span>');
     return '<section class="work-product">'+
       '<div class="work-product-head"><div><small>WORK PRODUCT</small><strong>Decision-ready delivery</strong></div><span class="work-product-status">'+escapeHtml(String(verification.status||'runtime_verified').replace(/_/g,' '))+'</span></div>'+
       (rows.length?'<div class="work-product-meta">'+rows.join('')+'</div>':'')+
       (actions.length?'<div class="work-product-section"><small>ACTIONS TAKEN</small><ul>'+actions.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
       (evidence.length?'<div class="work-product-section"><small>EVIDENCE / EXECUTION</small><ul>'+evidence.map(x=>'<li><b>'+escapeHtml(x.source||'runtime')+'</b> · '+escapeHtml(x.summary||'execution result available')+'</li>').join('')+'</ul></div>':'')+
       (next.length?'<div class="work-product-section"><small>NEXT ACTIONS</small><ul>'+next.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
+      (Array.isArray(wp.coverage)&&wp.coverage.length?'<div class="work-product-section"><small>DOMAIN COVERAGE</small><div class="work-product-tags">'+wp.coverage.map(x=>'<span>'+escapeHtml(String(x).replace(/_/g,' '))+'</span>').join('')+'</div></div>':'')+
       '<div class="work-product-foot">'+escapeHtml(verification.scope||'Runtime path verified; model-generated prose is not independently fact-checked.')+'</div>'+
     '</section>';
   };
