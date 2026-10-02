@@ -1667,3 +1667,13 @@ body.chat-active .assistant-selector b{font-size:15px}
   .visual-title{font-size:15px}
   .saarthi-chart-svg{min-height:220px}
 }
+
+/* Compact mobile analytics canvas. Charts should communicate data, not consume the screen. */
+@media (pointer:coarse) and (max-width:680px){
+  .saarthi-visual{margin:10px 0;padding:14px 12px 10px;border-radius:18px}
+  .saarthi-visual .visual-title{font-size:15px;margin-bottom:4px}
+  .saarthi-chart-svg{display:block;width:100%;height:auto;min-height:0;max-height:270px}
+  .saarthi-visual .chart-label,.saarthi-visual .chart-legend-label,.saarthi-visual .chart-legend-value{font-size:10px}
+  .saarthi-visual .chart-center-total{font-size:22px}
+  .saarthi-visual .chart-center-label{font-size:9px}
+}
