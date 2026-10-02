@@ -16,6 +16,7 @@ from .agent_capabilities import agent_capability, build_runtime_context, INDUSTR
 from .data_analysis import analyze_dataset, build_chart
 from .analysis_engine import analyze_text
 from .research import research
+from .work_product import build_work_product
 from urllib.request import Request, urlopen
 
 
@@ -705,6 +706,14 @@ class SaarthiEngine:
                 "execution": "blocked-by-scope",
                 "tool_results": {},
                 "verification": {"verified": True, "claims": "specialist scope boundary enforced before model execution"},
+                "work_product": build_work_product(
+                    objective=message,
+                    intent=intent.name,
+                    reply=boundary_reply,
+                    orchestration=orchestration,
+                    tool_results={},
+                    verification={"claims": "specialist scope boundary enforced before model execution"},
+                ),
             }
 
         if intent.name == "system":
@@ -750,6 +759,14 @@ class SaarthiEngine:
                 "execution": "completed",
                 "tool_results": tool_results,
                 "verification": {"verified": True, "claims": f"deterministic {intent.name} tool result returned before model execution"},
+                "work_product": build_work_product(
+                    objective=message,
+                    intent=intent.name,
+                    reply=reply,
+                    orchestration=orchestration,
+                    tool_results=tool_results,
+                    verification={"claims": f"deterministic {intent.name} tool result returned before model execution"},
+                ),
             }
 
         provider = self.cloud if self.cloud.configured else None
@@ -795,5 +812,13 @@ class SaarthiEngine:
             "execution": "completed",
             "tool_results": tool_results,
             "verification": {"verified": True, "claims": "response generated from available execution context", "data_analysis": assistant_id == "data_analyst", "calculation_source": "server-side attachment profile" if assistant_id == "data_analyst" else None},
+            "work_product": build_work_product(
+                objective=message,
+                intent=intent.name,
+                reply=reply,
+                orchestration=orchestration,
+                tool_results=tool_results,
+                verification={"claims": "response generated from available execution context"},
+            ),
         }
     
