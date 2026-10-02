@@ -481,10 +481,13 @@ const SaarthiApp = (() => {
         const palette=['#6f8fa8','#a38b6a','#6d927a','#8b7ba8'];
         let svg='<svg class="saarthi-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+escapeHtml(chartTitle)+'">'+(spec.chartType==='pie'||spec.chartType==='heatmap'?'':'<line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" class="chart-axis"/>');
         if(spec.chartType==='pie'){
-          const total=data.reduce((a,row)=>a+Math.max(0,Number(row[spec.valueKey]||0)),0);
+          const numericKey = spec.valueKey || Object.keys(data[0]||{}).find(key=>data.some(row=>Number.isFinite(Number(row[key])))) || 'value';
+          const labelKey = spec.nameKey || Object.keys(data[0]||{}).find(key=>!Number.isFinite(Number(data[0]?.[key]))) || 'category';
+          const pieValue = row => Math.max(0, Number(row?.[numericKey]));
+          const total=data.reduce((a,row)=>a+pieValue(row),0);
           const cx=190,cy=154,r=104,inner=62; let angle=-Math.PI/2;
           data.forEach((row,i)=>{
-            const val=Math.max(0,Number(row[spec.valueKey]||0)),a=total?val/total*Math.PI*2:0;
+            const val=pieValue(row),a=total?val/total*Math.PI*2:0;
             const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+a),y2=cy+r*Math.sin(angle+a);
             const ix1=cx+inner*Math.cos(angle),iy1=cy+inner*Math.sin(angle),ix2=cx+inner*Math.cos(angle+a),iy2=cy+inner*Math.sin(angle+a);
             const large=a>Math.PI?1:0;
