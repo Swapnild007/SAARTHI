@@ -2,6 +2,8 @@
 from __future__ import annotations
 from typing import Any
 
+from .agent_knowledge import knowledge_for
+
 AGENT_CAPABILITIES: dict[str, dict[str, Any]] = {
     "saarthi": {"name":"Saarthi","focus":"general intelligence and orchestration","capabilities":["conversation","decision_support","learning","personal_organization","orchestration"],"workflows":["understand","decide","learn","organize","delegate"],"outputs":["answer","decision_frame","plan","handoff"]},
     "coding": {"name":"AI Coding","focus":"production software engineering","capabilities":["architecture","implementation","debugging","refactoring","testing","code_review","documentation"],"workflows":["inspect","design","implement","test","review","ship"],"outputs":["code","diff","test_plan","architecture","review"]},
@@ -126,4 +128,5 @@ def build_runtime_context(assistant: str, industry: str | None = None) -> dict[s
         "industry_artifacts": pack.get("artifacts", []) if pack else [],
         "industry_coverage": INDUSTRY_COVERAGE.get(str(industry).lower(), {}) if industry else {},
         "agent_playbook": AGENT_PLAYBOOKS.get(str(assistant).lower(), AGENT_PLAYBOOKS["saarthi"]),
+        "agent_knowledge": knowledge_for(assistant),
     }
