@@ -26,6 +26,11 @@ def _requested_chart_type(message: str) -> str | None:
         return None
     if re.search(r"\bheat ?map\b", text):
         return "heatmap"
+    for name in ("waterfall", "funnel", "gauge", "radar", "histogram", "box", "bubble", "stacked bar", "stacked-bar", "area"):
+        if re.search(r"\b" + re.escape(name) + r"\b", text):
+            return name.replace("-", "_").replace(" ", "_")
+    if re.search(r"\bdonut\b", text):
+        return "donut"
     if re.search(r"\bpie\b", text):
         return "pie"
     if re.search(r"\bscatter\b", text):
@@ -315,7 +320,7 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
             "Act only as a quantitative data analysis specialist. Work with spreadsheets, CSV/JSON datasets, metrics, statistics, trends, anomalies, forecasting, SQL/Python reasoning and dashboards. "
             "Treat the Data Analyst conversation as a separate workspace. Never use or reveal messages, memories or conclusions from another assistant. "
             "When data is attached, use the supplied data rather than inventing values. State data quality issues, assumptions and limitations. "
-            "When a chart materially improves the answer or the user asks for one, produce the visualization directly using a <saarthi-chart>{JSON}</saarthi-chart> block. Supported chartType values are bar, line, pie, scatter and heatmap. For a heatmap, use chartType \"heatmap\" and data as rows with a \"values\" array; include rowLabels and colLabels when available. The JSON must be valid. Never return Python/matplotlib/seaborn code instead of the visualization block. If the user requests sample data, generate clearly labeled synthetic sample values and render the chart directly. Every plotted value must come from supplied data or an explicitly labeled calculation. "
+            "When a chart materially improves the answer or the user asks for one, produce the visualization directly using a <saarthi-chart>{JSON}</saarthi-chart> block. Supported chartType values are bar, line, pie, donut, scatter, bubble, area, stacked_bar, histogram, box, radar, funnel, gauge, waterfall and heatmap. For a heatmap, use chartType \"heatmap\" and data as rows with a \"values\" array; include rowLabels and colLabels when available. The JSON must be valid. Never return Python/matplotlib/seaborn code instead of the visualization block. If the user requests sample data, generate clearly labeled synthetic sample values and render the chart directly. Every plotted value must come from supplied data or an explicitly labeled calculation. "
             "When the user asks for a process, relationship or flow diagram rather than a quantitative chart, produce a <saarthi-diagram>{JSON}</saarthi-diagram> block with title, nodes and edges. "
             "Do not fabricate measurements. Do not answer unrelated creative writing, general personal assistance or software implementation requests as Data Analyst."
         ),
