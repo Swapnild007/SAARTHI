@@ -447,7 +447,9 @@ const SaarthiApp = (() => {
       raw=raw.replace(/<saarthi-diagram>([\s\S]*?)<\/saarthi-diagram>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('diagram',json));return token;});
       let html=renderMarkdown(raw);
       visuals.forEach((visual,index)=>{html=html.replace('<p>@@SAARTHI_VISUAL_'+index+'@@</p>',visual||'');});
-      return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+'</div></div>';
+      const wp=message.workProduct&&typeof message.workProduct==='object'?message.workProduct:null;
+      const workProductHtml=message.role==='assistant'&&wp?renderWorkProduct(wp):'';
+      return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
     }).join('');
     const eyebrow=$('#assistantResponseEyebrow');
     const title=$('#assistantResponseTitle');
@@ -461,11 +463,32 @@ const SaarthiApp = (() => {
       $('#conversationComposer')?.scrollIntoView({behavior:'smooth',block:'nearest'});
     });
   };
-  const appendConversation=(role,content)=>{
+  const renderWorkProduct=wp=>{
+    const actions=Array.isArray(wp.actions_taken)?wp.actions_taken:[];
+    const evidence=Array.isArray(wp.evidence)?wp.evidence:[];
+    const next=Array.isArray(wp.next_actions)?wp.next_actions:[];
+    const verification=wp.verification&&typeof wp.verification==='object'?wp.verification:{};
+    const rows=[];
+    if(wp.industry&&wp.industry!=='General')rows.push('<span><small>INDUSTRY</small><b>'+escapeHtml(wp.industry)+'</b></span>');
+    if(wp.capability)rows.push('<span><small>CAPABILITY</small><b>'+escapeHtml(wp.capability)+'</b></span>');
+    if(wp.deliverable_type)rows.push('<span><small>DELIVERABLE</small><b>'+escapeHtml(String(wp.deliverable_type).replace(/_/g,' '))+'</b></span>');
+    return '<section class="work-product">'+
+      '<div class="work-product-head"><div><small>WORK PRODUCT</small><strong>Decision-ready delivery</strong></div><span class="work-product-status">'+escapeHtml(String(verification.status||'runtime_verified').replace(/_/g,' '))+'</span></div>'+
+      (rows.length?'<div class="work-product-meta">'+rows.join('')+'</div>':'')+
+      (actions.length?'<div class="work-product-section"><small>ACTIONS TAKEN</small><ul>'+actions.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
+      (evidence.length?'<div class="work-product-section"><small>EVIDENCE / EXECUTION</small><ul>'+evidence.map(x=>'<li><b>'+escapeHtml(x.source||'runtime')+'</b> · '+escapeHtml(x.summary||'execution result available')+'</li>').join('')+'</ul></div>':'')+
+      (next.length?'<div class="work-product-section"><small>NEXT ACTIONS</small><ul>'+next.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>':'')+
+      '<div class="work-product-foot">'+escapeHtml(verification.scope||'Runtime path verified; model-generated prose is not independently fact-checked.')+'</div>'+
+    '</section>';
+  };
+
+  const appendConversation=(role,content,workProduct=null)=>{
     if(!content)return;
     const thread=ensureThread(currentAssistant,true);
     const messages=thread.messages||[];
-    messages.push({role,content:String(content),at:new Date().toISOString()});
+    const message={role,content:String(content),at:new Date().toISOString()};
+    if(role==='assistant'&&workProduct&&typeof workProduct==='object')message.workProduct=workProduct;
+    messages.push(message);
     conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
     if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
     thread.updatedAt=new Date().toISOString();
@@ -473,7 +496,7 @@ const SaarthiApp = (() => {
     renderConversation();
   };
   const showResponse=(reply,result)=>{
-    appendConversation('assistant',reply||'Command completed.');
+    appendConversation('assistant',reply||'Command completed.',result?.work_product||null);
     responseCard?.scrollIntoView({behavior:'smooth',block:'nearest'});
   };
 
