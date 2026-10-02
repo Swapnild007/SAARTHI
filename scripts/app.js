@@ -285,19 +285,30 @@ const SaarthiApp = (() => {
     if(intelligenceFlowState)intelligenceFlowState.textContent=state.toUpperCase();
     const stages=[...intelligenceFlow.querySelectorAll('.intelligence-stage')];
     const active=result?.orchestration?.stages||['understand','contextualize','reason','execute','verify','deliver'];
-    const activeCapability=result?.orchestration?.active_capability;
+    const activeCapability=result?.orchestration?.active_capability||assistantInfo(currentAssistant).name;
     const industry=result?.orchestration?.industry||INDUSTRIES[currentIndustry]||'General';
+    const workflowList=Array.isArray(result?.orchestration?.workflow)?result.orchestration.workflow:[];
+    const frameworkList=Array.isArray(result?.orchestration?.decision_frameworks)?result.orchestration.decision_frameworks:[];
+    const workflow=workflowList.join(' · ');
+    const decisionLens=frameworkList.join(' · ');
     stages.forEach((el,index)=>el.classList.toggle('active',state==='running'?index<4:state==='complete'?index<active.length:index===0));
     if(intelligenceContext){
       if(state==='complete'&&result?.orchestration){
-        const workflow=(result.orchestration.workflow||[]).join(' · ');
-        intelligenceContext.textContent=industry+' · '+(activeCapability||assistantInfo(currentAssistant).name)+(workflow?' · '+workflow:'')+' · verified delivery path';
+        intelligenceContext.textContent=industry+' · '+activeCapability+(workflow?' · '+workflow:'')+' · verified delivery path';
       }else{
         intelligenceContext.textContent=state==='running'
           ? 'SAARTHI is contextualizing the objective, selecting the right capability and validating the path.'
           : 'SAARTHI is ready to turn an objective into a decision-ready result.';
       }
     }
+    const cap=document.getElementById('activeCapability');
+    const wf=document.getElementById('activeWorkflow');
+    const lens=document.getElementById('activeDecisionLens');
+    const exec=document.getElementById('executionStatus');
+    if(cap)cap.textContent=activeCapability;
+    if(wf)wf.textContent=workflow||'Objective intake';
+    if(lens)lens.textContent=decisionLens||'Context-aware reasoning';
+    if(exec)exec.textContent=state==='running'?'EXECUTING':state==='complete'?'VERIFIED':'READY';
   };
 
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
