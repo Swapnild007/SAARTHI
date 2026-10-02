@@ -406,6 +406,61 @@ const SaarthiApp = (() => {
   };
 
 
+  const normalizeLegacyToolVisual=(raw)=>{
+    let text=String(raw||'');
+    const toolPattern=/<\\|toolcall\\|>\\s*python\\(code=(?:\\\\"|")([\\s\\S]*?)(?:\\\\"|")\\)\\s*<\\|toolcall_end\\|>/gi;
+    text=text.replace(toolPattern,(_,code)=>{
+      const source=String(code).replace(/\\\\n/g,'\\n').replace(/\\\\'/g,"'");
+      const chartType=/\\bplt\\.pie\\s*\\(/i.test(source)?'pie':/\\bplt\\.bar\\s*\\(/i.test(source)?'bar':'line';
+      const arrays={};
+      const arrayPattern=/\\b([A-Za-z_]\\w*)\\s*=\\s*\\[([^\\]]*)\\]/g;
+      let match;
+      while((match=arrayPattern.exec(source))){
+        const values=match[2].split(',').map(v=>v.trim()).filter(Boolean).map(v=>{
+          const unquoted=v.replace(/^['"]|['"]$/g,'');
+          const n=Number(unquoted);
+          return Number.isFinite(n)?n:unquoted;
+        });
+        arrays[match[1]]=values;
+      }
+      const plotCalls=[...source.matchAll(/plt\\.plot\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)[^\\n]*?(?:label\\s*=\\s*['"]([^'"]+)['"])?/gi)];
+      const barCall=source.match(/plt\\.bar\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)/i);
+      const pieCall=source.match(/plt\\.pie\\(\\s*([A-Za-z_]\\w*)/i);
+      let xKey='category',series=[],data=[];
+      if(chartType==='pie'&&pieCall&&arrays[pieCall[1]]){
+        const values=arrays[pieCall[1]];
+        const labels=(arrays.categories||arrays.labels||values.map((_,i)=>String(i+1)));
+        data=values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}));
+        return '<saarthi-chart>'+JSON.stringify({chartType:'pie',meta:{title:'Generated chart'},nameKey:'category',valueKey:'value',data})+'</saarthi-chart>';
+      }
+      if(chartType==='bar'&&barCall&&arrays[barCall[1]]&&arrays[barCall[2]]){
+        const labels=arrays[barCall[1]],values=arrays[barCall[2]];
+        data=values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}));
+        return '<saarthi-chart>'+JSON.stringify({chartType:'bar',meta:{title:'Generated chart'},xKey:'category',series:[{dataKey:'value',label:'Value'}],data})+'</saarthi-chart>';
+      }
+      if(plotCalls.length){
+        xKey=plotCalls[0][1];
+        plotCalls.forEach((call,i)=>{
+          const key=call[2];
+          if(!arrays[key])return;
+          const label=call[3]||key;
+          series.push({dataKey:'s'+i,label});
+        });
+        const xValues=arrays[xKey]||[];
+        data=xValues.map((x,i)=>{
+          const row={category:String(x)};
+          plotCalls.forEach((call,j)=>{row['s'+j]=Number(arrays[call[2]]?.[i]);});
+          return row;
+        });
+        if(series.length&&data.length){
+          return '<saarthi-chart>'+JSON.stringify({chartType:'line',meta:{title:'Generated chart'},xKey:'category',series,data})+'</saarthi-chart>';
+        }
+      }
+      return '';
+    });
+    return text;
+  };
+
   const visualizationHtml=(type,json)=>{
     try{
       const spec=JSON.parse(json); const meta=spec.meta&&typeof spec.meta==='object'?spec.meta:{}; const chartTitle=spec.title||meta.title||'Visualization';
@@ -449,7 +504,7 @@ const SaarthiApp = (() => {
     responseBody.innerHTML=messages.map(message=>{
       const role=message.role==='user'?'You':'Saarthi';
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
-      let raw=String(message.content||'');
+      let raw=normalizeLegacyToolVisual(String(message.content||''));
       const visuals=[];
       raw=raw.replace(/<saarthi-chart>([\s\S]*?)<\/saarthi-chart>/gi,(_,json)=>{const token='@@SAARTHI_VISUAL_'+visuals.length+'@@';visuals.push(visualizationHtml('chart',json));return token;});
       raw=raw.replace(/<saarthi-diagram>([\s\S]*?)<\/saarthi-diagram>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('diagram',json));return token;});
