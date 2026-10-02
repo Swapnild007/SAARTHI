@@ -472,7 +472,7 @@ const SaarthiApp = (() => {
       const spec=JSON.parse(json); const meta=spec.meta&&typeof spec.meta==='object'?spec.meta:{}; const chartTitle=spec.title||meta.title||'Visualization';
       if(type==='chart'){
         const data=Array.isArray(spec.data)?spec.data:[];const series=Array.isArray(spec.series)?spec.series:[];
-        if(!data.length)return ''; if(spec.chartType!=='pie'&&spec.chartType!=='heatmap'&&!series.length)return '';
+        if(!data.length)return ''; if(spec.chartType!=='pie'&&spec.chartType!=='donut'&&spec.chartType!=='heatmap'&&!series.length)return '';
         const w=720,h=340,pad=42;
         const values=series.flatMap(se=>data.map(row=>Number(row[se.dataKey]))).filter(Number.isFinite);
         const max=Math.max(...values,1),min=Math.min(0,...values);
@@ -480,12 +480,12 @@ const SaarthiApp = (() => {
         const sy=v=>h-pad-((v-min)/Math.max(1,max-min))*(h-pad*2);
         const palette=['#6f8fa8','#a38b6a','#6d927a','#8b7ba8'];
         let svg='<svg class="saarthi-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+escapeHtml(chartTitle)+'">'+(spec.chartType==='pie'||spec.chartType==='heatmap'?'':'<line x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'" class="chart-axis"/>');
-        if(spec.chartType==='pie'){
+        if(spec.chartType==='pie'||spec.chartType==='donut'){
           const numericKey = spec.valueKey || Object.keys(data[0]||{}).find(key=>data.some(row=>Number.isFinite(Number(row[key])))) || 'value';
           const labelKey = spec.nameKey || Object.keys(data[0]||{}).find(key=>!Number.isFinite(Number(data[0]?.[key]))) || 'category';
           const pieValue = row => Math.max(0, Number(row?.[numericKey]));
           const total=data.reduce((a,row)=>a+pieValue(row),0);
-          const cx=190,cy=154,r=104,inner=62; let angle=-Math.PI/2;
+          const cx=190,cy=154,r=104,inner=spec.chartType==='donut'?62:0; let angle=-Math.PI/2;
           data.forEach((row,i)=>{
             const val=pieValue(row),a=total?val/total*Math.PI*2:0;
             const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+a),y2=cy+r*Math.sin(angle+a);
@@ -524,13 +524,30 @@ const SaarthiApp = (() => {
               svg+='<text x="'+(x+(cellW-7)/2)+'" y="'+(y+29)+'" text-anchor="middle" class="chart-heat-value">'+escapeHtml(Number.isInteger(v)?String(v):v.toFixed(1))+'</text>';
             });
           });
-        }else if(spec.chartType==='bar'){
+        }else if(spec.chartType==='bar'||spec.chartType==='stacked_bar'||spec.chartType==='histogram'){
           const bw=Math.max(10,(w-pad*2)/Math.max(1,data.length*series.length)-6);
           data.forEach((row,i)=>series.forEach((se,j)=>{const v=Number(row[se.dataKey]);if(!Number.isFinite(v))return;const x=pad+i*((w-pad*2)/Math.max(1,data.length))+j*bw,y=sy(v),height=h-pad-y;svg+='<rect x="'+x+'" y="'+y+'" width="'+Math.max(4,bw-3)+'" height="'+Math.max(1,height)+'" rx="5" fill="'+palette[j%palette.length]+'"/>';}));
+        }else if(spec.chartType==='scatter'||spec.chartType==='bubble'){
+          const xValues=data.map(row=>Number(row[spec.xKey])); const yKey=series[0]?.dataKey;
+          const finiteX=xValues.filter(Number.isFinite); const xMin=Math.min(...finiteX,0),xMax=Math.max(...finiteX,1);
+          const sxv=v=>pad+((v-xMin)/Math.max(1,xMax-xMin))*(w-pad*2);
+          data.forEach((row,i)=>{const x=Number(row[spec.xKey]),y=Number(row[yKey]);if(!Number.isFinite(x)||!Number.isFinite(y))return;const radius=spec.chartType==='bubble'?Math.max(5,Math.min(24,Number(row[spec.sizeKey]||8)/4)):7;svg+='<circle cx="'+sxv(x)+'" cy="'+sy(y)+'" r="'+radius+'" fill="'+palette[i%palette.length]+'" fill-opacity=".78"/>';});
+        }else if(spec.chartType==='area'){
+          series.forEach((se,j)=>{const pts=data.map((row,i)=>{const v=Number(row[se.dataKey]);return Number.isFinite(v)?sx(i)+','+sy(v):null;}).filter(Boolean);if(pts.length){const first=pts[0].split(',')[0],last=pts[pts.length-1].split(',')[0];svg+='<polygon points="'+first+','+(h-pad)+' '+pts.join(' ')+' '+last+','+(h-pad)+'" fill="'+palette[j%palette.length]+'" fill-opacity=".18"/><polyline points="'+pts.join(' ')+'" fill="none" stroke="'+palette[j%palette.length]+'" stroke-width="3"/>';}}); 
+        }else if(spec.chartType==='funnel'){
+          const values=data.map(r=>Number(r[spec.valueKey||'value'])).filter(Number.isFinite);const labels=data.map(r=>String(r[spec.nameKey||'stage']||''));const maxV=Math.max(...values,1);values.forEach((v,i)=>{const width=460*(v/maxV);const x=(w-width)/2,y=40+i*48;svg+='<rect x="'+x+'" y="'+y+'" width="'+width+'" height="36" rx="8" fill="'+palette[i%palette.length]+'"/><text x="'+(w/2)+'" y="'+(y+23)+'" text-anchor="middle" class="chart-label">'+escapeHtml(labels[i])+' · '+escapeHtml(String(v))+'</text>';});
+        }else if(spec.chartType==='gauge'){
+          const value=Number(data[0]?.value??data[0]?.actual??0),target=Number(data[0]?.target??100),ratio=Math.max(0,Math.min(1,value/Math.max(target,1)));const cx=360,cy=270,r=150;svg+='<path d="M '+(cx-r)+' '+cy+' A '+r+' '+r+' 0 0 1 '+(cx+r)+' '+cy+'" fill="none" stroke="rgba(111,143,168,.2)" stroke-width="28"/><path d="M '+(cx-r)+' '+cy+' A '+r+' '+r+' 0 0 1 '+(cx-r+2*r*ratio)+' '+(cy-Math.sqrt(Math.max(0,r*r-(r*(2*ratio-1))**2)))+'" fill="none" stroke="'+palette[0]+'" stroke-width="28" stroke-linecap="round"/><text x="'+cx+'" y="'+(cy-20)+'" text-anchor="middle" class="chart-center-total">'+escapeHtml(String(value))+'</text><text x="'+cx+'" y="'+(cy+10)+'" text-anchor="middle" class="chart-center-label">Target '+escapeHtml(String(target))+'</text>';
+        }else if(spec.chartType==='radar'){
+          const centerX=360,centerY=170,radius=115,labels=data.map(r=>String(r.category??r.label??'')),vals=series[0]?data.map(r=>Number(r[series[0].dataKey])):[],maxV=Math.max(...vals.filter(Number.isFinite),1);const pts=vals.map((v,i)=>{const a=-Math.PI/2+i*(Math.PI*2/Math.max(1,vals.length));const rr=radius*Math.max(0,v/maxV);return (centerX+rr*Math.cos(a))+','+(centerY+rr*Math.sin(a));});svg+='<polygon points="'+pts.join(' ')+'" fill="'+palette[0]+'" fill-opacity=".2" stroke="'+palette[0]+'" stroke-width="3"/>'+labels.map((l,i)=>{const a=-Math.PI/2+i*(Math.PI*2/Math.max(1,labels.length));return '<text x="'+(centerX+(radius+22)*Math.cos(a))+'" y="'+(centerY+(radius+22)*Math.sin(a))+'" text-anchor="middle" class="chart-label">'+escapeHtml(l.slice(0,16))+'</text>';}).join('');
+        }else if(spec.chartType==='waterfall'){
+          let running=0;const maxAbs=Math.max(...data.map(r=>Math.abs(Number(r.value)||0)),1);data.forEach((row,i)=>{const v=Number(row.value)||0;const x=pad+i*((w-pad*2)/Math.max(1,data.length));const y=v>=0?sy(running+v):sy(running);const h=Math.abs(sy(running)-sy(running+v));svg+='<rect x="'+x+'" y="'+Math.min(y,sy(running))+'" width="'+Math.max(12,(w-pad*2)/Math.max(1,data.length)-8)+'" height="'+Math.max(2,h)+'" rx="4" fill="'+palette[(v>=0?0:1)]+'"/>';running+=v;});
+        }else if(spec.chartType==='box'){
+          const groups=Array.isArray(spec.groups)?spec.groups:data.map(r=>r.values).filter(Array.isArray);const boxW=Math.min(80,(w-pad*2)/Math.max(1,groups.length)-12);groups.forEach((vals,i)=>{const n=vals.map(Number).filter(Number.isFinite).sort((a,b)=>a-b);if(n.length<2)return;const q=p=>n[Math.floor((n.length-1)*p)],x=pad+i*((w-pad*2)/Math.max(1,groups.length))+boxW/2;const y1=sy(q(.25)),y2=sy(q(.75));svg+='<line x1="'+x+'" y1="'+sy(q(0))+'" x2="'+x+'" y2="'+sy(q(1))+'" stroke="'+palette[i%palette.length]+'" stroke-width="3"/><rect x="'+(x-boxW/2)+'" y="'+y2+'" width="'+boxW+'" height="'+Math.max(2,y1-y2)+'" rx="6" fill="'+palette[i%palette.length]+'" fill-opacity=".35" stroke="'+palette[i%palette.length]+'"/><line x1="'+(x-boxW/2)+'" y1="'+sy(q(.5))+'" x2="'+(x+boxW/2)+'" y2="'+sy(q(.5))+'" stroke="'+palette[i%palette.length]+'" stroke-width="3"/>';});
         }else{
           series.forEach((se,j)=>{const pts=data.map((row,i)=>{const v=Number(row[se.dataKey]);return Number.isFinite(v)?sx(i)+','+sy(v):null;}).filter(Boolean).join(' ');svg+='<polyline points="'+pts+'" fill="none" stroke="'+palette[j%palette.length]+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';});
         }
-        if(spec.chartType!=='pie'&&spec.chartType!=='heatmap'){
+        if(spec.chartType!=='pie'&&spec.chartType!=='donut'&&spec.chartType!=='heatmap'&&spec.chartType!=='funnel'&&spec.chartType!=='gauge'&&spec.chartType!=='radar'&&spec.chartType!=='waterfall'&&spec.chartType!=='box'){
           data.forEach((row,i)=>{const label=String(row[spec.xKey]??'');svg+='<text x="'+sx(i)+'" y="'+(h-15)+'" text-anchor="middle" class="chart-label">'+escapeHtml(label.slice(0,14))+'</text>';});
         }
         svg+='</svg>';
