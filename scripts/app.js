@@ -641,18 +641,64 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     command?.focus();
   };
 
-  const renderMenuRoot=()=>{
+  const renderControlCenter=async()=>{
     const target=$('#menuPicker');if(!target)return;
-    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options"><button class="menu-option" data-history-root="true"><span class="menu-option-icon">☷</span><span><b>Conversation history</b><small>Open '+(ASSISTANTS.find(x=>x.id===currentAssistant)?.name||'Saarthi')+'\'s conversations.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and estimated OpenRouter cost.</small></span><span class="menu-option-arrow">›</span></button><button class="menu-option" data-root-menu="control"><span class="menu-option-icon">⌘</span><span><b>Control</b><small>Memory, voice, tools, connections, security and privacy.</small></span><span class="menu-option-arrow">›</span></button></div></div>';
     closePickers();
+    const savedMotion=localStorage.getItem('saarthi.reduceMotion')==='1';
+    const adaptive=localStorage.getItem('saarthi.adaptiveUI')!=='0';
+    target.innerHTML='<div class="picker-panel control-center-panel">'+
+      '<div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Control Center</h3><small>Configure the workspace without changing how Saarthi reasons.</small></div><button class="picker-close" aria-label="Close">×</button></div>'+
+      '<div class="control-grid">'+
+        '<section class="control-card control-runtime"><div class="control-card-head"><span class="control-icon">◉</span><div><b>Runtime</b><small id="controlRuntimeState">Checking…</small></div></div><div class="control-status-list" id="controlRuntimeDetails"><span>Cloud runtime</span><b>Checking…</b></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">✦</span><div><b>AI & Models</b><small>Provider routing</small></div></div><div class="control-status-list"><span>Provider</span><b id="controlProvider">Checking…</b><span>Active route</span><b id="controlRoute">Checking…</b><span>API key</span><b>Server-side</b></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">◌</span><div><b>Memory</b><small>Conversation context</small></div></div><div class="control-status-list"><span>Local threads</span><b>'+Object.values(historyState.assistants).reduce((n,v)=>n+(Array.isArray(v)?v.length:0),0)+'</b><span>Context window</span><b>'+MAX_CONTEXT_MESSAGES+' messages</b></div><div class="control-actions"><button data-control-action="history">History</button><button data-control-action="clear-current">Clear current</button></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">⌁</span><div><b>Voice</b><small>Browser voice capabilities</small></div></div><div class="control-status-list"><span>Input</span><b>'+(window.SpeechRecognition||window.webkitSpeechRecognition?'Available':'Unavailable')+'</b><span>Speech</span><b>'+('speechSynthesis' in window?'Available':'Unavailable')+'</b></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">⚙</span><div><b>Tools</b><small>Runtime capabilities</small></div></div><div class="control-status-list" id="controlTools"><span>Tools</span><b>Checking…</b></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">↗</span><div><b>Connections</b><small>External services</small></div></div><div class="control-status-list"><span>SAARTHI API</span><b id="controlConnection">Checking…</b><span>External connectors</span><b>Not connected</b></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">◈</span><div><b>Security</b><small>Session safety</small></div></div><div class="control-status-list"><span>Transport</span><b>'+((location.protocol==='https:')?'HTTPS':'Browser connection')+'</b><span>Credentials</span><b>Not exposed</b><span>Execution</span><b>Server runtime</b></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">•</span><div><b>Notifications</b><small>Proactive alerts</small></div></div><div class="control-status-list"><span>Browser permission</span><b id="notificationState">'+('Notification' in window?Notification.permission:'Unavailable')+'</b></div><div class="control-actions"><button data-control-action="notifications">Enable notifications</button></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">○</span><div><b>Appearance</b><small>Adaptive workspace</small></div></div><label class="control-toggle"><span>Adaptive intelligence UI</span><input id="adaptiveUIToggle" type="checkbox" '+(adaptive?'checked':'')+'><i></i></label><label class="control-toggle"><span>Reduce motion</span><input id="reduceMotionToggle" type="checkbox" '+(savedMotion?'checked':'')+'><i></i></label></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">◇</span><div><b>Privacy</b><small>Browser-stored workspace data</small></div></div><div class="control-status-list"><span>Conversation history</span><b>Stored locally</b><span>Provider key</span><b>Server-side</b></div><div class="control-actions"><button data-control-action="clear-history">Clear local history</button></div></section>'+
+      '</div>'+
+      '<div class="control-foot">SAARTHI keeps capability routing automatic. Controls change the workspace, not the intelligence architecture.</div>'+
+    '</div>';
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
-    target.querySelectorAll('[data-root-menu]').forEach(btn=>btn.addEventListener('click',()=>selectMenu(btn.dataset.rootMenu)));
+    target.querySelector('#adaptiveUIToggle')?.addEventListener('change',e=>{localStorage.setItem('saarthi.adaptiveUI',e.target.checked?'1':'0');document.documentElement.dataset.adaptiveUi=e.target.checked?'on':'off';addActivity('Appearance updated',e.target.checked?'Adaptive intelligence UI on':'Adaptive intelligence UI off');});
+    target.querySelector('#reduceMotionToggle')?.addEventListener('change',e=>{localStorage.setItem('saarthi.reduceMotion',e.target.checked?'1':'0');document.documentElement.classList.toggle('reduce-motion',e.target.checked);addActivity('Appearance updated',e.target.checked?'Reduced motion on':'Reduced motion off');});
+    target.querySelectorAll('[data-control-action]').forEach(btn=>btn.addEventListener('click',async()=>{
+      const action=btn.dataset.controlAction;
+      if(action==='history'){closePickers();openHistory();return;}
+      if(action==='clear-current'){if(confirm('Clear the current conversation?'))window.SaarthiApp.clearConversation();renderControlCenter();return;}
+      if(action==='clear-history'){if(confirm('Clear all locally stored SAARTHI conversation history?')){localStorage.removeItem(HISTORY_KEY);historyState.assistants=Object.create(null);Object.keys(conversations).forEach(k=>{conversations[k]=[];currentThreads[k]=null;});document.body.classList.remove('chat-active');renderConversation();renderHistory();renderControlCenter();}return;}
+      if(action==='notifications'){if('Notification' in window){try{await Notification.requestPermission();}catch{}renderControlCenter();}}
+    }));
+    try{
+      const response=await fetch(apiUrl('/api/health'));const data=await response.json();
+      const runtime=target.querySelector('#controlRuntimeState'),provider=target.querySelector('#controlProvider'),route=target.querySelector('#controlRoute'),conn=target.querySelector('#controlConnection'),tools=target.querySelector('#controlTools');
+      if(runtime)runtime.textContent=data?.ok?'Online':'Unavailable';
+      if(provider)provider.textContent=data?.provider_configured?'Configured':'Not configured';
+      if(route)route.textContent=data?.ai_gateway_active_route||'—';
+      if(conn)conn.textContent=data?.ok?'Connected':'Unavailable';
+      if(tools)tools.innerHTML=Array.isArray(data?.tools)?'<span>Available tools</span><b>'+data.tools.length+'</b><div class="control-tool-tags">'+data.tools.map(x=>'<span>'+escapeHtml(String(x))+'</span>').join('')+'</div>':'<span>Tools</span><b>Unavailable</b>';
+      const details=target.querySelector('#controlRuntimeDetails');if(details)details.innerHTML='<span>Engine</span><b>'+escapeHtml(data?.engine||'—')+'</b><span>Architecture</span><b>'+escapeHtml(data?.architecture||'—')+'</b>';
+    }catch{const runtime=target.querySelector('#controlRuntimeState');if(runtime)runtime.textContent='Unavailable';const conn=target.querySelector('#controlConnection');if(conn)conn.textContent='Unavailable';}
+  };
+
+  const renderMenuRoot=()=>{
+    const target=$('#menuPicker');if(!target)return;
+    target.innerHTML='<div class="picker-panel menu-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>Menu</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="menu-options">'+
+      '<button class="menu-option" data-new-root="true"><span class="menu-option-icon">＋</span><span><b>New conversation</b><small>Start with a clean Saarthi workspace.</small></span><span class="menu-option-arrow">›</span></button>'+
+      '<button class="menu-option" data-history-root="true"><span class="menu-option-icon">☷</span><span><b>Conversation history</b><small>Search and reopen previous conversations.</small></span><span class="menu-option-arrow">›</span></button>'+
+      '<button class="menu-option menu-option-featured" data-root-usage="true"><span class="menu-option-icon">◉</span><span><b>AI Usage</b><small>Live session tokens, requests and provider usage.</small></span><span class="menu-option-arrow">›</span></button>'+
+      '<button class="menu-option" data-root-control="true"><span class="menu-option-icon">⌘</span><span><b>Control Center</b><small>Runtime, memory, voice, tools, security, privacy and appearance.</small></span><span class="menu-option-arrow">›</span></button>'+
+    '</div></div>';
+    closePickers();target.hidden=false;
+    target.querySelector('.picker-close')?.addEventListener('click',closePickers);
+    target.querySelector('[data-new-root]')?.addEventListener('click',startNewConversation);
     target.querySelector('[data-history-root]')?.addEventListener('click',()=>{closePickers();openHistory();});
-    target.querySelector('[data-root-usage]')?.addEventListener('click',()=>{
-      addActivity('AI Usage opened','Session telemetry');
-      renderUsagePanel();
-    });
+    target.querySelector('[data-root-usage]')?.addEventListener('click',()=>{addActivity('AI Usage opened','Session telemetry');renderUsagePanel();});
+    target.querySelector('[data-root-control]')?.addEventListener('click',renderControlCenter);
   };
   const renderPicker=(type)=>{
     const target=$(type==='assistants'?'#assistantPicker':'#controlPicker');if(!target)return;
