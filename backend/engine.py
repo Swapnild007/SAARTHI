@@ -95,6 +95,19 @@ def _sample_chart_spec(chart_type: str) -> dict[str, Any]:
 def _sample_kpi_dashboard() -> list[dict[str, Any]]:
     return [
         {
+            "chartType": "bar",
+            "meta": {"title": "Sales by product"},
+            "xKey": "product",
+            "series": [{"dataKey": "sales", "label": "Sales"}],
+            "data": [
+                {"product": "Product A", "sales": 310},
+                {"product": "Product B", "sales": 260},
+                {"product": "Product C", "sales": 220},
+                {"product": "Product D", "sales": 180},
+                {"product": "Product E", "sales": 150},
+            ],
+        },
+        {
             "chartType": "line",
             "meta": {"title": "Monthly revenue trend"},
             "xKey": "month",
@@ -624,11 +637,21 @@ class OpenAICompatibleProvider(LLMProvider):
                 chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
                 sample_requested = bool(re.search(r"\b(sample|synthetic|example|demo)\b", message, re.IGNORECASE))
                 dashboard_requested = bool(re.search(r"\b(kpi|dashboard)\b", message, re.IGNORECASE))
-                if sample_requested and dashboard_requested and not context.get("attachments") and chart_type:
+                if active_assistant == "data_analyst" and sample_requested and dashboard_requested and not context.get("attachments"):
                     specs = _sample_kpi_dashboard()
+                    kpi_table = (
+                        "| KPI | Value | Target | Variance |\n"
+                        "| --- | ---: | ---: | ---: |\n"
+                        "| Total Sales | $1,250,000 | $1,200,000 | +4.2% |\n"
+                        "| Gross Margin | $375,000 | $360,000 | +4.2% |\n"
+                        "| Units Sold | 125,000 | 120,000 | +4.2% |\n"
+                        "| Customer Satisfaction | 87% | 85% | +2 p.p. |\n"
+                        "| Employee Turnover | 12% | 15% | -3 p.p. |"
+                    )
                     reply = (
-                        "Here is a sample KPI dashboard using synthetic data. "
-                        "The figures are illustrative, not from a real business dataset."
+                        "### KPI dashboard\n\n"
+                        "Sample synthetic data for demonstration.\n\n"
+                        + kpi_table
                         + "".join("\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>" for spec in specs)
                     )
                 elif chart_type and sample_requested and not context.get("attachments"):
