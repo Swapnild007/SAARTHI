@@ -283,7 +283,9 @@ const SaarthiApp = (() => {
     stages.forEach((el,index)=>el.classList.toggle('active',state==='running'?index<4:state==='complete'?index<active.length:index===0));
     if(intelligenceContext){
       if(state==='complete'&&result?.orchestration){
-        intelligenceContext.textContent=industry+' · '+activeCapability+(workflow?' · '+workflow:'')+' · verified delivery path';
+        intelligenceContext.textContent=industry && industry!=='General'
+          ? 'Context selected for this objective · '+industry+(workflow?' · '+workflow:'')
+          : 'Saarthi selected the operating path for this objective.';
       }else{
         intelligenceContext.textContent=state==='running'
           ? 'SAARTHI is contextualizing the objective, selecting the right capability and validating the path.'
@@ -293,14 +295,14 @@ const SaarthiApp = (() => {
     const wf=document.getElementById('activeWorkflow');
     const exec=document.getElementById('executionStatus');
     const contextLabel=result?.orchestration?.industry
-      ? 'Context detected: '+result.orchestration.industry+(workflow?' · '+workflow:'')
-      : 'Saarthi will determine the capability, industry and workflow from your objective.';
+      ? 'Context selected: '+result.orchestration.industry+(workflow?' · '+workflow:'')
+      : 'Saarthi selected the operating path for this objective.';
     setAutonomousContext(state==='running'
-      ? 'Saarthi is deciding the right capability and operating context…'
+      ? 'Saarthi is deciding the right operating path…'
       : state==='complete'
         ? contextLabel
-        : 'Saarthi will determine the capability, industry and workflow from your objective.',
-      state==='running'?'DECIDING':state==='complete'?'DETECTED':'AUTO');
+        : 'Saarthi will determine the right operating path from your objective.',
+      state==='running'?'DECIDING':state==='complete'?'READY':'AUTO');
     if(wf)wf.textContent=state==='complete'?(workflow||'Objective workflow'):'Saarthi decides';
     if(exec)exec.textContent=state==='running'?'EXECUTING':state==='complete'?'VERIFIED':'READY';
   };
@@ -453,7 +455,7 @@ const SaarthiApp = (() => {
       let html=renderMarkdown(raw);
       visuals.forEach((visual,index)=>{html=html.replace('<p>@@SAARTHI_VISUAL_'+index+'@@</p>',visual||'');});
       const wp=message.workProduct&&typeof message.workProduct==='object'?message.workProduct:null;
-      const workProductHtml=message.role==='assistant'&&wp?renderWorkProduct(wp):'';
+      const workProductHtml=message.role==='assistant'&&wp&&message.showIntelligence?renderWorkProduct(wp):'';
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
     }).join('');
     const eyebrow=$('#assistantResponseEyebrow');
@@ -475,7 +477,7 @@ const SaarthiApp = (() => {
     const verification=wp.verification&&typeof wp.verification==='object'?wp.verification:{};
     const rows=[];
     if(wp.industry&&wp.industry!=='General')rows.push('<span><small>INDUSTRY</small><b>'+escapeHtml(wp.industry)+'</b></span>');
-    if(wp.capability)rows.push('<span><small>CAPABILITY</small><b>'+escapeHtml(wp.capability)+'</b></span>');
+
     if(wp.deliverable_type)rows.push('<span><small>DELIVERABLE</small><b>'+escapeHtml(String(wp.deliverable_type).replace(/_/g,' '))+'</b></span>');
     if(wp.journey)rows.push('<span><small>JOURNEY</small><b>'+escapeHtml(String(wp.journey).replace(/_/g,' '))+'</b></span>');
     return '<section class="work-product">'+
@@ -493,12 +495,13 @@ const SaarthiApp = (() => {
     '</section>';
   };
 
-  const appendConversation=(role,content,workProduct=null)=>{
+  const appendConversation=(role,content,workProduct=null,showIntelligence=false)=>{
     if(!content)return;
     const thread=ensureThread(currentAssistant,true);
     const messages=thread.messages||[];
     const message={role,content:String(content),at:new Date().toISOString()};
     if(role==='assistant'&&workProduct&&typeof workProduct==='object')message.workProduct=workProduct;
+    if(role==='assistant')message.showIntelligence=Boolean(showIntelligence);
     messages.push(message);
     conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
     if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
@@ -507,7 +510,34 @@ const SaarthiApp = (() => {
     renderConversation();
   };
   const showResponse=(reply,result)=>{
-    appendConversation('assistant',reply||'Command completed.',result?.work_product||null);
+    const text=String(reply||'');
+    const orchestration=result?.orchestration||{};
+    const workProduct=result?.work_product||null;
+    const intent=String(result?.intent?.name||'');
+    const complex=Boolean(
+      text.length>900 ||
+      orchestration.industry ||
+      (Array.isArray(orchestration.workflow)&&orchestration.workflow.length>1) ||
+      (Array.isArray(orchestration.stages)&&orchestration.stages.length>=6) ||
+      ['plan','research','analyze','data_analysis','coding','create'].some(x=>intent.toLowerCase().includes(x))
+    );
+    appendConversation('assistant',text,workProduct,complex);
+    document.body.classList.toggle('intelligence-expanded',complex);
+    if(!complex){
+      const flow=document.getElementById('intelligenceFlow');
+      const context=document.getElementById('autonomousContext');
+      const bar=document.getElementById('intelligenceCommandbar');
+      if(flow)flow.hidden=true;
+      if(context)context.hidden=true;
+      if(bar)bar.hidden=true;
+    }else{
+      const flow=document.getElementById('intelligenceFlow');
+      const context=document.getElementById('autonomousContext');
+      const bar=document.getElementById('intelligenceCommandbar');
+      if(flow)flow.hidden=false;
+      if(context)context.hidden=false;
+      if(bar)bar.hidden=false;
+    }
     responseCard?.scrollIntoView({behavior:'smooth',block:'nearest'});
   };
 
