@@ -41,3 +41,24 @@ def test_analyze_agent_returns_deterministic_brief():
     brief = result["tool_results"]["analysis.brief"]
     assert brief["root_cause"]["candidate_causes"]
     assert brief["assumptions"]
+
+
+def test_data_analysis_uses_full_bounded_dataset():
+    from backend.data_analysis import analyze_dataset
+    rows = [{"region": "North", "sales": 100}, {"region": "South", "sales": 200}, {"region": "East", "sales": 300}]
+    result = analyze_dataset(["region", "sales"], rows)
+    assert result["profile"]["row_count"] == 3
+    assert result["summaries"][0]["sum"] == 600
+    assert result["summaries"][0]["max"] == 300
+
+
+def test_data_analysis_quality_detects_duplicates_and_missing_values():
+    from backend.data_analysis import analyze_dataset
+    rows = [
+        {"region": "North", "sales": 100},
+        {"region": "North", "sales": 100},
+        {"region": "", "sales": 200},
+    ]
+    result = analyze_dataset(["region", "sales"], rows)
+    assert result["quality"]["duplicate_rows"] == 1
+    assert "region" in result["quality"]["missing_columns"]
