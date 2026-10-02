@@ -107,6 +107,30 @@ class EngineContractTests(unittest.TestCase):
         self.assertEqual(orchestration["internal_specialist"], "plan")
         self.assertIn("capacity_plan", orchestration["workflow"])
 
+
+    def test_all_industries_have_end_to_end_coverage(self):
+        expected = {
+            "travel": ["flight_options", "train_options", "bike_or_motorbike", "hotel", "airbnb_or_vacation_rental", "lodge"],
+            "financial_services": ["cash_flow", "risk", "scenario_analysis"],
+            "healthcare": ["care_pathway", "appointment_preparation", "follow_up"],
+            "retail": ["product_discovery", "availability", "fulfillment", "returns"],
+            "logistics": ["shipment", "route", "warehouse", "delivery_window", "exceptions"],
+            "manufacturing": ["production_plan", "machine_capacity", "maintenance", "downtime", "quality", "safety"],
+        }
+        for industry, required in expected.items():
+            runtime = build_runtime_context("saarthi", industry)
+            coverage = runtime["industry_coverage"]
+            for item in required:
+                self.assertIn(item, coverage["coverage"])
+            self.assertTrue(coverage["artifact_bundle"])
+
+    def test_all_agents_have_quality_playbooks(self):
+        for agent in ("saarthi", "coding", "research", "create", "data_analyst", "analyze", "plan"):
+            runtime = build_runtime_context(agent, "manufacturing")
+            playbook = runtime["agent_playbook"]
+            self.assertTrue(playbook["sequence"])
+            self.assertTrue(playbook["quality_gates"])
+
     def test_specialist_profiles_remain_available(self):
         self.assertEqual(
             set(ASSISTANT_PROFILES),
