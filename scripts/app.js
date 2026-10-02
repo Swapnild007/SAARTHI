@@ -408,94 +408,52 @@ const SaarthiApp = (() => {
 
   const normalizeLegacyToolVisual=(raw)=>{
     let text=String(raw||'');
-
-    // Normalize legacy model/tool output before markdown rendering.
-    // Some providers emit literal escaped newlines and omit whitespace around tool markers.
     text=text.replace(/\\r?\\n/g,'\n');
+    const toolPattern=/<\|toolcall\|>[\s\S]*?python\(code=([\s\S]*?)\)\s*<\|toolcall_end\|>/gi;
 
-    const toolPattern=/<\\|toolcall\\|>[\\s\\S]*?python\\(code=(?:\"|')([\\s\\S]*?)(?:\"|')\\)[\\s\\|]*<\\|toolcall_end\\|>/gi;
-
-    const parseValue=(value)=>{
-      const v=String(value||'').trim();
-      if(!v)return null;
-      if((v[0]==='['&&v[v.length-1]===']')||(v[0]==='{'&&v[v.length-1]==='}')){
-        try{return JSON.parse(v.replace(/'/g,'\"').replace(/\\bNone\\b/g,'null').replace(/\\bTrue\\b/g,'true').replace(/\\bFalse\\b/g,'false'));}catch{}
-      }
-      const n=Number(v);
-      return Number.isFinite(n)?n:v.replace(/^['"]|['"]$/g,'');
+    const parseArrayLiteral=(literal)=>{
+      try{return JSON.parse(String(literal).replace(/'/g,'"').replace(/\bNone\b/g,'null').replace(/\bTrue\b/g,'true').replace(/\bFalse\b/g,'false'));}catch{return null;}
     };
-
     const extractAssignedArray=(source,name)=>{
-      const re=new RegExp('\\\\b'+name+'\\\\s*=\\\\s*(?:np\\\\.array\\\\s*)?\\\\[','i');
-      const m=re.exec(source);
-      if(!m)return null;
-      const open=source.indexOf('[',m.index);
-      let depth=0,quote='';
-      for(let i=open;i<source.length;i++){
-        const ch=source[i];
-        if(quote){if(ch===quote&&source[i-1]!=='\\\\')quote='';continue;}
-        if(ch==='\\"'||ch==="'"){quote=ch;continue;}
-        if(ch==='[')depth++;
-        else if(ch===']'){depth--;if(depth===0){
-          const literal=source.slice(open,i+1).replace(/\\bnp\\\\.array\\b/gi,'');
-          try{return JSON.parse(literal.replace(/'/g,'\"').replace(/\\bNone\\b/g,'null').replace(/\\bTrue\\b/g,'true').replace(/\\bFalse\\b/g,'false'));}catch{return null;}
-        }}
-      }
-      return null;
+      const m=source.match(new RegExp('\\b'+name+'\\s*=\\s*(?:np\\.array\\s*)?(\\[[\\s\\S]*?\\])','i'));
+      return m?parseArrayLiteral(m[1]):null;
     };
 
-    const parseTool=(code)=>{
-      const source=String(code||'').replace(/\\\\n/g,'\n').replace(/\\\\t/g,'\t').replace(/\\\\'/g,"'").replace(/\\\\\"/g,'\"');
-      const hasHeatmap=/\\b(?:sns\\\\.)?heatmap\\s*\\(/i.test(source)||/\\bplt\\.imshow\\s*\\(/i.test(source);
-      const chartType=hasHeatmap?'heatmap':/\\bplt\\.pie\\s*\\(/i.test(source)?'pie':/\\bplt\\.bar\\s*\\(/i.test(source)?'bar':'line';
+    const parseTool=(rawCode)=>{
+      let source=String(rawCode||'').trim();
+      if((source.startsWith('"')&&source.endsWith('"'))||(source.startsWith("'")&&source.endsWith("'")))source=source.slice(1,-1);
+      source=source.replace(/\\n/g,'\n').replace(/\\t/g,'\t').replace(/\\'/g,"'").replace(/\\"/g,'"');
 
+      const hasHeatmap=/\b(?:sns\.)?heatmap\s*\(/i.test(source)||/\bplt\.imshow\s*\(/i.test(source);
+      const chartType=hasHeatmap?'heatmap':/\bplt\.pie\s*\(/i.test(source)?'pie':/\bplt\.bar\s*\(/i.test(source)?'bar':'line';
       const arrays={};
-      const names=[...source.matchAll(/\\b([A-Za-z_]\\w*)\\s*=\\s*(?:np\\.array\\s*)?\\[/g)].map(m=>m[1]);
+      const names=[...source.matchAll(/\b([A-Za-z_]\w*)\s*=\s*(?:np\.array\s*)?(\[[\s\S]*?\])/g)].map(m=>m[1]);
       [...new Set(names)].forEach(name=>{const value=extractAssignedArray(source,name);if(value!==null)arrays[name]=value;});
 
       if(chartType==='heatmap'){
         const matrix=arrays.data||arrays.values||arrays.matrix||Object.values(arrays).find(v=>Array.isArray(v)&&Array.isArray(v[0]));
-        if(Array.isArray(matrix)&&Array.isArray(matrix[0])){
-          const rows=matrix.map(row=>row.map(v=>Number(v)));
-          const labels=arrays.labels||arrays.categories||[];
-          return '<saarthi-chart>'+JSON.stringify({
-            chartType:'heatmap',
-            meta:{title:'Generated heat map'},
-            data:rows,
-            rowLabels:Array.isArray(labels)?labels.map(String):[],
-            colLabels:Array.isArray(arrays.columns)?arrays.columns.map(String):[]
-          })+'</saarthi-chart>';
-        }
+        if(Array.isArray(matrix)&&Array.isArray(matrix[0]))return '<saarthi-chart>'+JSON.stringify({chartType:'heatmap',meta:{title:'Generated heat map'},data:matrix.map(row=>row.map(Number)),rowLabels:Array.isArray(arrays.labels)?arrays.labels.map(String):[],colLabels:Array.isArray(arrays.columns)?arrays.columns.map(String):[]})+'</saarthi-chart>';
       }
-
-      const pieCall=source.match(/plt\\.pie\\s*\\(\\s*([A-Za-z_]\\w*)/i);
+      const pieCall=source.match(/plt\.pie\s*\(\s*([A-Za-z_]\w*)/i);
       if(chartType==='pie'&&pieCall&&Array.isArray(arrays[pieCall[1]])){
-        const values=arrays[pieCall[1]];
-        const labels=arrays.categories||arrays.labels||values.map((_,i)=>String(i+1));
-        const data=values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}));
-        return '<saarthi-chart>'+JSON.stringify({chartType:'pie',meta:{title:'Generated chart'},nameKey:'category',valueKey:'value',data})+'</saarthi-chart>';
+        const values=arrays[pieCall[1]],labels=arrays.categories||arrays.labels||values.map((_,i)=>String(i+1));
+        return '<saarthi-chart>'+JSON.stringify({chartType:'pie',meta:{title:'Generated chart'},nameKey:'category',valueKey:'value',data:values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}))})+'</saarthi-chart>';
       }
-
-      const barCall=source.match(/plt\\.bar\\s*\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)/i);
+      const barCall=source.match(/plt\.bar\s*\(\s*([A-Za-z_]\w*)\s*,\s*([A-Za-z_]\w*)/i);
       if(chartType==='bar'&&barCall&&Array.isArray(arrays[barCall[1]])&&Array.isArray(arrays[barCall[2]])){
         const labels=arrays[barCall[1]],values=arrays[barCall[2]];
-        const data=values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}));
-        return '<saarthi-chart>'+JSON.stringify({chartType:'bar',meta:{title:'Generated chart'},xKey:'category',series:[{dataKey:'value',label:'Value'}],data})+'</saarthi-chart>';
+        return '<saarthi-chart>'+JSON.stringify({chartType:'bar',meta:{title:'Generated chart'},xKey:'category',series:[{dataKey:'value',label:'Value'}],data:values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}))})+'</saarthi-chart>';
       }
-
-      const plotCalls=[...source.matchAll(/plt\\.plot\\s*\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)[^\\n]*?(?:label\\s*=\\s*['\"]([^'\"]+)['\"])?/gi)];
+      const plotCalls=[...source.matchAll(/plt\.plot\s*\(\s*([A-Za-z_]\w*)\s*,\s*([A-Za-z_]\w*)[^\n]*?(?:label\s*=\s*['"]([^'"]+)['"])?/gi)];
       if(plotCalls.length){
-        const xKey=plotCalls[0][1],series=[],data=[];
+        const xKey=plotCalls[0][1],series=[],data=[],xValues=arrays[xKey]||[];
         plotCalls.forEach((call,i)=>{const key=call[2];if(Array.isArray(arrays[key]))series.push({dataKey:'s'+i,label:call[3]||key});});
-        const xValues=arrays[xKey]||[];
-        data.push(...xValues.map((x,i)=>{const row={category:String(x)};plotCalls.forEach((call,j)=>{row['s'+j]=Number(arrays[call[2]]?.[i]);});return row;}));
+        data.push(...xValues.map((x,i)=>{const row={category:String(x)};plotCalls.forEach((call,j)=>row['s'+j]=Number(arrays[call[2]]?.[i]));return row;}));
         if(series.length&&data.length)return '<saarthi-chart>'+JSON.stringify({chartType:'line',meta:{title:'Generated chart'},xKey:'category',series,data})+'</saarthi-chart>';
       }
       return '';
     };
-
-    text=text.replace(toolPattern,(_,code)=>parseTool(code));
-    return text;
+    return text.replace(toolPattern,(_,code)=>parseTool(code));
   };
 
   const visualizationHtml=(type,json)=>{
