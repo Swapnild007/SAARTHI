@@ -938,6 +938,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
   $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
+  $('#mobileControlButton')?.addEventListener('click',()=>renderControlCenter());
   $('#sidebarNewConversation')?.addEventListener('click',startNewConversation);
   if(!document.querySelector('#historyTrigger')){
     const trigger=document.createElement('button');trigger.id='historyTrigger';trigger.className='history-trigger';trigger.type='button';trigger.setAttribute('aria-label','Conversation history');trigger.textContent='☷';
@@ -945,7 +946,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     trigger.addEventListener('click',openHistory);
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
-  document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#assistantSelector'))closePickers();});
+  document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
   $('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
   command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
