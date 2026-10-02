@@ -54,13 +54,13 @@ def inspect_attachment(item: dict[str, Any]) -> dict[str, Any]:
             for ws in wb.worksheets[:10]:
                 rows = []
                 for row in ws.iter_rows(values_only=True):
-                    vals = ["" if v is None else str(v) for v in row[:30]]
+                    vals = ["" if v is None else str(v) for v in row[:50]]
                     if any(vals):
                         rows.append(vals)
-                    if len(rows) >= 100:
+                    if len(rows) >= 10001:
                         break
                 sheets[ws.title] = rows
-            result["workbook"] = {"sheets": list(wb.sheetnames), "preview": sheets}
+            result["workbook"] = {"sheets": list(wb.sheetnames), "preview": {name: rows[:21] for name, rows in sheets.items()}, "analysis_rows": sheets}
             result["summary"] = f"Excel workbook with {len(wb.sheetnames)} sheet(s): {', '.join(wb.sheetnames[:10])}."
             return result
         except Exception as exc:
