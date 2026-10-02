@@ -1519,3 +1519,44 @@ body.chat-active .assistant-selector b{font-size:15px}
 .control-foot{margin-top:12px;padding:10px 2px 0;color:var(--s-muted);font-size:8px;line-height:1.5;text-align:center}
 .reduce-motion *,.reduce-motion *:before,.reduce-motion *:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
 @media(max-width:900px){.control-center-panel{max-height:88vh}.control-grid{grid-template-columns:1fr;gap:8px}.control-card{padding:12px}.control-card-head{margin-bottom:9px}.control-status-list b{max-width:180px}.control-foot{font-size:7.5px}}
+
+
+/* CONTROL CENTER — Android/compact viewport hardening
+   Some Android Chrome modes expose a desktop-sized CSS viewport even on a phone.
+   Use pointer capability as a second responsive signal so Control Center remains readable. */
+@media (pointer:coarse) and (max-width:1200px){
+  .control-picker{padding:10px!important;align-items:center!important}
+  .control-center-panel{
+    width:calc(100vw - 20px)!important;
+    max-width:none!important;
+    max-height:calc(100dvh - 20px)!important;
+    border-radius:22px!important;
+    padding:14px!important;
+  }
+  .control-grid{grid-template-columns:1fr!important;gap:8px!important}
+  .control-card{padding:12px!important;border-radius:15px!important}
+  .control-card-head{margin-bottom:9px!important}
+  .control-card-head b{font-size:11px!important}
+  .control-card-head small{font-size:8px!important}
+  .control-icon{width:34px!important;height:34px!important;flex-basis:34px!important}
+  .control-status-list{font-size:9px!important;gap:6px 10px!important}
+  .control-status-list b{font-size:9px!important;max-width:55vw!important}
+  .control-actions button{min-height:34px!important;padding:7px 10px!important;font-size:9px!important}
+  .control-foot{font-size:7.5px!important}
+}
+@media (pointer:coarse) and (max-width:560px){
+  .control-picker{padding:8px!important}
+  .control-center-panel{
+    width:calc(100vw - 16px)!important;
+    max-height:calc(100dvh - 16px)!important;
+    padding:13px!important;
+    border-radius:20px!important;
+  }
+  .control-center-panel .picker-head{margin-bottom:10px!important}
+  .control-center-panel .picker-head h3{font-size:20px!important}
+  .control-center-panel .picker-head small{font-size:8px!important}
+  .control-card{padding:11px!important}
+  .control-card-head b{font-size:10.5px!important}
+  .control-status-list{font-size:8.5px!important}
+  .control-status-list b{font-size:8.5px!important}
+}
