@@ -541,10 +541,21 @@ const SaarthiApp = (() => {
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
       let raw=normalizeLegacyToolVisual(String(message.content||''));
       const visuals=[];
-      raw=raw.replace(/<saarthi-chart>([\s\S]*?)<\/saarthi-chart>/gi,(_,json)=>{const token='@@SAARTHI_VISUAL_'+visuals.length+'@@';visuals.push(visualizationHtml('chart',json));return token;});
-      raw=raw.replace(/<saarthi-diagram>([\s\S]*?)<\/saarthi-diagram>/gi,(_,json)=>{const token='__SAARTHI_VISUAL_'+visuals.length+'__';visuals.push(visualizationHtml('diagram',json));return token;});
+      raw=raw.replace(/<saarthi-chart>([\s\S]*?)<\/saarthi-chart>/gi,(_,json)=>{
+        const index=visuals.length;
+        visuals.push(visualizationHtml('chart',json));
+        return 'SAARTHIVISUAL'+index+'TOKEN';
+      });
+      raw=raw.replace(/<saarthi-diagram>([\s\S]*?)<\/saarthi-diagram>/gi,(_,json)=>{
+        const index=visuals.length;
+        visuals.push(visualizationHtml('diagram',json));
+        return 'SAARTHIVISUAL'+index+'TOKEN';
+      });
       let html=renderMarkdown(raw);
-      visuals.forEach((visual,index)=>{html=html.replace('<p>@@SAARTHI_VISUAL_'+index+'@@</p>',visual||'');});
+      visuals.forEach((visual,index)=>{
+        const token='SAARTHIVISUAL'+index+'TOKEN';
+        html=html.replaceAll(token,visual||'');
+      });
       const wp=message.workProduct&&typeof message.workProduct==='object'?message.workProduct:null;
       const workProductHtml=message.role==='assistant'&&wp&&message.showIntelligence?renderWorkProduct(wp):'';
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
