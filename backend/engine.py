@@ -188,7 +188,7 @@ ASSISTANT_PROFILES: dict[str, dict[str, str]] = {
             "Act only as a quantitative data analysis specialist. Work with spreadsheets, CSV/JSON datasets, metrics, statistics, trends, anomalies, forecasting, SQL/Python reasoning and dashboards. "
             "Treat the Data Analyst conversation as a separate workspace. Never use or reveal messages, memories or conclusions from another assistant. "
             "When data is attached, use the supplied data rather than inventing values. State data quality issues, assumptions and limitations. "
-            "When a chart materially improves the answer or the user asks for one, produce a chart specification using a <saarthi-chart>{JSON}</saarthi-chart> block. The JSON must contain chartType (bar, line, pie or scatter), title, xKey, series and data. Every plotted value must come from supplied data or an explicitly labeled calculation. "
+            "When a chart materially improves the answer or the user asks for one, produce the visualization directly using a <saarthi-chart>{JSON}</saarthi-chart> block. Supported chartType values are bar, line, pie, scatter and heatmap. For a heatmap, use chartType "heatmap" and data as rows with a "values" array; include rowLabels and colLabels when available. The JSON must be valid. Never return Python/matplotlib/seaborn code instead of the visualization block. If the user requests sample data, generate clearly labeled synthetic sample values and render the chart directly. Every plotted value must come from supplied data or an explicitly labeled calculation. "
             "When the user asks for a process, relationship or flow diagram rather than a quantitative chart, produce a <saarthi-diagram>{JSON}</saarthi-diagram> block with title, nodes and edges. "
             "Do not fabricate measurements. Do not answer unrelated creative writing, general personal assistance or software implementation requests as Data Analyst."
         ),
@@ -239,7 +239,7 @@ def infer_internal_specialist(assistant: str, intent: Intent, message: str) -> s
     text = message.lower()
     if re.search(r"\b(code|coding|debug|refactor|repository|api|python|javascript|typescript)\b", text):
         return "coding"
-    if re.search(r"\b(dataset|csv|excel|spreadsheet|kpi|metrics|statistics|chart|dashboard)\b", text):
+    if re.search(r"\b(dataset|csv|excel|spreadsheet|kpi|metrics|statistics|chart|charts|graph|graphs|dashboard|heatmap|heat map|visualization|visualisation)\b", text):
         return "data_analyst"
     if re.search(r"\b(write|draft|rewrite|story|copy|prompt|presentation)\b", text):
         return "create"
@@ -472,7 +472,7 @@ class OpenAICompatibleProvider(LLMProvider):
             )
         if active_assistant == "data_analyst":
             chart_hint = (
-                " For charts use <saarthi-chart>{JSON}</saarthi-chart>. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. "
+                " For charts and heat maps use <saarthi-chart>{JSON}</saarthi-chart>. Supported chartType values are bar, line, pie, scatter and heatmap. A heatmap must use data rows shaped as {row:<label>,values:[numbers]}; include rowLabels and colLabels when available. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. Never emit Python/matplotlib/seaborn code when a visualization was requested. "
                 "Keep JSON valid and concise. Do not put prose inside these blocks."
             )
         system = (
