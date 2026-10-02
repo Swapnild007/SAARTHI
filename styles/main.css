@@ -1560,3 +1560,23 @@ body.chat-active .assistant-selector b{font-size:15px}
   .control-status-list{font-size:8.5px!important}
   .control-status-list b{font-size:8.5px!important}
 }
+
+
+/* Touch-device responsive override. Android browsers can expose a desktop CSS viewport
+   while still being a narrow physical screen, so pointer capability is used as a
+   second responsive signal. */
+@media (pointer:coarse) and (max-width:1200px){
+  body{padding-bottom:78px!important;overflow-x:hidden}
+  .app{display:block!important;grid-template-columns:none!important;min-height:100dvh!important}
+  .sidebar{display:none!important}
+  .main{width:100%!important;max-width:none!important;padding:11px 11px 88px!important}
+  .topbar{margin:0 3px 11px!important}
+  .dashboard{display:block!important;max-width:none!important}
+  .side-rail{display:grid!important;grid-template-columns:1fr!important}
+  .core-panel{min-height:365px!important}
+  .mobile-nav{display:flex!important}
+}
+@media (pointer:coarse) and (max-width:560px){
+  .main{padding-left:8px!important;padding-right:8px!important}
+  .topbar h2{font-size:19px!important}
+}
