@@ -408,36 +408,73 @@ const SaarthiApp = (() => {
 
   const normalizeLegacyToolVisual=(raw)=>{
     let text=String(raw||'');
-    const toolPattern=/<\|toolcall\|>[\s|]*python\(code=(?:"|'|\\")([\s\S]*?)(?:"|'|\\")\)[\s|]*<\|toolcall_end\|>/gi;
+    /*
+     * Models may emit either the legacy <|toolcall|> wrapper or the newer
+     * <|toolcall_start|> / <|toolcall_end|> wrapper. Normalize both before
+     * attempting to render a visual. The previous parser only handled the
+     * legacy form, which is why Python chart code was leaking into chat.
+     */
+    const toolPattern=/<\\|toolcall(?:_start)?\\|>[\\s|]*(?:python|python_user_visible)\\(code=(?:"|'|\\")([\\s\\S]*?)(?:"|'|\\")[\\s|]*\\)?[\\s|]*<\\|toolcall(?:_end)?\\|>/gi;
     text=text.replace(toolPattern,(_,code)=>{
-      const source=String(code).replace(/\\n/g,'\n').replace(/\\'/g,"'");
-      const chartType=/\bplt\.pie\s*\(/i.test(source)?'pie':/\bplt\.bar\s*\(/i.test(source)?'bar':'line';
+      const source=String(code)
+        .replace(/\\\\n/g,'\\n')
+        .replace(/\\\\'/g,"'")
+        .replace(/\\\\"/g,'"');
+      const chartType=/\\b(?:plt\\.|ax\\.)pie\\s*\\(/i.test(source)?'pie':
+        /\\b(?:plt\\.|ax\\.)bar\\s*\\(/i.test(source)?'bar':
+        /(?:heatmap|imshow|pcolormesh|matshow)\\s*\\(/i.test(source)?'heatmap':'line';
+
       const arrays={};
-      const arrayPattern=/\b([A-Za-z_]\w*)\s*=\s*\[([^\]]*)\]/g;
+      const arrayPattern=/\\b([A-Za-z_]\\w*)\\s*=\\s*(?:np\\.array\\s*)?\\[([\\s\\S]*?)\\]/g;
       let match;
       while((match=arrayPattern.exec(source))){
-        const values=match[2].split(',').map(v=>v.trim()).filter(Boolean).map(v=>{
+        const body=match[2].trim();
+        const rows=body.match(/^\\s*\\[[\\s\\S]*\\]\\s*(?:,\\s*\\[[\\s\\S]*\\]\\s*)*$/);
+        if(rows){
+          try{
+            const parsed=JSON.parse('['+body.replace(/'/g,'"')+']');
+            if(Array.isArray(parsed)){arrays[match[1]]=parsed;continue;}
+          }catch{}
+        }
+        const values=body.split(',').map(v=>v.trim()).filter(Boolean).map(v=>{
           const unquoted=v.replace(/^['"]|['"]$/g,'');
           const n=Number(unquoted);
           return Number.isFinite(n)?n:unquoted;
         });
         arrays[match[1]]=values;
       }
-      const plotCalls=[...source.matchAll(/plt\.plot\(\s*([A-Za-z_]\w*)\s*,\s*([A-Za-z_]\w*)[^\n]*?(?:label\s*=\s*['"]([^'"]+)['"])?/gi)];
-      const barCall=source.match(/plt\.bar\(\s*([A-Za-z_]\w*)\s*,\s*([A-Za-z_]\w*)/i);
-      const pieCall=source.match(/plt\.pie\(\s*([A-Za-z_]\w*)/i);
+
+      const plotCalls=[...source.matchAll(/(?:plt|ax)\\.plot\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)[^\\n]*?(?:label\\s*=\\s*['"]([^'"]+)['"])?/gi)];
+      const barCall=source.match(/(?:plt|ax)\\.bar\\(\\s*([A-Za-z_]\\w*)\\s*,\\s*([A-Za-z_]\\w*)/i);
+      const pieCall=source.match(/(?:plt|ax)\\.pie\\(\\s*([A-Za-z_]\\w*)/i);
+      const heatCall=source.match(/(?:sns\\.heatmap|(?:plt|ax)\\.(?:imshow|pcolormesh|matshow))\\(\\s*([A-Za-z_]\\w*)/i);
       let series=[],data=[];
+
+      if(chartType==='heatmap'&&heatCall&&Array.isArray(arrays[heatCall[1]])){
+        const matrix=arrays[heatCall[1]];
+        const rows=matrix.filter(row=>Array.isArray(row)).map(row=>row.map(Number));
+        if(rows.length&&rows.every(row=>row.length&&row.every(Number.isFinite))){
+          return '<saarthi-chart>'+JSON.stringify({
+            chartType:'heatmap',
+            meta:{title:'Heat map'},
+            data:rows.map((row,i)=>({row:String(i+1),values:row}))
+          })+'</saarthi-chart>';
+        }
+      }
+
       if(chartType==='pie'&&pieCall&&arrays[pieCall[1]]){
         const values=arrays[pieCall[1]];
         const labels=arrays.categories||arrays.labels||values.map((_,i)=>String(i+1));
         data=values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}));
         return '<saarthi-chart>'+JSON.stringify({chartType:'pie',meta:{title:'Generated chart'},nameKey:'category',valueKey:'value',data})+'</saarthi-chart>';
       }
+
       if(chartType==='bar'&&barCall&&arrays[barCall[1]]&&arrays[barCall[2]]){
         const labels=arrays[barCall[1]],values=arrays[barCall[2]];
         data=values.map((v,i)=>({category:String(labels[i]??i+1),value:Number(v)}));
         return '<saarthi-chart>'+JSON.stringify({chartType:'bar',meta:{title:'Generated chart'},xKey:'category',series:[{dataKey:'value',label:'Value'}],data})+'</saarthi-chart>';
       }
+
       if(plotCalls.length){
         const xKey=plotCalls[0][1];
         plotCalls.forEach((call,i)=>{
