@@ -27,7 +27,7 @@
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4?v=20261001-2" type="video/mp4">
 </video>
-<div class="splash-fallback-brand" id="splashFallbackBrand" aria-hidden="true"></div>
+<div class="splash-fallback-brand" id="splashFallbackBrand" aria-hidden="true">SAARTHI<small>सारथी</small></div>
 
 </div><div class="app">
 <aside class="sidebar">
@@ -135,10 +135,12 @@
 const splashVideo=document.getElementById('saarthiSplashVideo');
 const fallback=document.getElementById('splashFallbackBrand');
 if(fallback) fallback.style.display='none';
-function closeSplash(){splash?.classList.add('hide')}
-splashVideo?.addEventListener('error',()=>{if(fallback)fallback.style.display='grid';setTimeout(closeSplash,2500)});
+let splashClosed=false;
+function closeSplash(){if(splashClosed)return;splashClosed=true;splash?.classList.add('hide')}
+function showFallback(delay=900){if(fallback)fallback.style.display='grid';setTimeout(closeSplash,delay)}
+splashVideo?.addEventListener('error',()=>showFallback());
 splashVideo?.addEventListener('ended',closeSplash);
-splashVideo?.play?.().catch(()=>{});
-setTimeout(closeSplash,12000);
+if(splashVideo){splashVideo.play?.().catch(()=>showFallback())}else{closeSplash()}
+setTimeout(closeSplash,6000);
 
 </script><script src="./scripts/app.js?v=20261002-03" defer></script><script>(function(){try{var h=Number(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",hour12:false}).format(new Date())),p=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<21?"evening":"night";var e=document.getElementById("greeting");if(e)e.textContent="Good "+p+", Swapnil";}catch(e){}})();</script></body></html>
