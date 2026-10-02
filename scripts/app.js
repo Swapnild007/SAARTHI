@@ -121,7 +121,7 @@ const SaarthiApp = (() => {
   const currentConversation=()=>loadConversation(currentAssistant);
 
   const MENUS = Object.freeze({
-    assistants:{label:'Assistants',capabilities:['saarthi','coding','research','create','data_analyst','analyze','plan']},
+    assistants:{label:'Intelligence',capabilities:['saarthi','coding','research','create','data_analyst','analyze','plan']},
     control:{label:'Control',capabilities:['ai','usage','memory','voice','tools','connections','security','notifications','appearance','privacy']}
   });
   const ASSISTANTS = Object.freeze([
@@ -453,7 +453,7 @@ const SaarthiApp = (() => {
     const title=$('#assistantResponseTitle');
     if(eyebrow) eyebrow.textContent=item.name.toUpperCase()+' • CONVERSATION';
     if(title) title.textContent='Conversation';
-    if(responseMeta)responseMeta.textContent=item.name.toUpperCase()+' · '+(INDUSTRIES[currentIndustry]||'GENERAL')+' · ISOLATED CONVERSATION';
+    if(responseMeta)responseMeta.textContent=item.name.toUpperCase()+' · '+(INDUSTRIES[currentIndustry]||'GENERAL')+' · ORCHESTRATED WORKSPACE';
     responseCard.dataset.assistant=item.id;
     responseCard.hidden=false;
     requestAnimationFrame(()=>{
@@ -589,7 +589,7 @@ const SaarthiApp = (() => {
   const renderPicker=(type)=>{
     const target=$(type==='assistants'?'#assistantPicker':'#controlPicker');if(!target)return;
     const items=type==='assistants'?ASSISTANTS:CONTROLS;
-    target.innerHTML='<div class="picker-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>'+(type==='assistants'?'Choose intelligence':'Control Saarthi')+'</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="picker-grid">'+items.map(item=>'<button class="picker-item" data-picker-id="'+item.id+'"><span class="picker-icon">'+item.icon+'</span><span><b>'+item.name+'</b><small>'+item.description+'</small></span></button>').join('')+'</div></div>';
+    target.innerHTML='<div class="picker-panel"><div class="picker-head"><div><div class="eyebrow">SAARTHI</div><h3>'+(type==='assistants'?'Choose capability':'Control Saarthi')+'</h3></div><button class="picker-close" aria-label="Close">×</button></div><div class="picker-grid">'+items.map(item=>'<button class="picker-item" data-picker-id="'+item.id+'"><span class="picker-icon">'+item.icon+'</span><span><b>'+item.name+'</b><small>'+item.description+'</small></span></button>').join('')+'</div></div>';
     closePickers();
     target.hidden=false;
     target.querySelector('.picker-close')?.addEventListener('click',closePickers);
