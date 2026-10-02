@@ -13,7 +13,7 @@ from typing import Any, Callable
 
 from .attachments import inspect_attachments, provider_content_parts
 from .agent_capabilities import agent_capability, build_runtime_context, INDUSTRY_PACKS
-from .data_analysis import analyze_dataset, build_chart
+from .data_analysis import analyze_dataset, build_chart, recommend_visuals
 from .analysis_engine import analyze_text
 from .research import research
 from .work_product import build_work_product
@@ -845,7 +845,9 @@ class SaarthiEngine:
                     tool_results["data.chart"] = build_chart(
                         dataset["rows"], chart_match.group(1).lower(), x_key, series_key,
                         f"{series_key} by {x_key}",
-                    )
+                    )                elif re.search(r"\b(dashboard|visuali[sz]e|visualization|visualisation|show me|plot|graph|chart)\b", message, re.IGNORECASE):
+                    tool_results["data.charts"] = recommend_visuals(dataset["columns"], dataset["rows"])
+
         if assistant_id == "analyze":
             inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             texts = []
