@@ -420,7 +420,7 @@ def kpi_analysis(rows: list[dict[str, Any]], value_column: str, target_column: s
         "direction": direction,
     }
     if target_column:
-        target = aggregate_values([r.get(target_column) for r in rows], "mean")
+        target = aggregate_values([r.get(target_column) for r in rows], aggregation)
         if target is not None:
             variance = actual - target
             variance_pct = (variance / abs(target) * 100) if target else None
