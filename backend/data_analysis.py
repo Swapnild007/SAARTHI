@@ -121,9 +121,10 @@ SUPPORTED_CHART_TYPES = {
 }
 
 def build_chart(rows: list[dict[str, Any]], chart_type: str, x_key: str, series_key: str, title: str) -> dict[str, Any]:
+    """Build a renderer-ready visualization spec using only supplied data."""
     chart_type = chart_type if chart_type in SUPPORTED_CHART_TYPES else "bar"
-    data = [{x_key: r.get(x_key), series_key: r.get(series_key)} for r in rows]
     if chart_type in {"pie", "donut"}:
+        data = [{x_key: r.get(x_key), series_key: r.get(series_key)} for r in rows if _num(r.get(series_key)) is not None]
         return {
             "chartType": chart_type,
             "meta": {"title": title},
@@ -131,14 +132,90 @@ def build_chart(rows: list[dict[str, Any]], chart_type: str, x_key: str, series_
             "valueKey": series_key,
             "data": data,
         }
+
     if chart_type in {"scatter", "bubble"}:
+        data = [{x_key: _num(r.get(x_key)), series_key: _num(r.get(series_key))} for r in rows]
+        data = [r for r in data if r[x_key] is not None and r[series_key] is not None]
         return {
             "chartType": chart_type,
             "meta": {"title": title},
             "xKey": x_key,
             "series": [{"dataKey": series_key, "label": series_key}],
+            "sizeKey": series_key if chart_type == "bubble" else None,
             "data": data,
         }
+
+    if chart_type == "histogram":
+        values = [n for n in (_num(r.get(series_key)) for r in rows) if n is not None]
+        if not values:
+            return {"chartType": "histogram", "meta": {"title": title}, "xKey": "bin", "series": [], "data": []}
+        bins = min(10, max(4, int(math.sqrt(len(values)))))
+        lo, hi = min(values), max(values)
+        width = (hi - lo) / bins if hi != lo else 1.0
+        counts = [0] * bins
+        for value in values:
+            index = min(bins - 1, max(0, int((value - lo) / width)))
+            counts[index] += 1
+        data = [
+            {"bin": f"{lo + i * width:.2f}–{lo + (i + 1) * width:.2f}", "count": counts[i]}
+            for i in range(bins)
+        ]
+        return {"chartType": "histogram", "meta": {"title": title}, "xKey": "bin",
+                "series": [{"dataKey": "count", "label": "Count"}], "data": data}
+
+    if chart_type == "box":
+        groups: dict[str, list[float]] = {}
+        for row in rows:
+            value = _num(row.get(series_key))
+            if value is not None:
+                groups.setdefault(str(row.get(x_key, "")), []).append(value)
+        return {
+            "chartType": "box",
+            "meta": {"title": title},
+            "groups": [groups[key] for key in groups],
+            "groupLabels": list(groups),
+            "data": [{"category": key, "value": vals} for key, vals in groups.items()],
+        }
+
+    if chart_type == "funnel":
+        data = [{x_key: str(r.get(x_key, "")), series_key: _num(r.get(series_key))} for r in rows]
+        data = [r for r in data if r[series_key] is not None]
+        return {
+            "chartType": "funnel",
+            "meta": {"title": title},
+            "nameKey": x_key,
+            "valueKey": series_key,
+            "data": data,
+        }
+
+    if chart_type == "gauge":
+        values = [n for n in (_num(r.get(series_key)) for r in rows) if n is not None]
+        actual = values[0] if values else 0.0
+        scale_max = max(values) if values else 100.0
+        return {
+            "chartType": "gauge",
+            "meta": {"title": title, "target_type": "display_scale_max", "not_a_business_target": True},
+            "data": [{"value": actual, "target": scale_max}],
+        }
+
+    if chart_type == "radar":
+        data = [{x_key: str(r.get(x_key, "")), series_key: _num(r.get(series_key))} for r in rows]
+        data = [r for r in data if r[series_key] is not None]
+        return {
+            "chartType": "radar",
+            "meta": {"title": title},
+            "xKey": x_key,
+            "series": [{"dataKey": series_key, "label": series_key}],
+            "data": data,
+        }
+
+    if chart_type == "waterfall":
+        data = [{"category": str(r.get(x_key, "")), "value": _num(r.get(series_key))} for r in rows]
+        data = [r for r in data if r["value"] is not None]
+        return {"chartType": "waterfall", "meta": {"title": title}, "data": data}
+
+    data = [{x_key: r.get(x_key), series_key: _num(r.get(series_key))} for r in rows]
+    data = [r for r in data if r[series_key] is not None]
     return {
         "chartType": chart_type,
         "meta": {"title": title},
@@ -146,6 +223,7 @@ def build_chart(rows: list[dict[str, Any]], chart_type: str, x_key: str, series_
         "series": [{"dataKey": series_key, "label": series_key}],
         "data": data,
     }
+
 
 def clean_dataset(
     columns: list[str],
