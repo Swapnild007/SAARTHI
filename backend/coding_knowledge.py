@@ -16,7 +16,7 @@ CODING_KNOWLEDGE = {
         "For high-impact or destructive operations, require appropriate confirmation or safe rollback."
     ],
     "workflow": [
-        "inspect_repository",
+        "repository_inspection",
         "define_acceptance_criteria",
         "map_dependencies_and_risk",
         "design_smallest_change",
