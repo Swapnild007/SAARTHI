@@ -612,7 +612,7 @@ class OpenAICompatibleProvider(LLMProvider):
             )
         if active_assistant == "data_analyst":
             chart_hint = (
-                " For charts and heat maps use <saarthi-chart>{JSON}</saarthi-chart>. Supported chartType values are bar, line, pie, scatter and heatmap. A heatmap must use data rows shaped as {row:<label>,values:[numbers]}; include rowLabels and colLabels when available. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. Never emit Python/matplotlib/seaborn code when a visualization was requested. "
+                " For charts and heat maps use <saarthi-chart>{JSON}</saarthi-chart>. Supported chartType values are bar, line, pie, donut, scatter, bubble, area, stacked_bar, histogram, box, radar, funnel, gauge, waterfall and heatmap. A heatmap must use data rows shaped as {row:<label>,values:[numbers]}; include rowLabels and colLabels when available. For diagrams use <saarthi-diagram>{JSON}</saarthi-diagram>. Never emit Python/matplotlib/seaborn code when a visualization was requested. "
                 "Keep JSON valid and concise. Do not put prose inside these blocks."
             )
         system = (
@@ -844,11 +844,11 @@ class SaarthiEngine:
                 dataset = datasets[0]
                 tool_results["data.analysis"] = analyze_dataset(dataset["columns"], dataset["rows"])
                 # Build deterministic visuals from the supplied dataset, not from model-generated values.
-                chart_match = re.search(r"\b(bar|line|pie|scatter)\b.*?\b(?:chart|graph)\b", message, re.IGNORECASE)
+                chart_match = re.search(r"\b(bar|line|pie|donut|scatter|bubble|area|stacked[ -]?bar|histogram|box|radar|funnel|gauge|waterfall|heat ?map)\b.*?\b(?:chart|graph|plot|visuali[sz]ation)\b", message, re.IGNORECASE)
                 if chart_match and len(dataset["columns"]) >= 2:
                     x_key, series_key = dataset["columns"][0], dataset["columns"][1]
                     tool_results["data.chart"] = build_chart(
-                        dataset["rows"], chart_match.group(1).lower(), x_key, series_key,
+                        dataset["rows"], chart_match.group(1).lower().replace(" ", "").replace("-", "_").replace("heatmap", "heatmap").replace("heat map", "heatmap").replace("stackedbar", "stacked_bar"), x_key, series_key,
                         f"{series_key} by {x_key}",
                     )
                 elif re.search(r"\b(dashboard|visuali[sz]e|visualization|visualisation|show me|plot|graph|chart)\b", message, re.IGNORECASE):
