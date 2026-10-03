@@ -846,11 +846,21 @@ class SaarthiEngine:
                 # Build deterministic visuals from the supplied dataset, not from model-generated values.
                 chart_match = re.search(r"\b(bar|line|pie|donut|scatter|bubble|area|stacked[ -]?bar|histogram|box|radar|funnel|gauge|waterfall|heat ?map)\b.*?\b(?:chart|graph|plot|visuali[sz]ation)\b", message, re.IGNORECASE)
                 if chart_match and len(dataset["columns"]) >= 2:
-                    x_key, series_key = dataset["columns"][0], dataset["columns"][1]
-                    tool_results["data.chart"] = build_chart(
-                        dataset["rows"], chart_match.group(1).lower().replace(" ", "").replace("-", "_").replace("heatmap", "heatmap").replace("heat map", "heatmap").replace("stackedbar", "stacked_bar"), x_key, series_key,
-                        f"{series_key} by {x_key}",
-                    )
+                    requested_type = chart_match.group(1).lower().replace(" ", "_").replace("-", "_")
+                    if requested_type == "heat_map":
+                        requested_type = "heatmap"
+                    if requested_type == "heatmap":
+                        heatmaps = [spec for spec in recommend_visuals(dataset["columns"], dataset["rows"], limit=10) if spec.get("chartType") == "heatmap"]
+                        if heatmaps:
+                            tool_results["data.chart"] = heatmaps[0]
+                        else:
+                            tool_results["data.chart_error"] = "A heatmap requires two categorical dimensions and one numeric measure."
+                    else:
+                        x_key, series_key = dataset["columns"][0], dataset["columns"][1]
+                        tool_results["data.chart"] = build_chart(
+                            dataset["rows"], requested_type, x_key, series_key,
+                            f"{series_key} by {x_key}",
+                        )
                 elif re.search(r"\b(dashboard|visuali[sz]e|visualization|visualisation|show me|plot|graph|chart)\b", message, re.IGNORECASE):
                     tool_results["data.charts"] = recommend_visuals(dataset["columns"], dataset["rows"])
 
