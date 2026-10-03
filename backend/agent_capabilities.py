@@ -81,8 +81,8 @@ AGENT_PLAYBOOKS: dict[str, dict[str, Any]] = {
     },
     "research": {
         "role": "evidence_engineering",
-        "sequence": ["frame", "retrieve", "evaluate_sources", "compare", "synthesize", "cite"],
-        "quality_gates": ["source_quality", "recency", "cross_checking", "uncertainty"]
+        "sequence": ["frame", "retrieve", "inventory_sources", "evaluate_sources", "extract_evidence", "cross_check", "compare", "resolve_contradictions", "synthesize", "verify_citations", "cite"],
+        "quality_gates": ["question_scope", "source_quality", "recency", "evidence_traceability", "cross_checking", "contradiction_handling", "uncertainty", "citation_integrity"]
     },
     "create": {
         "role": "content_and_concept_production",
