@@ -88,6 +88,7 @@
 
   // Splash lifecycle moved here so production CSP can keep script-src self.
   const splash = document.getElementById('sudarshanSplash');
+  document.body.classList.add('splash-active');
   const splashVideo = document.getElementById('saarthiSplashVideo');
   const fallback = document.getElementById('splashFallbackBrand');
   if (fallback) fallback.style.display = 'none';
@@ -96,6 +97,7 @@
     if (splashClosed) return;
     splashClosed = true;
     splash?.classList.add('hide');
+    document.body.classList.remove('splash-active');
   };
   const showFallback = (delay = 900) => {
     if (fallback) fallback.style.display = 'grid';
