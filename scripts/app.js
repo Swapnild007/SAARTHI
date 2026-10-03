@@ -88,10 +88,18 @@ const SaarthiApp = (() => {
     }
     return thread;
   };
-  const loadConversation=assistant=>{
-    const thread=ensureThread(assistant,false);
-    conversations[assistant]=thread?thread.messages:[];
-    return conversations[assistant];
+  // Loading a conversation is an explicit action. A page refresh must not silently
+  // reopen the last thread and put the home surface into chat mode.
+  const loadConversation=(assistant,resumeLatest=false)=>{
+    const id=assistantInfo(assistant).id;
+    if(!resumeLatest){
+      currentThreads[id]=null;
+      conversations[id]=[];
+      return conversations[id];
+    }
+    const thread=ensureThread(id,false);
+    conversations[id]=thread?thread.messages:[];
+    return conversations[id];
   };
   const saveConversation=assistant=>{
     const thread=ensureThread(assistant,false);
@@ -107,7 +115,7 @@ const SaarthiApp = (() => {
     saveHistory();
     renderHistory();
   };
-  const currentConversation=()=>loadConversation(currentAssistant);
+  const currentConversation=()=>conversations[currentAssistant]||[];
 
   const MENUS = Object.freeze({
     assistants:{label:'Ways I can help',capabilities:['saarthi','coding','research','create','data_analyst','analyze','plan']},
@@ -582,10 +590,12 @@ const SaarthiApp = (() => {
   const renderConversation=()=>{
     if(!responseCard||!responseBody)return;
     const item=ASSISTANTS.find(x=>x.id===currentAssistant)||ASSISTANTS[0];
-    const messages=currentConversation();
+    const messages=conversations[currentAssistant]||[];
     const hasMessages=messages.length>0;
     document.body.classList.toggle('chat-active',hasMessages);
     document.body.classList.toggle('home-active',!hasMessages);
+    // Keep the home surface authoritative whenever no thread is actively open.
+    if(!hasMessages) document.body.classList.remove('intelligence-expanded');
     if(!hasMessages){responseCard.hidden=true;return;}
     responseBody.innerHTML=messages.map(message=>{
       const role=message.role==='user'?'You':'Saarthi';
@@ -973,7 +983,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
 
     applyAssistantEnvironment(item);
     attachmentsByAssistant[item.id]=attachmentsByAssistant[item.id]||[];
-    loadConversation(item.id);
+    loadConversation(item.id,true);
     ensureAttachmentControls();renderAttachmentTray();
     renderConversation();
     renderHistory();
@@ -1064,8 +1074,11 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   setAutonomousContext('Saarthi will determine the capability, industry and workflow from your objective.','AUTO');
   updateIntelligenceFlow('idle');
   loadHistory();
+  // Always start on the clean home surface. Previous threads remain available
+  // through Conversation history and are opened explicitly by the user.
+  currentThreads.saarthi=null;
+  conversations.saarthi=[];
   attachmentsByAssistant.saarthi=[];
-  loadConversation('saarthi');
   applyAssistantEnvironment(ASSISTANTS[0]);
   renderConversation();
   renderHistory();
