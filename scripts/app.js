@@ -231,7 +231,8 @@ const SaarthiApp = (() => {
         ]
           .map(value=>String(value||'').replace(/\/$/,''))
           .filter(Boolean);
-        API_BASES=[...new Set(configured)];
+        const sameOrigin=String(window.location.origin||'').replace(/\/$/,'');
+        API_BASES=[...new Set([sameOrigin,...configured].filter(Boolean))];
         API_BASE=API_BASES[0]||'';
       }
     }catch{}
