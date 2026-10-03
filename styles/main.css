@@ -1750,6 +1750,14 @@ body:before{opacity:.018}
 @media(prefers-reduced-motion:reduce){.capability-card{transition:none}}
 
 
+
+/* 2026-10-03 home-state guard: never leave the landing workspace visually empty. */
+body.home-active .core-panel{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+body.home-active .assistant-response[hidden]{display:none!important}
 /* 2026-10-03 interaction refinement: keep capability access without feature-card clutter. */
 .intelligence-flow{display:none!important}
 .capability-rail{
