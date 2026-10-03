@@ -60,19 +60,47 @@
   }
   loadContext().catch(()=>{ if(liveLocation)liveLocation.textContent='Weather location unavailable'; if(liveWeather)liveWeather.textContent='Local weather unavailable'; });
 
+  // Independent send path: keep the composer usable even if the main app bundle
+  // fails to initialize. Try the configured cloud runtime, not GitHub Pages itself.
   const fallbackSend = async () => {
-    const value=input?.value.trim(); if(!value) return;
-    const cfg=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'}).then(r=>r.json());
-    const base=String(window.location.origin||cfg.api_base_url||'').replace(/\/$/,'');
+    const value=input?.value.trim(); if(!value || send?.disabled) return;
+    let cfg={};
+    try {
+      cfg=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'}).then(r=>r.json());
+    } catch {}
+    const configured=[
+      cfg.api_base_url,
+      ...(Array.isArray(cfg.fallback_api_base_urls)?cfg.fallback_api_base_urls:[])
+    ].map(value=>String(value||'').replace(/\/$/,'')).filter(Boolean);
+    const bases=[...new Set(configured)];
     const mode=(value.match(/^\/([a-z]+)/i)||[])[1]||'chat';
     send.disabled=true;
+    let lastError=null;
     try {
-      const r=await fetch(base+'/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:value,mode,context:{client_time:new Date().toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'}})});
-      if(!r.ok) throw new Error('API '+r.status);
-      const data=await r.json();
-      const p=document.querySelector('.chat-strip p');
-      if(p) p.innerHTML='<b>'+String(data.reply||'Command completed.').replace(/</g,'&lt;')+'</b>';
-      input.value='';
+      for(const base of bases){
+        try {
+          const r=await fetch(base+'/api/command',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              message:value,
+              mode,
+              assistant:'saarthi',
+              context:{
+                client_time:new Date().toISOString(),
+                timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'
+              }
+            })
+          });
+          if(!r.ok){lastError=new Error('API '+r.status);continue;}
+          const data=await r.json();
+          const p=document.querySelector('.chat-strip p');
+          if(p) p.innerHTML='<b>'+String(data.reply||'Command completed.').replace(/</g,'&lt;')+'</b>';
+          input.value='';
+          return;
+        } catch(e){lastError=e;}
+      }
+      throw lastError||new Error('No cloud runtime configured');
     } catch(e) {
       const p=document.querySelector('.chat-strip p');
       if(p) p.innerHTML='<b>SAARTHI cloud connection failed.</b> '+String(e.message||'Please retry.');
