@@ -63,7 +63,7 @@
   const fallbackSend = async () => {
     const value=input?.value.trim(); if(!value) return;
     const cfg=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'}).then(r=>r.json());
-    const base=String(cfg.api_base_url||'').replace(/\/$/,'');
+    const base=String(window.location.origin||cfg.api_base_url||'').replace(/\/$/,'');
     const mode=(value.match(/^\/([a-z]+)/i)||[])[1]||'chat';
     send.disabled=true;
     try {
