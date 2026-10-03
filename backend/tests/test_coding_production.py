@@ -53,3 +53,30 @@ def test_coding_completion_rule_prevents_unverified_claims():
     rule = AGENT_KNOWLEDGE["coding"]["output_contract"]["claim_rule"]
     assert "Only claim" in rule
     assert "actually executed" in rule
+
+
+def test_coding_playbook_has_level5_verification_policy():
+    playbook = AGENT_PLAYBOOKS["coding"]
+    policy = playbook["verification_policy"]
+    assert policy["levels"] == ["static", "targeted_test", "regression_suite", "integration", "deployment"]
+    assert "Every material acceptance criterion" in policy["completion_rule"]
+    assert "blocked" in policy["claim_states"]
+    assert "unverified" in policy["completion_rule"]
+
+
+def test_coding_change_policy_preserves_repository_integrity():
+    policy = AGENT_PLAYBOOKS["coding"]["change_policy"]
+    assert policy["preferred_change"] == "smallest_coherent_change"
+    assert policy["preserve_compatible_behavior"] is True
+    assert policy["generated_artifacts"] == "prefer_source_or_regeneration"
+    assert policy["secrets"] == "never_commit_or_expose"
+    assert "confirmation" in policy["high_impact_actions"]
+    assert "rollback" in policy["high_impact_actions"]
+
+
+def test_coding_workflow_has_explicit_verification_boundaries():
+    workflow = AGENT_KNOWLEDGE["coding"]["workflow"]
+    assert workflow.index("run_targeted_tests") < workflow.index("run_regression_suite")
+    assert workflow.index("run_regression_suite") < workflow.index("security_review")
+    assert workflow.index("security_review") < workflow.index("review_diff")
+    assert workflow.index("review_diff") < workflow.index("verify_artifacts_and_deployment_claims")
