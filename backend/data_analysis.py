@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import statistics
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 def _num(value: Any) -> float | None:
@@ -114,15 +114,29 @@ def correlation(rows: list[dict[str, Any]], x_column: str, y_column: str) -> flo
         return None
     return sum((x - mx) * (y - my) for x, y in pairs) / (dx * dy)
 
+SUPPORTED_CHART_TYPES = {
+    "bar", "line", "pie", "donut", "scatter", "bubble", "area",
+    "stacked_bar", "histogram", "box", "radar", "funnel", "gauge",
+    "waterfall", "heatmap",
+}
+
 def build_chart(rows: list[dict[str, Any]], chart_type: str, x_key: str, series_key: str, title: str) -> dict[str, Any]:
-    chart_type = chart_type if chart_type in {"bar", "line", "pie", "scatter", "heatmap"} else "bar"
+    chart_type = chart_type if chart_type in SUPPORTED_CHART_TYPES else "bar"
     data = [{x_key: r.get(x_key), series_key: r.get(series_key)} for r in rows]
-    if chart_type == "pie":
+    if chart_type in {"pie", "donut"}:
         return {
-            "chartType": "pie",
+            "chartType": chart_type,
             "meta": {"title": title},
             "nameKey": x_key,
             "valueKey": series_key,
+            "data": data,
+        }
+    if chart_type in {"scatter", "bubble"}:
+        return {
+            "chartType": chart_type,
+            "meta": {"title": title},
+            "xKey": x_key,
+            "series": [{"dataKey": series_key, "label": series_key}],
             "data": data,
         }
     return {
@@ -133,15 +147,239 @@ def build_chart(rows: list[dict[str, Any]], chart_type: str, x_key: str, series_
         "data": data,
     }
 
-def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
-    numeric = _numeric_columns(columns, rows)
+def clean_dataset(
+    columns: list[str],
+    rows: list[dict[str, Any]],
+    *,
+    drop_duplicate_rows: bool = True,
+    trim_text: bool = True,
+) -> dict[str, Any]:
+    """Deterministically clean a dataset without inventing business values.
+
+    Missing values are reported, not silently imputed. Text is normalized and
+    duplicate rows can be removed. The original input is never mutated.
+    """
+    cleaned: list[dict[str, Any]] = []
+    seen: set[tuple[str, ...]] = set()
+    duplicates_removed = 0
+    text_normalized = 0
+
+    for source in rows:
+        row = {c: source.get(c) for c in columns}
+        if trim_text:
+            for c, value in list(row.items()):
+                if isinstance(value, str):
+                    normalized = value.strip()
+                    if normalized != value:
+                        text_normalized += 1
+                    row[c] = normalized
+        key = tuple("" if _is_missing(row.get(c)) else str(row.get(c)) for c in columns)
+        if drop_duplicate_rows and key in seen:
+            duplicates_removed += 1
+            continue
+        seen.add(key)
+        cleaned.append(row)
+
+    missing_by_column = {
+        c: sum(_is_missing(row.get(c)) for row in cleaned)
+        for c in columns
+    }
     return {
-        "profile": profile_dataset(columns, rows),
+        "rows": cleaned,
+        "row_count": len(cleaned),
+        "duplicates_removed": duplicates_removed,
+        "text_values_normalized": text_normalized,
+        "missing_by_column": missing_by_column,
+        "missing_policy": "reported_only",
+    }
+
+
+def descriptive_statistics(values: list[Any]) -> dict[str, Any]:
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    if not nums:
+        return {"count": 0}
+    ordered = sorted(nums)
+    q = lambda p: ordered[min(len(ordered) - 1, max(0, int(round((len(ordered) - 1) * p))))]
+    mean = statistics.fmean(nums)
+    stdev = statistics.stdev(nums) if len(nums) > 1 else 0.0
+    variance = statistics.variance(nums) if len(nums) > 1 else 0.0
+    return {
+        "count": len(nums),
+        "sum": sum(nums),
+        "mean": mean,
+        "median": statistics.median(nums),
+        "min": min(nums),
+        "max": max(nums),
+        "range": max(nums) - min(nums),
+        "stdev": stdev,
+        "variance": variance,
+        "q1": q(0.25),
+        "q3": q(0.75),
+        "iqr": q(0.75) - q(0.25),
+    }
+
+
+def detect_outliers(values: list[Any]) -> dict[str, Any]:
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    if len(nums) < 4:
+        return {"method": "iqr", "count": 0, "values": []}
+    stats = descriptive_statistics(nums)
+    lower = stats["q1"] - 1.5 * stats["iqr"]
+    upper = stats["q3"] + 1.5 * stats["iqr"]
+    outliers = [v for v in nums if v < lower or v > upper]
+    return {"method": "iqr", "lower_bound": lower, "upper_bound": upper, "count": len(outliers), "values": outliers[:100]}
+
+
+def linear_forecast(values: list[Any], periods: int = 3) -> dict[str, Any]:
+    """Forecast using deterministic ordinary least-squares trend.
+
+    This is a baseline forecast, not a claim of causal prediction. It returns
+    fit diagnostics and explicitly labels uncertainty limitations.
+    """
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    periods = max(1, min(int(periods), 24))
+    n = len(nums)
+    if n < 3:
+        return {"method": "linear_trend", "status": "insufficient_history", "forecast": [], "history_count": n}
+    xs = list(range(n))
+    mx, my = statistics.fmean(xs), statistics.fmean(nums)
+    denom = sum((x - mx) ** 2 for x in xs)
+    slope = sum((x - mx) * (y - my) for x, y in zip(xs, nums)) / denom if denom else 0.0
+    intercept = my - slope * mx
+    fitted = [intercept + slope * x for x in xs]
+    ss_res = sum((y - f) ** 2 for y, f in zip(nums, fitted))
+    ss_tot = sum((y - my) ** 2 for y in nums)
+    r2 = 1 - ss_res / ss_tot if ss_tot else 1.0
+    forecast = [intercept + slope * (n + i) for i in range(periods)]
+    return {
+        "method": "linear_trend",
+        "status": "ok",
+        "history_count": n,
+        "slope": slope,
+        "intercept": intercept,
+        "r2": max(-1.0, min(1.0, r2)),
+        "forecast": forecast,
+        "limitations": ["trend extrapolation only", "no causal model", "no seasonality model", "confidence intervals not estimated"],
+    }
+
+
+def time_series_analysis(rows: list[dict[str, Any]], date_column: str, value_column: str, forecast_periods: int = 3) -> dict[str, Any]:
+    points = []
+    for row in rows:
+        raw_date = row.get(date_column)
+        value = _num(row.get(value_column))
+        if value is None or _is_missing(raw_date):
+            continue
+        text = str(raw_date).strip()
+        parsed = None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%Y/%m/%d", "%b %Y", "%B %Y"):
+            try:
+                parsed = datetime.strptime(text, fmt)
+                break
+            except ValueError:
+                continue
+        if parsed is not None:
+            points.append((parsed, value))
+    points.sort(key=lambda item: item[0])
+    values = [v for _, v in points]
+    changes = [percentage_change(values[i - 1], values[i]) for i in range(1, len(values))]
+    return {
+        "date_column": date_column,
+        "value_column": value_column,
+        "observations": len(points),
+        "start": points[0][0].isoformat() if points else None,
+        "end": points[-1][0].isoformat() if points else None,
+        "period_changes_pct": changes,
+        "trend": linear_forecast(values, forecast_periods),
+        "seasonality": {"status": "not_estimated", "reason": "baseline engine requires more periodic history"},
+    }
+
+
+def kpi_analysis(rows: list[dict[str, Any]], value_column: str, target_column: str | None = None, direction: str = "higher_is_better") -> dict[str, Any]:
+    actual_values = [_num(r.get(value_column)) for r in rows]
+    actual_values = [v for v in actual_values if v is not None]
+    if not actual_values:
+        return {"status": "no_numeric_actuals", "value_column": value_column}
+    actual = statistics.fmean(actual_values)
+    result: dict[str, Any] = {
+        "status": "ok",
+        "metric": value_column,
+        "actual": actual,
+        "count": len(actual_values),
+        "aggregation": "mean",
+    }
+    if target_column:
+        targets = [_num(r.get(target_column)) for r in rows]
+        targets = [v for v in targets if v is not None]
+        if targets:
+            target = statistics.fmean(targets)
+            variance = actual - target
+            variance_pct = (variance / abs(target) * 100) if target else None
+            result.update({
+                "target": target,
+                "variance": variance,
+                "variance_pct": variance_pct,
+                "status_vs_target": (
+                    "above_target" if variance >= 0 else "below_target"
+                ) if direction == "higher_is_better" else (
+                    "below_target" if variance <= 0 else "above_target"
+                ),
+            })
+    return result
+
+
+def analytical_calculations(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    numeric = _numeric_columns(columns, rows)
+    summaries = {c: descriptive_statistics([r.get(c) for r in rows]) for c in numeric}
+    outliers = {c: detect_outliers([r.get(c) for r in rows]) for c in numeric}
+    correlations = {}
+    for i, x in enumerate(numeric):
+        for y in numeric[i + 1:]:
+            correlations[f"{x}__{y}"] = correlation(rows, x, y)
+    return {
         "numeric_columns": numeric,
-        "summaries": [summarize_column(rows, c) for c in numeric],
+        "descriptive_statistics": summaries,
+        "outliers": outliers,
+        "correlations": correlations,
+    }
+
+def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    cleaned = clean_dataset(columns, rows)
+    clean_rows = cleaned["rows"]
+    profile = profile_dataset(columns, rows)
+    roles = _column_roles(columns, clean_rows)
+    calculations = analytical_calculations(columns, clean_rows)
+
+    forecasts = {}
+    temporal = roles["temporal"]
+    numeric = roles["numeric"]
+    if temporal and numeric:
+        forecasts[numeric[0]] = time_series_analysis(clean_rows, temporal[0], numeric[0])
+
+    kpis = []
+    lower = {c.lower(): c for c in columns}
+    for value_col in numeric:
+        target_col = next((lower[name] for name in (
+            f"{value_col.lower()} target", f"target {value_col.lower()}",
+            f"{value_col.lower()}_target", "target"
+        ) if name in lower), None)
+        if target_col and target_col != value_col:
+            kpis.append(kpi_analysis(clean_rows, value_col, target_col))
+
+    return {
+        "profile": profile,
+        "numeric_columns": numeric,
+        "column_roles": roles,
+        "summaries": [summarize_column(clean_rows, c) for c in numeric],
+        "calculations": calculations,
+        "forecasts": forecasts,
+        "kpis": kpis,
+        "cleaning": cleaned,
         "quality": {
-            "duplicate_rows": profile_dataset(columns, rows)["duplicate_rows"],
+            "duplicate_rows": profile["duplicate_rows"],
             "missing_columns": [c for c in columns if any(_is_missing(r.get(c)) for r in rows)],
+            "missing_policy": "reported_only",
+            "outlier_columns": [c for c, info in calculations["outliers"].items() if info["count"] > 0],
         },
     }
 
