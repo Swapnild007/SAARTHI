@@ -401,10 +401,19 @@ def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str,
         ) if name in lower and lower[name] != value_col), None)
         kpis.append(kpi_analysis(clean_rows, value_col, target_col))
 
+    analyzed_rows = len(clean_rows)
+    source_rows = len(rows)
+    coverage_pct = (analyzed_rows / source_rows * 100) if source_rows else 0.0
     return {
         "profile": profile,
         "numeric_columns": numeric,
         "column_roles": roles,
+        "coverage": {
+            "source_rows_received": source_rows,
+            "rows_analyzed": analyzed_rows,
+            "coverage_pct": round(coverage_pct, 2),
+            "bounded": source_rows > analyzed_rows,
+        },
         "summaries": [summarize_column(clean_rows, c) for c in numeric],
         "calculations": calculations,
         "forecasts": forecasts,
