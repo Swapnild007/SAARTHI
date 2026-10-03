@@ -85,3 +85,36 @@ def test_time_series_analysis_orders_dates_and_forecasts():
     assert result["observations"] == 3
     assert result["start"].startswith("2026-01")
     assert result["trend"]["status"] == "ok"
+
+
+def test_specialized_chart_specs_are_structured_for_renderer():
+    rows = [
+        {"category": "A", "value": 10},
+        {"category": "B", "value": 20},
+        {"category": "C", "value": 30},
+        {"category": "D", "value": 40},
+    ]
+    histogram = build_chart(rows, "histogram", "category", "value", "Histogram")
+    assert histogram["series"][0]["dataKey"] == "count"
+    assert sum(row["count"] for row in histogram["data"]) == 4
+
+    box = build_chart(rows, "box", "category", "value", "Box")
+    assert len(box["groups"]) == 4
+    assert box["groupLabels"] == ["A", "B", "C", "D"]
+
+    funnel = build_chart(rows, "funnel", "category", "value", "Funnel")
+    assert funnel["nameKey"] == "category"
+    assert funnel["valueKey"] == "value"
+
+    gauge = build_chart(rows, "gauge", "category", "value", "Gauge")
+    assert gauge["meta"]["not_a_business_target"] is True
+
+    waterfall = build_chart(rows, "waterfall", "category", "value", "Waterfall")
+    assert [row["value"] for row in waterfall["data"]] == [10, 20, 30, 40]
+
+def test_kpi_target_uses_same_aggregation_as_metric():
+    rows = [{"cost": 90, "target": 100}, {"cost": 80, "target": 100}]
+    result = kpi_analysis(rows, "cost", "target")
+    assert result["actual"] == 170
+    assert result["target"] == 200
+    assert result["status_vs_target"] == "meets_target"
