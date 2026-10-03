@@ -1099,7 +1099,7 @@ body[data-assistant] .picker-icon{
 
 
 /* CHATGPT-STYLE CONVERSATION MODE */
-body.chat-active .core-panel{display:none}
+body.chat-active:not(.home-active) .core-panel{display:none}
 body.chat-active .dashboard{display:block;max-width:900px}
 body.chat-active .dashboard>div{width:100%}
 body.chat-active .assistant-response{margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
