@@ -602,6 +602,17 @@ class OpenAICompatibleProvider(LLMProvider):
             )
         chart_hint = ""
         research_hint = ""
+        analyst_knowledge_hint = ""
+        if active_assistant == "data_analyst":
+            analyst_methods = agent_knowledge.get("methods", {}) if isinstance(agent_knowledge, dict) else {}
+            analyst_failures = agent_knowledge.get("failure_modes", []) if isinstance(agent_knowledge, dict) else []
+            analyst_knowledge_hint = (
+                " Data Analyst specialist rules: deterministic engine owns numerical work. "
+                f"Method families: {json.dumps(analyst_methods, separators=(',', ':'))}. "
+                f"Check these failure modes: {', '.join(str(x) for x in analyst_failures[:10])}. "
+                "Use weighted numerator/denominator rates when available. "
+                "Treat forecasts as estimates and state model selection and limitations."
+            )
         if assistant == "research":
             brief = context.get("execution_results", {}).get("research.brief", {}) if isinstance(context, dict) else {}
             research_hint = (
@@ -638,6 +649,7 @@ class OpenAICompatibleProvider(LLMProvider):
             f"Agent playbook sequence: {', '.join(runtime_capabilities.get('agent_playbook', {}).get('sequence', [])) or 'none'}. "
             f"Agent knowledge principles: {' | '.join(agent_knowledge.get('principles', [])) or 'none'}. "
             f"Agent quality gates: {', '.join(agent_knowledge.get('quality_gates', [])) or 'none'}. "
+            f"{analyst_knowledge_hint} "
             "Treat these principles as execution guidance, not as a source of factual claims. "
             "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints, KPIs and decision framework where applicable. "
             "Prefer a decision-ready work product over generic advice. Do not merely mention the industry name. "
