@@ -6,7 +6,7 @@ from .agent_knowledge import knowledge_for
 
 AGENT_CAPABILITIES: dict[str, dict[str, Any]] = {
     "saarthi": {"name":"Saarthi","focus":"general intelligence and orchestration","capabilities":["conversation","decision_support","learning","personal_organization","orchestration","routing","multi_agent_coordination","context_preservation","verification","recovery","risk_aware_delegation"],"workflows":["understand","infer_context","route","prepare_handoff","execute","verify","synthesize","recover","deliver"],"outputs":["answer","decision_frame","plan","handoff","orchestration_trace","verified_result","partial_result"]},
-    "coding": {"name":"AI Coding","focus":"production software engineering","capabilities":["architecture","implementation","debugging","refactoring","testing","code_review","documentation"],"workflows":["inspect","design","implement","test","review","ship"],"outputs":["code","diff","test_plan","architecture","review"]},
+    "coding": {"name":"AI Coding","focus":"production software engineering","capabilities":["repository_inspection","requirements_modeling","architecture","implementation","debugging","refactoring","testing","negative_testing","regression_testing","security_review","dependency_review","code_review","diff_review","deployment_readiness","documentation"],"workflows":["inspect","define_acceptance","map_dependencies","design","implement","targeted_test","regression_test","security_review","review_diff","verify_artifacts","report"],"outputs":["code","diff","test_plan","test_result","architecture","security_review","deployment_readiness","review","implementation_report"]},
     "research": {"name":"Research","focus":"evidence retrieval and synthesis","capabilities":["question_framing","source_evaluation","comparison","synthesis","uncertainty"],"workflows":["frame","retrieve","evaluate","compare","synthesize"],"outputs":["research_brief","comparison","evidence_table","source_notes"]},
     "create": {"name":"Create","focus":"creative production","capabilities":["ideation","writing","editing","storytelling","prompt_design","content_structure"],"workflows":["brief","ideate","draft","refine","finalize"],"outputs":["draft","concept","prompt","outline","creative_direction"]},
     "data_analyst": {"name":"Data Analyst","focus":"quantitative analysis and decision-ready reporting","capabilities":["data_profiling","schema_validation","data_quality_scoring","cleaning_reasoning","explicit_imputation","descriptive_statistics","distribution_analysis","percentiles","correlation","relationship_analysis","outlier_detection","kpi_intelligence","weighted_kpis","target_attainment","forecasting","forecast_backtesting","uncertainty","visualization","traceable_findings"],"workflows":["profile","validate","clean","calculate","analyze","forecast","visualize","explain","verify"],"outputs":["data_profile","quality_report","finding","statistics","kpi_report","forecast","table","chart","dashboard","analysis_brief"]},
@@ -76,8 +76,8 @@ AGENT_PLAYBOOKS: dict[str, dict[str, Any]] = {
     },
     "coding": {
         "role": "software_engineering",
-        "sequence": ["inspect", "design", "implement", "test", "review", "ship"],
-        "quality_gates": ["requirements", "correctness", "tests", "security", "maintainability"]
+        "sequence": ["inspect", "define_acceptance", "map_dependencies", "design", "implement", "test", "security_review", "review_diff", "ship"],
+        "quality_gates": ["requirements", "correctness", "regression_safety", "negative_paths", "security", "dependency_integrity", "maintainability", "deployment_readiness", "claim_integrity"]
     },
     "research": {
         "role": "evidence_engineering",
