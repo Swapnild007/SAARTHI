@@ -379,6 +379,45 @@ def analytical_calculations(columns: list[str], rows: list[dict[str, Any]]) -> d
         "rankings": rankings,
     }
 
+def build_findings(analysis: dict[str, Any]) -> list[dict[str, Any]]:
+    """Create deterministic, traceable findings from computed metrics."""
+    findings: list[dict[str, Any]] = []
+    calculations = analysis.get("calculations", {})
+    for column, stats in calculations.get("descriptive_statistics", {}).items():
+        if stats.get("count", 0):
+            findings.append({
+                "type": "descriptive",
+                "metric": column,
+                "statement": f"{column}: mean {stats['mean']:.4g}, median {stats['median']:.4g}, range {stats['min']:.4g} to {stats['max']:.4g}.",
+                "source": f"calculations.descriptive_statistics.{column}",
+            })
+    for column, info in calculations.get("outliers", {}).items():
+        if info.get("count", 0):
+            findings.append({
+                "type": "outlier",
+                "metric": column,
+                "statement": f"{column}: {info['count']} IQR outlier(s) detected.",
+                "source": f"calculations.outliers.{column}",
+            })
+    for metric in analysis.get("kpis", []):
+        if metric.get("target") is not None:
+            findings.append({
+                "type": "kpi",
+                "metric": metric["metric"],
+                "statement": f"{metric['metric']}: actual {metric['actual']:.4g} vs target {metric['target']:.4g}; {metric['status_vs_target']}.",
+                "source": f"kpis.{metric['metric']}",
+            })
+    for column, forecast in analysis.get("forecasts", {}).items():
+        trend = forecast.get("trend", {})
+        if trend.get("status") == "ok":
+            findings.append({
+                "type": "forecast",
+                "metric": column,
+                "statement": f"{column}: linear trend slope {trend['slope']:.4g}, R² {trend['r2']:.3f}. Forecast is trend-based, not causal.",
+                "source": f"forecasts.{column}.trend",
+            })
+    return findings
+
 def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
     cleaned = clean_dataset(columns, rows)
     clean_rows = cleaned["rows"]
@@ -418,6 +457,11 @@ def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str,
         "calculations": calculations,
         "forecasts": forecasts,
         "kpis": kpis,
+        "findings": build_findings({
+            "calculations": calculations,
+            "kpis": kpis,
+            "forecasts": forecasts,
+        }),
         "cleaning": cleaned,
         "quality": {
             "duplicate_rows": profile["duplicate_rows"],
