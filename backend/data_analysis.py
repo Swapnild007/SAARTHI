@@ -214,8 +214,7 @@ def build_chart(rows: list[dict[str, Any]], chart_type: str, x_key: str, series_
         data = [r for r in data if r["value"] is not None]
         return {"chartType": "waterfall", "meta": {"title": title}, "data": data}
 
-    data = [{x_key: r.get(x_key), series_key: _num(r.get(series_key))} for r in rows]
-    data = [r for r in data if r[series_key] is not None]
+    data = [{x_key: r.get(x_key), series_key: r.get(series_key)} for r in rows if _num(r.get(series_key)) is not None]
     return {
         "chartType": chart_type,
         "meta": {"title": title},
