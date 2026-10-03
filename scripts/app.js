@@ -583,8 +583,10 @@ const SaarthiApp = (() => {
     if(!responseCard||!responseBody)return;
     const item=ASSISTANTS.find(x=>x.id===currentAssistant)||ASSISTANTS[0];
     const messages=currentConversation();
-    document.body.classList.toggle('chat-active',messages.length>0);
-    if(!messages.length){responseCard.hidden=true;return;}
+    const hasMessages=messages.length>0;
+    document.body.classList.toggle('chat-active',hasMessages);
+    document.body.classList.toggle('home-active',!hasMessages);
+    if(!hasMessages){responseCard.hidden=true;return;}
     responseBody.innerHTML=messages.map(message=>{
       const role=message.role==='user'?'You':'Saarthi';
       const klass=message.role==='user'?'conversation-message user':'conversation-message assistant';
