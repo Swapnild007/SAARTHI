@@ -608,7 +608,7 @@ const SaarthiApp = (() => {
       });
       const wp=message.workProduct&&typeof message.workProduct==='object'?message.workProduct:null;
       const isVisualization=/<saarthi-(?:chart|diagram)>/i.test(String(message.content||''));
-      const workProductHtml=message.role==='assistant'&&wp&&message.showIntelligence&&!isVisualization?renderWorkProduct(wp):'';
+      // Work-product metadata stays available to the runtime/history, but it is not shown after every reply.\n      // The conversation should feel like a human exchange; execution detail appears only when explicitly requested.\n      const workProductHtml='';
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
     }).join('');
     const lastAssistant=[...messages].reverse().find(m=>m.role==='assistant');
