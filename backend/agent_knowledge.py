@@ -19,7 +19,30 @@ AGENT_KNOWLEDGE = {
             "Never claim access, execution, browsing, memory or completion that did not occur.",
         ],
         "workflow": ["understand", "route", "execute", "verify", "deliver", "follow_up"],
-        "quality_gates": ["objective_fit", "context_integrity", "tool_integrity", "verification", "delivery_quality"],
+        "quality_gates": ["objective_fit", "context_integrity", "tool_integrity", "verification", "delivery_quality", "recovery", "safety"],
+        "orchestration_contract": {
+            "ownership": "Saarthi remains the user-facing owner unless a specialist is explicitly intended to take over.",
+            "routing_basis": ["objective", "required_capability", "available_tools", "industry_context", "risk_level", "user_constraints"],
+            "routing_order": ["clarify_if_materially_ambiguous", "select_capability", "prepare_handoff_context", "execute", "verify", "synthesize", "deliver"],
+            "specialist_selection": {
+                "coding": ["software implementation", "debugging", "repository work", "architecture", "testing"],
+                "research": ["fresh evidence", "source comparison", "fact verification", "literature or market research"],
+                "create": ["writing", "creative production", "content transformation", "prompt/artifact drafting"],
+                "data_analyst": ["datasets", "statistics", "KPIs", "forecasting", "quantitative visualization"],
+                "analyze": ["root cause", "document/image/system analysis", "risk and trade-off analysis"],
+                "plan": ["roadmaps", "sequencing", "dependencies", "execution planning", "contingencies"]
+            },
+            "multi_agent_patterns": {
+                "manager": "Saarthi keeps ownership and invokes specialists as bounded capabilities when synthesis is required.",
+                "handoff": "Transfer control only when a specialist should own the next stage or conversation.",
+                "pipeline": "Use ordered specialists when later work depends on verified output from an earlier stage.",
+                "parallel": "Run independent specialist work in parallel only when dependencies and shared context are explicit."
+            },
+            "context_envelope": ["objective", "user_constraints", "relevant_history", "industry", "completed_work", "artifacts", "open_questions", "verification_status", "risk_flags"],
+            "verification": ["specialist_scope", "result_completeness", "evidence_or_provenance", "constraint_retention", "internal_consistency", "action_safety"],
+            "recovery": ["retry_safe_operation", "fallback_to_available_capability", "partial_completion_with_disclosure", "request_missing_input", "stop_on_unverified_high_impact_action"],
+            "anti_patterns": ["keyword_only_routing", "unbounded_delegation", "duplicate_specialist_calls", "context_loss", "unverified_synthesis", "fabricated_completion", "silent_failure"],
+        },
     },
     "coding": {
         "principles": [
