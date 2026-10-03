@@ -13,9 +13,18 @@ def test_all_chart_types_are_accepted():
         {"category": "C", "value": 30},
     ]
     for chart_type in CHART_TYPES:
-        spec = build_chart(rows, chart_type, "category", "value", f"Test {chart_type}")
+        if chart_type in {"scatter", "bubble"}:
+            spec = build_chart(
+                [{"x": 1, "value": 10}, {"x": 2, "value": 20}, {"x": 3, "value": 30}],
+                chart_type, "x", "value", f"Test {chart_type}"
+            )
+        else:
+            spec = build_chart(rows, chart_type, "category", "value", f"Test {chart_type}")
         assert spec["chartType"] == chart_type
-        assert spec["data"]
+        if chart_type == "box":
+            assert spec["groups"]
+        else:
+            assert spec["data"]
 
 def test_visual_recommendation_uses_supplied_data_only():
     rows = [
