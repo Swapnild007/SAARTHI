@@ -231,11 +231,7 @@ def detect_outliers(values: list[Any]) -> dict[str, Any]:
 
 
 def linear_forecast(values: list[Any], periods: int = 3) -> dict[str, Any]:
-    """Forecast using deterministic ordinary least-squares trend.
-
-    This is a baseline forecast, not a claim of causal prediction. It returns
-    fit diagnostics and explicitly labels uncertainty limitations.
-    """
+    """Deterministic trend forecast with residual uncertainty diagnostics."""
     nums = [n for n in (_num(v) for v in values) if n is not None]
     periods = max(1, min(int(periods), 24))
     n = len(nums)
@@ -247,10 +243,16 @@ def linear_forecast(values: list[Any], periods: int = 3) -> dict[str, Any]:
     slope = sum((x - mx) * (y - my) for x, y in zip(xs, nums)) / denom if denom else 0.0
     intercept = my - slope * mx
     fitted = [intercept + slope * x for x in xs]
-    ss_res = sum((y - f) ** 2 for y, f in zip(nums, fitted))
+    residuals = [y - f for y, f in zip(nums, fitted)]
+    ss_res = sum(r * r for r in residuals)
     ss_tot = sum((y - my) ** 2 for y in nums)
     r2 = 1 - ss_res / ss_tot if ss_tot else 1.0
-    forecast = [intercept + slope * (n + i) for i in range(periods)]
+    residual_se = math.sqrt(ss_res / max(1, n - 2))
+    forecast = []
+    for i in range(periods):
+        point = intercept + slope * (n + i)
+        margin = 1.96 * residual_se * math.sqrt(1 + 1 / n + ((n + i) - mx) ** 2 / max(denom, 1))
+        forecast.append({"period_index": n + i + 1, "value": point, "lower_95": point - margin, "upper_95": point + margin})
     return {
         "method": "linear_trend",
         "status": "ok",
@@ -258,8 +260,9 @@ def linear_forecast(values: list[Any], periods: int = 3) -> dict[str, Any]:
         "slope": slope,
         "intercept": intercept,
         "r2": max(-1.0, min(1.0, r2)),
+        "residual_standard_error": residual_se,
         "forecast": forecast,
-        "limitations": ["trend extrapolation only", "no causal model", "no seasonality model", "confidence intervals not estimated"],
+        "limitations": ["trend extrapolation only", "no causal model", "seasonality not independently modeled"],
     }
 
 
@@ -295,35 +298,60 @@ def time_series_analysis(rows: list[dict[str, Any]], date_column: str, value_col
     }
 
 
-def kpi_analysis(rows: list[dict[str, Any]], value_column: str, target_column: str | None = None, direction: str = "higher_is_better") -> dict[str, Any]:
-    actual_values = [_num(r.get(value_column)) for r in rows]
-    actual_values = [v for v in actual_values if v is not None]
-    if not actual_values:
+def infer_kpi_aggregation(column: str) -> str:
+    name = str(column).lower()
+    if any(token in name for token in ("rate", "pct", "percent", "margin", "aht", "asa", "csat", "average", "avg", "score")):
+        return "mean"
+    if any(token in name for token in ("count", "volume", "sales", "revenue", "cost", "orders", "units", "calls", "handled", "abandon", "throughput")):
+        return "sum"
+    return "mean"
+
+
+def infer_kpi_direction(column: str) -> str:
+    name = str(column).lower()
+    return "lower_is_better" if any(token in name for token in (
+        "cost", "error", "defect", "downtime", "wait", "aht", "asa", "abandon", "turnover", "incident"
+    )) else "higher_is_better"
+
+
+def aggregate_values(values: list[Any], aggregation: str) -> float | None:
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    if not nums:
+        return None
+    if aggregation == "sum":
+        return sum(nums)
+    if aggregation == "min":
+        return min(nums)
+    if aggregation == "max":
+        return max(nums)
+    return statistics.fmean(nums)
+
+
+def kpi_analysis(rows: list[dict[str, Any]], value_column: str, target_column: str | None = None, direction: str | None = None) -> dict[str, Any]:
+    aggregation = infer_kpi_aggregation(value_column)
+    actual = aggregate_values([r.get(value_column) for r in rows], aggregation)
+    if actual is None:
         return {"status": "no_numeric_actuals", "value_column": value_column}
-    actual = statistics.fmean(actual_values)
+    direction = direction or infer_kpi_direction(value_column)
     result: dict[str, Any] = {
         "status": "ok",
         "metric": value_column,
         "actual": actual,
-        "count": len(actual_values),
-        "aggregation": "mean",
+        "count": sum(_num(r.get(value_column)) is not None for r in rows),
+        "aggregation": aggregation,
+        "direction": direction,
     }
     if target_column:
-        targets = [_num(r.get(target_column)) for r in rows]
-        targets = [v for v in targets if v is not None]
-        if targets:
-            target = statistics.fmean(targets)
+        target = aggregate_values([r.get(target_column) for r in rows], "mean")
+        if target is not None:
             variance = actual - target
             variance_pct = (variance / abs(target) * 100) if target else None
+            meets = variance >= 0 if direction == "higher_is_better" else variance <= 0
             result.update({
                 "target": target,
                 "variance": variance,
                 "variance_pct": variance_pct,
-                "status_vs_target": (
-                    "above_target" if variance >= 0 else "below_target"
-                ) if direction == "higher_is_better" else (
-                    "below_target" if variance <= 0 else "above_target"
-                ),
+                "status_vs_target": "meets_target" if meets else "below_target",
             })
     return result
 
@@ -336,11 +364,19 @@ def analytical_calculations(columns: list[str], rows: list[dict[str, Any]]) -> d
     for i, x in enumerate(numeric):
         for y in numeric[i + 1:]:
             correlations[f"{x}__{y}"] = correlation(rows, x, y)
+    rankings = {}
+    for c in numeric:
+        valid = [(str(r.get(c)), _num(r.get(c))) for r in rows]
+        rankings[c] = [{"label": label, "value": value} for label, value in sorted(
+            [(label, value) for label, value in valid if value is not None],
+            key=lambda item: item[1], reverse=True
+        )[:10]]
     return {
         "numeric_columns": numeric,
         "descriptive_statistics": summaries,
         "outliers": outliers,
         "correlations": correlations,
+        "rankings": rankings,
     }
 
 def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -362,9 +398,8 @@ def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str,
         target_col = next((lower[name] for name in (
             f"{value_col.lower()} target", f"target {value_col.lower()}",
             f"{value_col.lower()}_target", "target"
-        ) if name in lower), None)
-        if target_col and target_col != value_col:
-            kpis.append(kpi_analysis(clean_rows, value_col, target_col))
+        ) if name in lower and lower[name] != value_col), None)
+        kpis.append(kpi_analysis(clean_rows, value_col, target_col))
 
     return {
         "profile": profile,
