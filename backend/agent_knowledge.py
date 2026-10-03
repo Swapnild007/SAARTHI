@@ -155,3 +155,10 @@ KNOWLEDGE_SOURCES = [
 
 def knowledge_for(agent: str) -> dict:
     return AGENT_KNOWLEDGE.get(str(agent or "").lower(), AGENT_KNOWLEDGE["saarthi"])
+
+
+# The Data Analyst has a deeper, specialist knowledge pack than the general
+# seven-agent baseline. Keep the specialist pack separately versioned so it can
+# grow without making the core routing file unwieldy.
+from .data_analyst_knowledge import DATA_ANALYST_KNOWLEDGE
+AGENT_KNOWLEDGE["data_analyst"].update(DATA_ANALYST_KNOWLEDGE)
