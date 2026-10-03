@@ -187,7 +187,9 @@ from .data_analyst_knowledge import DATA_ANALYST_KNOWLEDGE
 from .analyze_knowledge import ANALYZE_KNOWLEDGE
 from .coding_knowledge import CODING_KNOWLEDGE
 from .plan_knowledge import PLAN_KNOWLEDGE
+from .research_knowledge import RESEARCH_KNOWLEDGE
 AGENT_KNOWLEDGE["data_analyst"].update(DATA_ANALYST_KNOWLEDGE)
 AGENT_KNOWLEDGE["analyze"].update(ANALYZE_KNOWLEDGE)
 AGENT_KNOWLEDGE["coding"].update(CODING_KNOWLEDGE)
 AGENT_KNOWLEDGE["plan"].update(PLAN_KNOWLEDGE)
+AGENT_KNOWLEDGE["research"].update(RESEARCH_KNOWLEDGE)
