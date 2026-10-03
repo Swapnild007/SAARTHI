@@ -73,7 +73,7 @@ def test_kpi_direction_and_target_variance():
     result = kpi_analysis(rows, "cost", "target")
     assert result["aggregation"] == "sum"
     assert result["direction"] == "lower_is_better"
-    assert result["status_vs_target"] == "below_target"
+    assert result["status_vs_target"] == "meets_target"
 
 def test_time_series_analysis_orders_dates_and_forecasts():
     rows = [
