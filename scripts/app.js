@@ -1069,6 +1069,11 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   renderHistory();
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();ensureAttachmentControls();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
+  document.querySelectorAll('[data-assistant-shortcut]').forEach(button=>button.addEventListener('click',()=>{
+    const id=button.dataset.assistantShortcut;
+    selectAssistant(id);
+    addActivity('Capability selected',id);
+  }));
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
   $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
   $('#mobileControlButton')?.addEventListener('click',()=>renderControlCenter());
