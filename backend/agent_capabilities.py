@@ -10,7 +10,7 @@ AGENT_CAPABILITIES: dict[str, dict[str, Any]] = {
     "research": {"name":"Research","focus":"evidence retrieval and synthesis","capabilities":["question_framing","source_evaluation","comparison","synthesis","uncertainty"],"workflows":["frame","retrieve","evaluate","compare","synthesize"],"outputs":["research_brief","comparison","evidence_table","source_notes"]},
     "create": {"name":"Create","focus":"creative production","capabilities":["ideation","writing","editing","storytelling","prompt_design","content_structure"],"workflows":["brief","ideate","draft","refine","finalize"],"outputs":["draft","concept","prompt","outline","creative_direction"]},
     "data_analyst": {"name":"Data Analyst","focus":"quantitative analysis and decision-ready reporting","capabilities":["data_profiling","schema_validation","data_quality_scoring","cleaning_reasoning","explicit_imputation","descriptive_statistics","distribution_analysis","percentiles","correlation","relationship_analysis","outlier_detection","kpi_intelligence","weighted_kpis","target_attainment","forecasting","forecast_backtesting","uncertainty","visualization","traceable_findings"],"workflows":["profile","validate","clean","calculate","analyze","forecast","visualize","explain","verify"],"outputs":["data_profile","quality_report","finding","statistics","kpi_report","forecast","table","chart","dashboard","analysis_brief"]},
-    "analyze": {"name":"Analyze","focus":"structured analysis of documents, visuals, systems and situations","capabilities":["evidence_extraction","pattern_detection","risk_analysis","assumption_testing","root_cause","tradeoff_analysis"],"workflows":["scope","extract","test","interpret","conclude"],"outputs":["analysis","risk_register","findings","root_cause","tradeoffs"]},
+    "analyze": {"name":"Analyze","focus":"structured analysis of documents, visuals, systems and situations","capabilities":["evidence_extraction","source_inventory","pattern_detection","assumption_testing","hypothesis_generation","alternative_hypotheses","contradiction_detection","root_cause","incident_analysis","risk_analysis","tradeoff_analysis","causal_reasoning","confidence_assessment","traceability","next_check_design"],"workflows":["scope","inventory_sources","extract","structure_evidence","generate_hypotheses","test","compare_alternatives","analyze_root_cause_or_risk","conclude","verify_traceability"],"outputs":["analysis","evidence_map","hypothesis_matrix","risk_register","findings","root_cause","tradeoffs","confidence_statement","next_checks"]},
     "plan": {"name":"Plan","focus":"execution planning and operational strategy","capabilities":["goal_decomposition","prioritization","dependencies","milestones","risk_planning","contingencies"],"workflows":["define","decompose","sequence","validate","execute","review"],"outputs":["roadmap","checklist","timeline","dependency_map","contingency_plan"]},
 }
 
@@ -96,8 +96,8 @@ AGENT_PLAYBOOKS: dict[str, dict[str, Any]] = {
     },
     "analyze": {
         "role": "evidence_and_problem_analysis",
-        "sequence": ["scope", "extract", "test_assumptions", "find_patterns", "root_cause", "conclude"],
-        "quality_gates": ["evidence", "assumptions", "alternative_explanations", "traceability"]
+        "sequence": ["scope", "inventory_sources", "extract", "structure_evidence", "generate_hypotheses", "test_assumptions", "compare_alternatives", "root_cause_or_risk", "conclude", "verify_traceability"],
+        "quality_gates": ["evidence", "observation_interpretation_separation", "assumptions", "alternatives", "contradictions", "causal_reasoning", "confidence", "traceability", "action_safety"]
     },
     "plan": {
         "role": "execution_and_operations_planning",
