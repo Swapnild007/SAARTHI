@@ -496,17 +496,23 @@ def build_findings(analysis: dict[str, Any]) -> list[dict[str, Any]]:
     return findings
 
 def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Run the complete deterministic analyst pipeline over supplied tabular data."""
     cleaned = clean_dataset(columns, rows)
     clean_rows = cleaned["rows"]
     profile = profile_dataset(columns, rows)
     roles = _column_roles(columns, clean_rows)
     calculations = analytical_calculations(columns, clean_rows)
 
-    forecasts = {}
+    validation = validate_dataset(columns, rows)
+    advanced_stats = advanced_statistics(columns, clean_rows)
+    forecasts: dict[str, Any] = {}
     temporal = roles["temporal"]
     numeric = roles["numeric"]
     if temporal and numeric:
-        forecasts[numeric[0]] = time_series_analysis(clean_rows, temporal[0], numeric[0])
+        for value_col in numeric[:5]:
+            forecasts[value_col] = forecast_time_series(
+                clean_rows, temporal[0], value_col, forecast_periods=3
+            )
 
     kpis = []
     lower = {c.lower(): c for c in columns}
@@ -517,10 +523,12 @@ def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str,
         ) if name in lower and lower[name] != value_col), None)
         kpis.append(kpi_analysis(clean_rows, value_col, target_col))
 
+    weighted_kpis = discover_weighted_kpis(clean_rows, columns)
     analyzed_rows = len(clean_rows)
     source_rows = len(rows)
     coverage_pct = (analyzed_rows / source_rows * 100) if source_rows else 0.0
-    return {
+
+    result = {
         "profile": profile,
         "numeric_columns": numeric,
         "column_roles": roles,
@@ -532,21 +540,27 @@ def analyze_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str,
         },
         "summaries": [summarize_column(clean_rows, c) for c in numeric],
         "calculations": calculations,
+        "advanced_statistics": advanced_stats,
         "forecasts": forecasts,
         "kpis": kpis,
+        "weighted_kpis": weighted_kpis,
         "findings": build_findings({
             "calculations": calculations,
             "kpis": kpis,
             "forecasts": forecasts,
         }),
         "cleaning": cleaned,
+        "validation": validation,
         "quality": {
             "duplicate_rows": profile["duplicate_rows"],
             "missing_columns": [c for c in columns if any(_is_missing(r.get(c)) for r in rows)],
             "missing_policy": "reported_only",
             "outlier_columns": [c for c, info in calculations["outliers"].items() if info["count"] > 0],
+            "data_quality_score": validation["quality_score"],
+            "issues": validation["issues"],
         },
     }
+    return result
 
 
 def _date_like(value: Any) -> bool:
@@ -635,3 +649,386 @@ def recommend_visuals(columns: list[str], rows: list[dict[str, Any]], *, limit: 
             seen.add(key)
             unique.append(spec)
     return unique[:max(1, limit)]
+
+
+# ---------------------------------------------------------------------------
+# Production analyst extensions
+# ---------------------------------------------------------------------------
+
+def _safe_float(value: Any) -> float | None:
+    return _num(value)
+
+
+def validate_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate structural and statistical data quality without mutating input."""
+    issues: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    column_set = set(columns)
+    unknown_keys = sorted({k for row in rows for k in row.keys() if k not in column_set})
+    if unknown_keys:
+        warnings.append({"type": "unknown_columns", "columns": unknown_keys})
+
+    duplicate_count = len(rows) - len({
+        tuple(str(row.get(c, "")) for c in columns) for row in rows
+    })
+    if duplicate_count:
+        issues.append({"type": "duplicate_rows", "count": duplicate_count})
+
+    for column in columns:
+        values = [row.get(column) for row in rows]
+        non_missing = [v for v in values if not _is_missing(v)]
+        missing = len(values) - len(non_missing)
+        if missing:
+            pct = missing / len(values) * 100 if values else 0
+            severity = "error" if pct >= 50 else "warning"
+            target = issues if severity == "error" else warnings
+            target.append({
+                "type": "missing_values", "column": column,
+                "count": missing, "pct": round(pct, 2), "severity": severity,
+            })
+        if non_missing:
+            numeric_ok = sum(_num(v) is not None for v in non_missing)
+            numeric_ratio = numeric_ok / len(non_missing)
+            if 0 < numeric_ratio < 1:
+                warnings.append({
+                    "type": "mixed_type", "column": column,
+                    "numeric_ratio": round(numeric_ratio, 3),
+                })
+            unique = len({str(v) for v in non_missing})
+            if unique == 1:
+                warnings.append({"type": "constant_column", "column": column})
+            if unique / len(non_missing) >= 0.98 and len(non_missing) >= 20:
+                warnings.append({"type": "high_cardinality", "column": column, "unique": unique})
+
+    row_width_errors = sum(len(row) != len(columns) for row in rows)
+    if row_width_errors:
+        warnings.append({"type": "row_shape_mismatch", "count": row_width_errors})
+
+    error_weight = sum(
+        item.get("count", 1) if item.get("type") == "missing_values" else item.get("count", 1)
+        for item in issues
+    )
+    denom = max(1, len(rows) * max(1, len(columns)))
+    penalty = min(70.0, error_weight / denom * 100.0)
+    quality_score = round(max(0.0, 100.0 - penalty - min(20.0, len(warnings) * 2.0)), 2)
+    return {
+        "status": "pass" if not issues else "review_required",
+        "rows": len(rows),
+        "columns": len(columns),
+        "issues": issues,
+        "warnings": warnings,
+        "quality_score": quality_score,
+        "unknown_columns": unknown_keys,
+    }
+
+
+def missing_value_plan(columns: list[str], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Recommend, but do not apply, missing-value strategies."""
+    plan = []
+    for column in columns:
+        values = [r.get(column) for r in rows]
+        missing = sum(_is_missing(v) for v in values)
+        if not missing:
+            continue
+        non_missing = [v for v in values if not _is_missing(v)]
+        numeric = [v for v in (_num(v) for v in non_missing) if v is not None]
+        if numeric and len(numeric) == len(non_missing):
+            strategy = "median" if detect_outliers(numeric).get("count", 0) else "mean"
+        elif len({str(v) for v in non_missing}) <= 20:
+            strategy = "mode"
+        else:
+            strategy = "leave_missing_or_domain_rule"
+        plan.append({
+            "column": column,
+            "missing": missing,
+            "strategy": strategy,
+            "reason": "Suggested from observed column type and distribution; verify business meaning before applying.",
+        })
+    return plan
+
+
+def apply_missing_strategy(
+    columns: list[str],
+    rows: list[dict[str, Any]],
+    strategy: str = "report",
+) -> dict[str, Any]:
+    """Apply an explicit missing-value policy. Imputation is never implicit."""
+    strategy = str(strategy or "report").lower()
+    if strategy == "report":
+        return {"rows": [dict(r) for r in rows], "strategy": strategy, "applied": False, "plan": missing_value_plan(columns, rows)}
+    if strategy == "drop_rows":
+        kept = [dict(r) for r in rows if all(not _is_missing(r.get(c)) for c in columns)]
+        return {"rows": kept, "strategy": strategy, "applied": True, "rows_removed": len(rows) - len(kept)}
+    result = [dict(r) for r in rows]
+    changed = 0
+    for c in columns:
+        values = [r.get(c) for r in result if not _is_missing(r.get(c))]
+        nums = [n for n in (_num(v) for v in values) if n is not None]
+        if not values:
+            continue
+        if strategy == "median" and nums and len(nums) == len(values):
+            fill = statistics.median(nums)
+        elif strategy == "mean" and nums and len(nums) == len(values):
+            fill = statistics.fmean(nums)
+        elif strategy == "mode":
+            fill = Counter(str(v) for v in values).most_common(1)[0][0]
+        elif strategy == "ffill":
+            last = None
+            for row in result:
+                if not _is_missing(row.get(c)):
+                    last = row[c]
+                elif last is not None:
+                    row[c] = last
+                    changed += 1
+            continue
+        else:
+            continue
+        for row in result:
+            if _is_missing(row.get(c)):
+                row[c] = fill
+                changed += 1
+    return {"rows": result, "strategy": strategy, "applied": True, "values_filled": changed}
+
+
+def advanced_statistics(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Add distribution, uncertainty and relationship diagnostics."""
+    result: dict[str, Any] = {}
+    numeric = _numeric_columns(columns, rows)
+    for column in numeric:
+        values = [_num(r.get(column)) for r in rows]
+        values = [v for v in values if v is not None]
+        if not values:
+            continue
+        stats = descriptive_statistics(values)
+        mean = stats["mean"]
+        stdev = stats["stdev"]
+        result[column] = {
+            "coefficient_of_variation_pct": round(abs(stdev / mean) * 100, 4) if mean else None,
+            "mean_ci_95": mean_confidence_interval(values),
+            "z_score_extremes": z_score_extremes(values),
+            "skew_direction": distribution_skew_direction(values),
+        }
+    return result
+
+
+def mean_confidence_interval(values: list[Any], confidence: float = 0.95) -> dict[str, Any]:
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    if not nums:
+        return {"status": "no_data"}
+    mean = statistics.fmean(nums)
+    if len(nums) < 2:
+        return {"status": "insufficient_sample", "mean": mean}
+    se = statistics.stdev(nums) / math.sqrt(len(nums))
+    # Normal approximation is intentionally used to avoid silently depending on
+    # an external statistical package. For small samples, label the limitation.
+    z = 1.96 if confidence >= 0.95 else 1.645
+    return {
+        "status": "ok",
+        "mean": mean,
+        "lower": mean - z * se,
+        "upper": mean + z * se,
+        "confidence": confidence,
+        "method": "normal_approximation",
+        "small_sample_warning": len(nums) < 30,
+    }
+
+
+def z_score_extremes(values: list[Any], threshold: float = 3.0) -> dict[str, Any]:
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    if len(nums) < 2:
+        return {"threshold": threshold, "count": 0, "values": []}
+    mean = statistics.fmean(nums)
+    sd = statistics.stdev(nums)
+    if sd == 0:
+        return {"threshold": threshold, "count": 0, "values": []}
+    extremes = [v for v in nums if abs((v - mean) / sd) >= threshold]
+    return {"threshold": threshold, "count": len(extremes), "values": extremes[:100]}
+
+
+def distribution_skew_direction(values: list[Any]) -> str:
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    if len(nums) < 3:
+        return "unknown"
+    mean = statistics.fmean(nums)
+    median = statistics.median(nums)
+    if mean > median * 1.02:
+        return "right_skewed"
+    if mean < median * 0.98:
+        return "left_skewed"
+    return "approximately_symmetric"
+
+
+def weighted_mean(values: list[Any], weights: list[Any]) -> float | None:
+    pairs = [(_num(v), _num(w)) for v, w in zip(values, weights)]
+    pairs = [(v, w) for v, w in pairs if v is not None and w is not None and w >= 0]
+    total_weight = sum(w for _, w in pairs)
+    return sum(v * w for v, w in pairs) / total_weight if pairs and total_weight else None
+
+
+def weighted_rate(numerators: list[Any], denominators: list[Any]) -> float | None:
+    pairs = [(_num(n), _num(d)) for n, d in zip(numerators, denominators)]
+    pairs = [(n, d) for n, d in pairs if n is not None and d is not None and d > 0]
+    return sum(n for n, _ in pairs) / sum(d for _, d in pairs) if pairs and sum(d for _, d in pairs) else None
+
+
+def discover_weighted_kpis(rows: list[dict[str, Any]], columns: list[str]) -> list[dict[str, Any]]:
+    """Detect common numerator/denominator KPI pairs and calculate weighted rates."""
+    lower = {c.lower(): c for c in columns}
+    output = []
+    pairs = [
+        ("conversion", ("conversions", "converted"), ("visits", "sessions", "eligible")),
+        ("abandon_rate", ("abandoned", "abandons"), ("offered", "contacts", "handled_plus_abandoned")),
+        ("defect_rate", ("defects", "defect_count"), ("units", "produced", "inspected")),
+        ("yield", ("good_units", "accepted"), ("units", "produced", "total_units")),
+        ("on_time_rate", ("on_time", "on_time_deliveries"), ("deliveries", "shipments")),
+    ]
+    for metric, nums, dens in pairs:
+        numerator = next((lower[x] for x in nums if x in lower), None)
+        denominator = next((lower[x] for x in dens if x in lower), None)
+        if not numerator or not denominator:
+            continue
+        value = weighted_rate([r.get(numerator) for r in rows], [r.get(denominator) for r in rows])
+        if value is not None:
+            output.append({
+                "metric": metric,
+                "numerator": numerator,
+                "denominator": denominator,
+                "actual": value,
+                "actual_pct": value * 100,
+                "aggregation": "weighted_rate",
+                "formula": f"sum({numerator}) / sum({denominator})",
+            })
+    return output
+
+
+def _mape(actual: list[float], predicted: list[float]) -> float:
+    pairs = [(a, p) for a, p in zip(actual, predicted) if a != 0]
+    if not pairs:
+        return float("inf")
+    return sum(abs((a - p) / a) for a, p in pairs) / len(pairs) * 100
+
+
+def _moving_average_forecast(values: list[float], periods: int, window: int = 3) -> list[float]:
+    history = list(values)
+    output = []
+    window = max(1, min(window, len(history)))
+    for _ in range(periods):
+        value = statistics.fmean(history[-window:])
+        output.append(value)
+        history.append(value)
+    return output
+
+
+def _exponential_smoothing_forecast(values: list[float], periods: int, alpha: float = 0.35) -> list[float]:
+    level = values[0]
+    for value in values[1:]:
+        level = alpha * value + (1 - alpha) * level
+    return [level] * periods
+
+
+def _seasonal_naive_forecast(values: list[float], periods: int, season_length: int) -> list[float]:
+    if len(values) < season_length:
+        return _moving_average_forecast(values, periods, min(3, len(values)))
+    return [values[-season_length + (i % season_length)] for i in range(periods)]
+
+
+def _forecast_method(values: list[float], method: str, periods: int, season_length: int = 0) -> list[float]:
+    if method == "linear":
+        return [x["value"] for x in linear_forecast(values, periods).get("forecast", [])]
+    if method == "moving_average":
+        return _moving_average_forecast(values, periods, min(3, len(values)))
+    if method == "exponential_smoothing":
+        return _exponential_smoothing_forecast(values, periods)
+    if method == "seasonal_naive":
+        return _seasonal_naive_forecast(values, periods, season_length)
+    return [statistics.fmean(values)] * periods
+
+
+def select_forecast_method(values: list[Any], season_length: int | None = None) -> dict[str, Any]:
+    nums = [n for n in (_num(v) for v in values) if n is not None]
+    if len(nums) < 6:
+        return {"method": "linear", "status": "insufficient_history_for_backtest", "candidates": []}
+    candidates = ["linear", "moving_average", "exponential_smoothing"]
+    if season_length and 2 * season_length <= len(nums):
+        candidates.append("seasonal_naive")
+    holdout = max(2, min(6, len(nums) // 4))
+    train, test = nums[:-holdout], nums[-holdout:]
+    scores = []
+    for method in candidates:
+        pred = _forecast_method(train, method, len(test), season_length or 0)
+        scores.append({"method": method, "mape_pct": round(_mape(test, pred), 4)})
+    best = min(scores, key=lambda x: x["mape_pct"])
+    return {"method": best["method"], "status": "backtest_selected", "holdout": holdout, "candidates": scores}
+
+
+def forecast_time_series(
+    rows: list[dict[str, Any]],
+    date_column: str,
+    value_column: str,
+    forecast_periods: int = 3,
+    season_length: int | None = None,
+) -> dict[str, Any]:
+    """Forecast using chronological data and select a method by holdout error."""
+    points = []
+    for row in rows:
+        raw_date = row.get(date_column)
+        value = _num(row.get(value_column))
+        if value is None or _is_missing(raw_date):
+            continue
+        text = str(raw_date).strip()
+        parsed = None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%Y/%m/%d", "%b %Y", "%B %Y"):
+            try:
+                parsed = datetime.strptime(text, fmt)
+                break
+            except ValueError:
+                continue
+        if parsed is not None:
+            points.append((parsed, value))
+    points.sort(key=lambda item: item[0])
+    values = [v for _, v in points]
+    selection = select_forecast_method(values, season_length)
+    method = selection["method"]
+    periods = max(1, min(int(forecast_periods), 24))
+    if len(values) < 3:
+        return {
+            "date_column": date_column, "value_column": value_column,
+            "observations": len(values), "status": "insufficient_history",
+            "model_selection": selection, "forecast": [],
+        }
+    predicted = _forecast_method(values, method, periods, season_length or 0)
+    baseline = _moving_average_forecast(values, periods, min(3, len(values)))
+    residuals = []
+    if method == "linear":
+        trend = linear_forecast(values, periods)
+        residuals = [v - (trend["intercept"] + trend["slope"] * i) for i, v in enumerate(values)]
+    else:
+        fitted = _forecast_method(values[:-1], method, 1, season_length or 0)
+        residuals = [values[-1] - fitted[0]] if fitted else []
+    residual_sd = statistics.stdev(residuals) if len(residuals) > 1 else 0.0
+    interval = 1.96 * residual_sd
+    return {
+        "date_column": date_column,
+        "value_column": value_column,
+        "observations": len(values),
+        "start": points[0][0].isoformat() if points else None,
+        "end": points[-1][0].isoformat() if points else None,
+        "status": "ok",
+        "model_selection": selection,
+        "selected_method": method,
+        "forecast": [
+            {
+                "period_index": len(values) + i + 1,
+                "value": predicted[i],
+                "lower_95": predicted[i] - interval,
+                "upper_95": predicted[i] + interval,
+            }
+            for i in range(periods)
+        ],
+        "baseline": baseline,
+        "limitations": [
+            "Forecast is predictive, not causal.",
+            "Holdout selection does not guarantee future performance.",
+            "Intervals are residual-based approximations, not guaranteed prediction intervals.",
+        ],
+    }
