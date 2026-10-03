@@ -76,8 +76,28 @@ AGENT_PLAYBOOKS: dict[str, dict[str, Any]] = {
     },
     "coding": {
         "role": "software_engineering",
-        "sequence": ["inspect", "define_acceptance", "map_dependencies", "design", "implement", "test", "security_review", "review_diff", "ship"],
-        "quality_gates": ["requirements", "correctness", "regression_safety", "negative_paths", "security", "dependency_integrity", "maintainability", "deployment_readiness", "claim_integrity"]
+        "sequence": [
+            "inspect", "define_acceptance", "map_dependencies", "design",
+            "implement", "targeted_test", "regression_test",
+            "security_review", "review_diff", "verify_artifacts", "report"
+        ],
+        "quality_gates": [
+            "requirements", "correctness", "regression_safety", "negative_paths",
+            "security", "dependency_integrity", "maintainability",
+            "deployment_readiness", "claim_integrity"
+        ],
+        "verification_policy": {
+            "levels": ["static", "targeted_test", "regression_suite", "integration", "deployment"],
+            "completion_rule": "Every material acceptance criterion is verified or explicitly reported as blocked or unverified.",
+            "claim_states": ["not_checked", "checked", "passed", "failed", "blocked", "not_applicable"]
+        },
+        "change_policy": {
+            "preferred_change": "smallest_coherent_change",
+            "preserve_compatible_behavior": true,
+            "generated_artifacts": "prefer_source_or_regeneration",
+            "secrets": "never_commit_or_expose",
+            "high_impact_actions": "require_appropriate_confirmation_or_rollback"
+        }
     },
     "research": {
         "role": "evidence_engineering",
