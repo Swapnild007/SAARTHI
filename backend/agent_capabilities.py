@@ -101,8 +101,8 @@ AGENT_PLAYBOOKS: dict[str, dict[str, Any]] = {
     },
     "plan": {
         "role": "execution_and_operations_planning",
-        "sequence": ["define", "decompose", "prioritize", "sequence", "resource", "validate", "execute", "review"],
-        "quality_gates": ["dependencies", "constraints", "owners", "milestones", "contingencies"]
+        "sequence": ["define", "decompose", "prioritize", "sequence", "resource", "risk", "milestone", "validate", "execute", "track", "review", "replan"],
+        "quality_gates": ["objective", "dependencies", "constraints", "owners", "critical_path", "milestones", "contingencies", "acceptance", "change_control", "commitment_integrity"]
     },
 }
 
