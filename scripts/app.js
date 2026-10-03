@@ -110,13 +110,13 @@ const SaarthiApp = (() => {
   const currentConversation=()=>loadConversation(currentAssistant);
 
   const MENUS = Object.freeze({
-    assistants:{label:'Intelligence',capabilities:['saarthi','coding','research','create','data_analyst','analyze','plan']},
-    control:{label:'Control',capabilities:['ai','usage','memory','voice','tools','connections','security','notifications','appearance','privacy']}
+    assistants:{label:'Ways I can help',capabilities:['saarthi','coding','research','create','data_analyst','analyze','plan']},
+    control:{label:'Saarthi settings',capabilities:['ai','usage','memory','voice','tools','connections','security','notifications','appearance','privacy']}
   });
   const ASSISTANTS = Object.freeze([
     {
-      id:'saarthi',icon:'✦',name:'Saarthi',description:'General personal intelligence',
-      environment:'Saarthi environment',headline:'Think clearly.<br><em>Move deliberately.</em>',
+      id:'saarthi',icon:'✦',name:'Saarthi',description:'Your all-round companion',
+      environment:'Saarthi',headline:'Think clearly.<br><em>Move deliberately.</em>',
       descriptionText:'Bring a problem, plan, question, or decision. Saarthi keeps the context together and helps you work it through.',
       placeholder:'Give Saarthi a direction…',
       quick:[
@@ -127,8 +127,8 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'coding',icon:'⌘',name:'AI Coding',description:'Build, debug, explain and refactor code',
-      environment:'Coding environment',headline:'Build precisely.<br><em>Ship with confidence.</em>',
+      id:'coding',icon:'⌘',name:'AI Coding',description:'Build, fix, explain and improve code',
+      environment:'Build',headline:'Build precisely.<br><em>Ship with confidence.</em>',
       descriptionText:'Write, debug, review and improve software. Bring code, an error, or an idea and turn it into a runnable solution.',
       placeholder:'Describe what you want to build…',
       quick:[
@@ -139,8 +139,8 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'research',icon:'◎',name:'Research',description:'Research, compare and synthesize',
-      environment:'Research environment',headline:'Go deeper.<br><em>Know what matters.</em>',
+      id:'research',icon:'◎',name:'Research',description:'Find, compare and make sense of evidence',
+      environment:'Research',headline:'Go deeper.<br><em>Know what matters.</em>',
       descriptionText:'Structure a question, compare evidence, expose uncertainty and turn information into a clear synthesis.',
       placeholder:'What should I investigate…',
       quick:[
@@ -151,8 +151,8 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'create',icon:'◇',name:'Create',description:'Writing, ideas and creative generation',
-      environment:'Create environment',headline:'Make it distinct.<br><em>Give ideas a shape.</em>',
+      id:'create',icon:'◇',name:'Create',description:'Write, shape and refine ideas',
+      environment:'Create',headline:'Make it distinct.<br><em>Give ideas a shape.</em>',
       descriptionText:'Turn rough ideas into polished writing, concepts, prompts, structures and creative directions.',
       placeholder:'What should we create…',
       quick:[
@@ -163,8 +163,8 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'data_analyst',icon:'▥',name:'Data Analyst',description:'Datasets, statistics and visualizations',
-      environment:'Data Analyst environment',headline:'Find the signal.<br><em>Show the evidence.</em>',
+      id:'data_analyst',icon:'▥',name:'Numbers',description:'Work with numbers, patterns and charts',
+      environment:'Numbers',headline:'Find the signal.<br><em>Show the evidence.</em>',
       descriptionText:'Work with spreadsheets and datasets, calculate what matters, surface patterns and create charts or diagrams when they improve the answer.',
       placeholder:'Upload data or ask a data question…',
       quick:[
@@ -175,8 +175,8 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'analyze',icon:'◈',name:'Analyze',description:'Documents and visual interpretation',
-      environment:'Analysis environment',headline:'See the signal.<br><em>Separate fact from noise.</em>',
+      id:'analyze',icon:'◈',name:'Understand',description:'Find patterns, risks and meaning',
+      environment:'Understand',headline:'See the signal.<br><em>Separate fact from noise.</em>',
       descriptionText:'Break complex material into evidence, patterns, assumptions, risks and useful conclusions.',
       placeholder:'What should I analyze…',
       quick:[
@@ -187,8 +187,8 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'plan',icon:'◷',name:'Plan',description:'Planning, decisions and automation',
-      environment:'Planning environment',headline:'Turn intent into action.<br><em>Know the next move.</em>',
+      id:'plan',icon:'◷',name:'Plan',description:'Turn intentions into practical steps',
+      environment:'Plan',headline:'Turn intent into action.<br><em>Know the next move.</em>',
       descriptionText:'Convert goals into practical steps, dependencies, checkpoints and decisions without losing the bigger picture.',
       placeholder:'What are we trying to accomplish…',
       quick:[
@@ -200,14 +200,14 @@ const SaarthiApp = (() => {
     }
   ]);
   const CONTROLS = Object.freeze([
-    {id:'ai',icon:'✦',name:'AI & Models',description:'Choose the intelligence behind Saarthi'},
-    {id:'usage',icon:'◉',name:'AI Usage',description:'Tokens, requests and estimated cost'},
+    {id:'ai',icon:'✦',name:'How I think',description:'Choose how Saarthi works for you'},
+    {id:'usage',icon:'◉',name:'Your activity',description:'See requests and usage'},
     {id:'memory',icon:'◌',name:'Memory',description:'Manage what Saarthi remembers'},
     {id:'voice',icon:'⌁',name:'Voice',description:'Voice input and speech settings'},
-    {id:'tools',icon:'⚙',name:'Tools',description:'Capabilities available to assistants'},
-    {id:'connections',icon:'↗',name:'Connections',description:'Connected services and APIs'},
+    {id:'tools',icon:'⚙',name:'Things I can use',description:'Services and capabilities available to Saarthi'},
+    {id:'connections',icon:'↗',name:'Connected services',description:'Services you have connected'},
     {id:'security',icon:'◈',name:'Security',description:'Sessions, permissions and API safety'},
-    {id:'notifications',icon:'•',name:'Notifications',description:'Reminders and proactive alerts'},
+    {id:'notifications',icon:'•',name:'Reminders',description:'Reminders and useful alerts'},
     {id:'appearance',icon:'○',name:'Appearance',description:'Visual and interaction preferences'},
     {id:'privacy',icon:'◇',name:'Privacy',description:'Data and privacy controls'}
   ]);
