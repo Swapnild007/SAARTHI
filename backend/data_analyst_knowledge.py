@@ -50,6 +50,11 @@ DATA_ANALYST_KNOWLEDGE = {
             "confidence intervals carry method limitations",
             "forecast backtesting is used when enough history exists",
         ],
+        "provenance": [
+            "source field is traceable to calculation, finding and visualization",
+            "derived values identify their formula or method",
+            "bounded analysis states coverage limits",
+        ],
         "visuals": [
             "visual has a defined analytical purpose",
             "axes and units are explicit",
