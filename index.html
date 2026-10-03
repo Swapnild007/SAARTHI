@@ -4,9 +4,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
 <style id="saarthi-base"></style><style id="saarthi-opening">
-.sudarshan-splash{position:fixed;inset:0;width:100vw;height:100dvh;z-index:9999;overflow:hidden;background:#020a12;transition:opacity .9s ease,visibility .9s ease}
+.sudarshan-splash{position:fixed;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;z-index:2147483647;overflow:hidden;background:#020a12;transition:opacity .9s ease,visibility .9s ease}
 .sudarshan-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
-.splash-video{position:absolute;inset:0;width:100%;height:100%;width:100vw;height:100dvh;object-fit:cover;object-position:center center;background:#eef5f4}
+.splash-video{position:absolute;inset:0;width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;object-position:center center;background:#eef5f4}
 .splash-video-fallback{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,#10384b 0,#071b29 42%,#02080f 100%);display:grid;place-items:center}
 .splash-fallback-brand{font-family:"Cormorant Garamond",Georgia,serif;color:#f1cf75;font-size:clamp(42px,11vw,74px);letter-spacing:.16em;text-align:center}
 .splash-fallback-brand small{display:block;font-family:"Noto Sans Devanagari",sans-serif;font-size:18px;letter-spacing:.14em;margin-top:12px;color:#d8b35b}
@@ -22,8 +22,8 @@
 .splash-brand-overlay span{display:block;font-family:"Noto Sans Devanagari",sans-serif;font-size:clamp(13px,3.6vw,20px);letter-spacing:.14em;margin-top:9px}
 .splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;margin-top:9px}
 @media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:38vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
-@media(prefers-reduced-motion:reduce){.splash-video{animation:none}}
-</style><link rel="stylesheet" href="./styles/main.css?v=20261002-13"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
+@media(prefers-reduced-motion:reduce){.splash-video{animation:none}} body.splash-active{overflow:hidden!important}
+</style><link rel="stylesheet" href="./styles/main.css?v=20261003-01"></head><body><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4?v=20261001-2" type="video/mp4">
 </video>
@@ -145,5 +145,5 @@
 <div class="menu-picker" id="menuPicker" hidden aria-label="Saarthi menu"></div>
 <div class="assistant-picker" id="assistantPicker" hidden aria-label="Saarthi assistants"></div>
 <div class="control-picker" id="controlPicker" hidden aria-label="Saarthi controls"></div>
-</main></div><script src="./scripts/app.js?v=20261002-11" defer></script><script src="./scripts/boot.js?v=20261002-06" defer></script>
+</main></div><script src="./scripts/app.js?v=20261003-01" defer></script><script src="./scripts/boot.js?v=20261003-01" defer></script>
 </body></html>
