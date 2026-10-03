@@ -127,7 +127,7 @@ const SaarthiApp = (() => {
       ]
     },
     {
-      id:'coding',icon:'⌘',name:'AI Coding',description:'Build, fix, explain and improve code',
+      id:'coding',icon:'⌘',name:'Build',description:'Build, fix, explain and improve code',
       environment:'Build',headline:'Build precisely.<br><em>Ship with confidence.</em>',
       descriptionText:'Write, debug, review and improve software. Bring code, an error, or an idea and turn it into a runnable solution.',
       placeholder:'Describe what you want to build…',
