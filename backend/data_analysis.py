@@ -690,11 +690,13 @@ def validate_dataset(columns: list[str], rows: list[dict[str, Any]]) -> dict[str
             numeric_ok = sum(_num(v) is not None for v in non_missing)
             numeric_ratio = numeric_ok / len(non_missing)
             if 0 < numeric_ratio < 1:
-                issues.append({
+                mixed = {
                     "type": "mixed_type", "column": column,
                     "numeric_ratio": round(numeric_ratio, 3),
                     "severity": "error",
-                })
+                }
+                issues.append(mixed)
+                warnings.append(dict(mixed))
             unique = len({str(v) for v in non_missing})
             if unique == 1:
                 warnings.append({"type": "constant_column", "column": column})
