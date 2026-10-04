@@ -1794,3 +1794,59 @@ body.home-active .assistant-response[hidden]{display:none!important}
   .capability-rail::-webkit-scrollbar{display:none}
   .capability-rail button{flex:0 0 auto;padding:9px 13px}
 }
+
+
+/* FINAL CANONICAL HOME LAYOUT
+   One authoritative mobile/desktop home surface.
+   This intentionally overrides the accumulated legacy layout layers above. */
+#homeWorkspace{
+  display:block!important;
+  position:relative!important;
+  width:100%!important;
+  max-width:1180px!important;
+  min-height:390px!important;
+  margin:0 auto!important;
+  padding:0!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+#homeWorkspace>div{
+  display:block!important;
+  position:relative!important;
+  width:100%!important;
+  min-height:390px!important;
+  margin:0!important;
+}
+body.home-active #homeWorkspace,
+body.home-active #homeWorkspace>div{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+body.home-active #homeWorkspace .core-panel{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:relative!important;
+  width:100%!important;
+  min-height:390px!important;
+}
+body.chat-active:not(.home-active) #homeWorkspace{
+  display:none!important;
+}
+@media(max-width:900px){
+  #homeWorkspace,
+  #homeWorkspace>div{
+    min-height:365px!important;
+    width:100%!important;
+  }
+  body.home-active #homeWorkspace .core-panel{
+    min-height:365px!important;
+    border-radius:24px!important;
+  }
+  body.home-active #homeWorkspace .core-copy{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+}
