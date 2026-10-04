@@ -243,7 +243,8 @@ const SaarthiApp = (() => {
           .map(value=>String(value||'').replace(/\/$/,''))
           .filter(Boolean);
         const sameOrigin=String(window.location.origin||'').replace(/\/$/,'');
-        API_BASES=[...new Set([sameOrigin,...configured].filter(Boolean))];
+        const sameOriginConfigured=configured.includes(sameOrigin);
+        API_BASES=[...new Set([...configured,...(sameOriginConfigured?[sameOrigin]:[])].filter(Boolean))];
         API_BASE=API_BASES[0]||'';
       }
     }catch{}
@@ -1015,11 +1016,19 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     let lastError=null;
     for(const base of API_BASES){
       try{
-        const response=await fetch(apiUrl('/api/command',base),{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({message:value,mode,assistant:currentAssistant,context})
-        });
+        const controller=new AbortController();
+        const timeout=window.setTimeout(()=>controller.abort(),30000);
+        let response;
+        try{
+          response=await fetch(apiUrl('/api/command',base),{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({message:value,mode,assistant:currentAssistant,context}),
+            signal:controller.signal
+          });
+        }finally{
+          window.clearTimeout(timeout);
+        }
         if(response.ok){
           API_BASE=base;
           return response.json();
