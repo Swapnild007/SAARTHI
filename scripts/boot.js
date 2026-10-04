@@ -85,18 +85,22 @@
     try {
       for(const base of bases){
         try {
-          const r=await fetch(base+'/api/command',{
+          const payload=JSON.stringify({
+            message:value,
+            mode,
+            assistant:'saarthi',
+            context:{
+              client_time:new Date().toISOString(),
+              timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'
+            }
+          });
+          const target=new URL('/api/command',base);
+          const crossOrigin=target.origin!==window.location.origin;
+          const endpoint=crossOrigin?'/api/command/plain':'/api/command';
+          const r=await fetch(base+endpoint,{
             method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-              message:value,
-              mode,
-              assistant:'saarthi',
-              context:{
-                client_time:new Date().toISOString(),
-                timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'
-              }
-            })
+            headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
+            body:payload
           });
           if(!r.ok){lastError=new Error('API '+r.status);continue;}
           const data=await r.json();
