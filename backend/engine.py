@@ -567,7 +567,7 @@ class OpenAICompatibleProvider(LLMProvider):
             },
             method="POST",
         )
-        with urlopen(request, timeout=45) as response:
+        with urlopen(request, timeout=18) as response:
             body = json.loads(response.read().decode("utf-8"))
         usage = body.get("usage") if isinstance(body, dict) else None
         reply = str(body["choices"][0]["message"]["content"]).strip()
@@ -697,7 +697,12 @@ class OpenAICompatibleProvider(LLMProvider):
             except Exception as exc:
                 failures.append({"route": route.get("name", route.get("model", "unknown")), "error": str(exc)[:240]})
         self.last_failures = failures
-        raise RuntimeError("all configured AI gateway routes failed")
+        detail = "; ".join(
+            f"{item.get('route', 'unknown')}: {item.get('error', 'failed')}"
+            for item in failures[-3:]
+        )
+        suffix = f": {detail}" if detail else ""
+        raise RuntimeError(f"all configured AI gateway routes failed{suffix}")
 
 
 def classify(message: str, requested_mode: str = "chat") -> Intent:
