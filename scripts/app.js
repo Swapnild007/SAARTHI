@@ -11,6 +11,9 @@ const SaarthiApp = (() => {
   const intelligenceFlowState = $('#intelligenceFlowState');
   const intelligenceContext = $('#intelligenceContext');
   const responseCard = $('#assistantResponse'), responseBody = $('#assistantResponseBody'), responseMeta = $('#assistantResponseMeta');
+  // Safe visual default: a fresh load is always the home surface. Conversation mode must be explicitly activated.
+  document.body.classList.add('home-active');
+  document.body.classList.remove('chat-active');
   const runs = [];
   const usageTotals = {
     requests: 0,
