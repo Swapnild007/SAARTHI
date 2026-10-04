@@ -230,8 +230,9 @@ const SaarthiApp = (() => {
     '/workflow':'workflow','/workflows':'workflows','/briefing':'briefing','/system':'system',
     '/settings':'settings','/voice':'voice'
   });
-  let API_BASE='';
-  let API_BASES=[];
+  const CANONICAL_API_BASE='https://saarthi-nine-chi.vercel.app';
+  let API_BASE=CANONICAL_API_BASE;
+  let API_BASES=[CANONICAL_API_BASE];
   const loadRuntimeConfig=async()=>{
     try{
       const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
@@ -245,16 +246,17 @@ const SaarthiApp = (() => {
           .filter(Boolean);
         const sameOrigin=String(window.location.origin||'').replace(/\/$/,'');
         const sameOriginConfigured=configured.includes(sameOrigin);
-        API_BASES=[...new Set([...configured,...(sameOriginConfigured?[sameOrigin]:[])].filter(Boolean))];
-        API_BASE=API_BASES[0]||'';
+        const approved=[CANONICAL_API_BASE,...configured.filter(value=>value===CANONICAL_API_BASE)];
+        API_BASES=[...new Set(approved.filter(Boolean))];
+        API_BASE=CANONICAL_API_BASE;
       }
     }catch{}
   };
   const ensureApiBase=async()=>{
     if(!API_BASES.length)await loadRuntimeConfig();
     if(!API_BASES.length){
-      API_BASE=window.location.origin;
-      API_BASES=[API_BASE];
+      API_BASE=CANONICAL_API_BASE;
+      API_BASES=[CANONICAL_API_BASE];
     }
     return API_BASE;
   };
