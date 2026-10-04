@@ -1020,7 +1020,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     for(const base of API_BASES){
       try{
         const controller=new AbortController();
-        const timeout=window.setTimeout(()=>controller.abort(),60000);
+        const timeout=window.setTimeout(()=>controller.abort(),25000);
         let response;
         try{
           const payload=JSON.stringify({message:value,mode,assistant:currentAssistant,context});
