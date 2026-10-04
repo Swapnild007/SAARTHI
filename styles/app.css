@@ -50,7 +50,9 @@ button:disabled{cursor:not-allowed;opacity:.6}
 .brand{display:flex;justify-content:center;margin:4px 0 22px}
 .brandmark{width:112px;height:44px;overflow:visible;display:flex;align-items:center;justify-content:flex-start}
 .saarthi-logo-image{display:block;width:auto!important;height:100%!important;max-width:100%;object-fit:contain;object-position:left center}
-.brandmark .saarthi-logo-image{height:44px!important;width:auto!important;max-width:112px}
+.brandmark .saarthi-logo-image{height:36px!important;width:auto!important;max-width:100px}
+.saarthi-wordmark{overflow:hidden!important}
+.saarthi-wordmark .saarthi-logo-image{height:34px!important;width:auto!important;max-width:96px;object-fit:cover;object-position:left top}
 .sidebar-new-chat,.nav button,.mobile-control-trigger,.menu-trigger,.history-trigger{border:1px solid var(--line);background:rgba(255,255,255,.62);color:#42535a}
 .sidebar-new-chat{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;min-height:42px;border-radius:13px;font-size:12px;font-weight:650;box-shadow:0 4px 16px rgba(30,50,60,.04)}
 .sidebar-new-chat .ico{font-size:18px;color:var(--blue)}
@@ -97,9 +99,12 @@ button:disabled{cursor:not-allowed;opacity:.6}
 body.home-active #homeSurface{display:block!important}
 /* Conversation keeps the workspace shell alive; only the home card yields to the response. */
 body.chat-active:not(.home-active) #homeSurface{display:block!important}
-body.chat-active:not(.home-active) #homeSurface .core-panel{display:none!important}
+/* Never allow a pending request to blank the application. The home card yields only
+   after an actual assistant response exists. */
+body.chat-active:not(.home-active) #homeSurface .core-panel{display:block!important}
 body.chat-active:not(.home-active) #homeSurface .assistant-response{display:block!important}
 body.chat-active:not(.home-active) #homeSurface .conversation-composer{display:flex!important}
+#homeSurface:has(.assistant-response:not([hidden])) .core-panel{display:none!important}
 
 /* Main conversational card */
 .core-panel{
