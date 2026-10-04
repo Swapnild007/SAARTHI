@@ -6,9 +6,9 @@ def test_coding_has_level5_engineering_contract():
     knowledge = AGENT_KNOWLEDGE["coding"]
     required = {
         "repository_inspection", "define_acceptance_criteria",
-        "map_dependencies_and_risk", "implement", "run_targeted_tests",
-        "run_regression_suite", "security_review", "review_diff",
-        "verify_artifacts_and_deployment_claims"
+        "map_dependencies_and_risk", "design_smallest_change", "implement",
+        "run_targeted_tests", "run_regression_suite", "security_review",
+        "review_diff", "verify_artifacts_and_deployment_claims", "report_result"
     }
     assert required.issubset(set(knowledge["workflow"]))
     assert len(knowledge["non_negotiables"]) >= 9
