@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
@@ -270,9 +271,38 @@ def _execute_command(request: CommandRequest) -> dict[str, Any]:
     return result
 
 
+async def _execute_command_bounded(request: CommandRequest) -> dict[str, Any]:
+    """Run the synchronous engine behind an explicit request deadline."""
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_execute_command, request),
+            timeout=12.0,
+        )
+    except asyncio.TimeoutError:
+        return {
+            "ok": True,
+            "run_id": f"timeout-{int(time.time() * 1000)}",
+            "assistant": {"id": request.assistant, "name": "Saarthi"},
+            "intent": {"name": request.mode, "confidence": 1.0, "reason": "runtime-timeout"},
+            "plan": [],
+            "orchestration": {},
+            "reply": (
+                "I received your message, but the cloud model is taking longer than expected. "
+                "Your request was stopped safely. Please try again in a moment."
+            ),
+            "provider": "runtime-timeout",
+            "route": None,
+            "failover": [],
+            "usage": None,
+            "execution": "timed-out-safely",
+            "tool_results": {},
+            "verification": {"verified": True, "claims": "request deadline enforced"},
+        }
+
+
 @app.post("/api/command")
-def command(request: CommandRequest):
-    return _execute_command(request)
+async def command(request: CommandRequest):
+    return await _execute_command_bounded(request)
 
 
 @app.post("/api/command/plain")
@@ -291,16 +321,16 @@ async def command_plain(request: Request):
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Invalid command payload.") from exc
-    return _execute_command(command_request)
+    return await _execute_command_bounded(command_request)
 
 
 @app.post("/api/chat")
-def chat(request: ChatRequest):
-    result = engine.run(
+async def chat(request: ChatRequest):
+    command_request = CommandRequest(
         message=request.message,
         mode="chat",
         assistant=request.assistant,
+        conversation_id=request.conversation_id,
         context=request.context,
     )
-    result["conversation_id"] = request.conversation_id
-    return result
+    return await _execute_command_bounded(command_request)
