@@ -16,6 +16,7 @@
   const weatherSymbol = document.getElementById('weatherSymbol');
   const input = document.getElementById('saarthiCommand');
   const send = document.getElementById('sendCommand');
+  const CANONICAL_API_BASE = 'https://saarthi-nine-chi.vercel.app';
 
   const tick = () => {
     const now = new Date();
@@ -78,7 +79,7 @@
       cfg.api_base_url,
       ...(Array.isArray(cfg.fallback_api_base_urls)?cfg.fallback_api_base_urls:[])
     ].map(value=>String(value||'').replace(/\/$/,'')).filter(Boolean);
-    const bases=[...new Set(configured)];
+    const bases=[...new Set([CANONICAL_API_BASE,...configured.filter(value=>value===CANONICAL_API_BASE)])];
     const mode=(value.match(/^\/([a-z]+)/i)||[])[1]||'chat';
     send.disabled=true;
     let lastError=null;
