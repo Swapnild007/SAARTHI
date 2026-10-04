@@ -1091,20 +1091,33 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     return result;
   };
 
+  let submitWatchdog=null;
+  const resetComposerState=(button)=>{
+    if(submitWatchdog){window.clearTimeout(submitWatchdog);submitWatchdog=null;}
+    if(command)command.disabled=false;
+    if(button){button.disabled=false;button.removeAttribute('aria-busy');button.textContent='➤';}
+    sendInFlight=false;
+  };
+
   const submit=async()=>{
     const value=command?.value.trim();
     if(!value||sendInFlight)return;
     sendInFlight=true;
     const sendButton=$('#sendCommand');
-    if(sendButton){
-      sendButton.disabled=true;
-      sendButton.setAttribute('aria-busy','true');
-      sendButton.textContent='…';
-    }
-    const mode=parseCommand(value);
-    addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
-    appendConversation('user',value);
+    if(sendButton){sendButton.disabled=true;sendButton.setAttribute('aria-busy','true');sendButton.textContent='…';}
+    submitWatchdog=window.setTimeout(()=>{
+      if(!sendInFlight)return;
+      resetComposerState(sendButton);
+      setStatus('Connection issue');
+      setCoreState('offline','The request exceeded the client safety deadline.');
+      updateIntelligenceFlow('idle');
+      showResponse('### Connection issue\n\nSAARTHI stopped waiting for this request so the composer remains usable. Your message can be sent again.',{intent:{name:'runtime'},provider:'timeout'});
+    },14000);
+
     try{
+      const mode=parseCommand(value);
+      addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
+      appendConversation('user',value);
       const result=await Promise.race([
         runCommand(value,mode),
         new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('SAARTHI request deadline reached')),15000))
@@ -1119,16 +1132,12 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       addActivity('Run failed',detail);
       showResponse(isHealthFailure
         ? '### Cloud runtime unavailable\n\nSAARTHI could not reach the cloud runtime. The message was not lost. Please try again when the connection is available.'
-        : '### Connection issue\n\nSAARTHI could not complete this request. Please try again.',{intent:{name:'runtime'},provider:'unavailable'});
+        : '### Connection issue\n\nSAARTHI could not complete this request. Please try again.',
+        {intent:{name:'runtime'},provider:'unavailable'});
     }finally{
       window.SaarthiApp.voiceTurn=false;
       if(command)command.value='';
-      if(sendButton){
-        sendButton.disabled=false;
-        sendButton.removeAttribute('aria-busy');
-        sendButton.textContent='➤';
-      }
-      sendInFlight=false;
+      resetComposerState(sendButton);
       setTimeout(()=>setStatus('Saarthi is present'),1200);
     }
   };
@@ -1187,11 +1196,6 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
   const composerForm=$('#conversationComposer');
   composerForm?.addEventListener('submit',event=>{
-    event.preventDefault();
-    event.stopPropagation();
-    submit();
-  });
-  $('#sendCommand')?.addEventListener('click',event=>{
     event.preventDefault();
     event.stopPropagation();
     submit();
