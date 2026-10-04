@@ -1116,8 +1116,8 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
-  $('#sendCommand')?.addEventListener('click',submit);$('#voiceCommand')?.addEventListener('click',voice);
-  command?.addEventListener('keydown',event=>{if(event.key==='Enter')submit();});
+  $('#conversationComposer')?.addEventListener('submit',event=>{event.preventDefault();submit();});
+  $('#voiceCommand')?.addEventListener('click',event=>{event.preventDefault();voice();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
   window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,clearConversation:assistant=>{const id=assistant||currentAssistant;const list=ensureAssistantHistory(id);attachmentsByAssistant[id]=[];const tid=currentThreads[id];const index=list.findIndex(t=>t.id===tid);if(index>=0)list.splice(index,1);currentThreads[id]=null;conversations[id]=[];saveHistory();if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();renderHistory();}},startNewConversation,voiceTurn:false};
