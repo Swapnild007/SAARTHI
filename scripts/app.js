@@ -1020,10 +1020,14 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
         const timeout=window.setTimeout(()=>controller.abort(),30000);
         let response;
         try{
-          response=await fetch(apiUrl('/api/command',base),{
+          const payload=JSON.stringify({message:value,mode,assistant:currentAssistant,context});
+        const target=new URL('/api/command',base);
+        const crossOrigin=target.origin!==window.location.origin;
+        const endpoint=crossOrigin?'/api/command/plain':'/api/command';
+        response=await fetch(apiUrl(endpoint,base),{
             method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({message:value,mode,assistant:currentAssistant,context}),
+            headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
+            body:payload,
             signal:controller.signal
           });
         }finally{
