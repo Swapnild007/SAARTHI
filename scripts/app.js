@@ -1102,10 +1102,14 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);
     }catch(error){
       updateIntelligenceFlow('idle');
-      setStatus('Connection issue');
-      setCoreState('offline','Cloud runtime is unavailable.');
-      addActivity('Run failed',error?.message||'Cloud runtime unavailable.');
-      showResponse('### Connection issue\n\nSAARTHI could not reach the cloud runtime. Check the backend connection and try again.',{intent:{name:'runtime'},provider:'unavailable'});
+      const detail=String(error?.message||'Cloud runtime unavailable.');
+      const isHealthFailure=/Runtime health|Failed to fetch|NetworkError|aborted|AbortError/i.test(detail);
+      setStatus(isHealthFailure?'Cloud unavailable':'Connection issue');
+      setCoreState('offline',isHealthFailure?'Cloud runtime is unreachable.':'Cloud runtime request failed.');
+      addActivity('Run failed',detail);
+      showResponse(isHealthFailure
+        ? '### Cloud runtime unavailable\n\nSAARTHI could not reach the cloud runtime. The message was not lost. Please try again when the connection is available.'
+        : '### Connection issue\n\nSAARTHI could not complete this request. Please try again.',{intent:{name:'runtime'},provider:'unavailable'});
     }finally{
       window.SaarthiApp.voiceTurn=false;
       if(command)command.value='';
