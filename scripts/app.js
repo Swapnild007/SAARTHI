@@ -1103,25 +1103,44 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const value=command?.value.trim();
     if(!value||sendInFlight)return;
     sendInFlight=true;
+    let completed=false;
     const sendButton=$('#sendCommand');
-    if(sendButton){sendButton.disabled=true;sendButton.setAttribute('aria-busy','true');sendButton.textContent='…';}
+
+    // Put the user's message into the durable conversation immediately.
+    // The UI must never depend on the AI response arriving before showing it.
+    const mode=parseCommand(value);
+    appendConversation('user',value);
+    if(command)command.value='';
+
+    if(sendButton){
+      sendButton.disabled=true;
+      sendButton.setAttribute('aria-busy','true');
+      sendButton.textContent='…';
+    }
+
     submitWatchdog=window.setTimeout(()=>{
       if(!sendInFlight)return;
       resetComposerState(sendButton);
       setStatus('Connection issue');
       setCoreState('offline','The request exceeded the client safety deadline.');
       updateIntelligenceFlow('idle');
-      showResponse('### Connection issue\n\nSAARTHI stopped waiting for this request so the composer remains usable. Your message can be sent again.',{intent:{name:'runtime'},provider:'timeout'});
-    },14000);
+      // The user message is already persisted. Do not replace or remove it.
+      showResponse(
+        '### Connection issue\\n\\nSAARTHI could not complete this request within the safe response window. Your message is still in this conversation. You can send it again.',
+        {intent:{name:'runtime'},provider:'timeout'}
+      );
+    },16000);
 
     try{
-      const mode=parseCommand(value);
-      addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
-      appendConversation('user',value);
+      addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\\/\\w+\\s*/,''));
       const result=await Promise.race([
         runCommand(value,mode),
-        new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('SAARTHI request deadline reached')),15000))
+        new Promise((_,reject)=>window.setTimeout(
+          ()=>reject(new Error('SAARTHI request deadline reached')),
+          15000
+        ))
       ]);
+      completed=true;
       if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);
     }catch(error){
       updateIntelligenceFlow('idle');
@@ -1130,15 +1149,22 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       setStatus(isHealthFailure?'Cloud unavailable':'Connection issue');
       setCoreState('offline',isHealthFailure?'Cloud runtime is unreachable.':'Cloud runtime request failed.');
       addActivity('Run failed',detail);
-      showResponse(isHealthFailure
-        ? '### Cloud runtime unavailable\n\nSAARTHI could not reach the cloud runtime. The message was not lost. Please try again when the connection is available.'
-        : '### Connection issue\n\nSAARTHI could not complete this request. Please try again.',
-        {intent:{name:'runtime'},provider:'unavailable'});
+
+      // Never discard the user's message on failure. Keep the exact text in
+      // history and make the recovery state an assistant message.
+      showResponse(
+        isHealthFailure
+          ? '### Cloud runtime unavailable\\n\\nSAARTHI could not reach the cloud runtime. Your message is safely stored in this conversation. Please try sending it again.'
+          : '### Connection issue\\n\\nSAARTHI could not complete this request. Your message is safely stored in this conversation. Please try again.',
+        {intent:{name:'runtime'},provider:'unavailable'}
+      );
     }finally{
       window.SaarthiApp.voiceTurn=false;
-      if(command)command.value='';
+      // Do not clear the input here. It was cleared only after being
+      // durably appended above, so the composer is never responsible for
+      // conversation persistence.
       resetComposerState(sendButton);
-      setTimeout(()=>setStatus('Saarthi is present'),1200);
+      if(completed)setTimeout(()=>setStatus('Saarthi is present'),1200);
     }
   };
 
