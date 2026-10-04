@@ -261,6 +261,23 @@ const SaarthiApp = (() => {
     return API_BASE;
   };
   const apiUrl=(path,base=API_BASE)=>base+(path.startsWith('/')?path:'/'+path);
+  const checkRuntimeHealth=async(base)=>{
+    const controller=new AbortController();
+    const timeout=window.setTimeout(()=>controller.abort(),5000);
+    try{
+      const response=await fetch(apiUrl('/api/health',base),{
+        method:'GET',
+        cache:'no-store',
+        signal:controller.signal
+      });
+      if(!response.ok)throw new Error('Runtime health '+response.status);
+      const data=await response.json();
+      if(data?.ok!==true)throw new Error('Runtime health check failed');
+      return data;
+    }finally{
+      window.clearTimeout(timeout);
+    }
+  };
 
   const weatherDescription=code=>({
     0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',
@@ -1019,6 +1036,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     let lastError=null;
     for(const base of API_BASES){
       try{
+        await checkRuntimeHealth(base);
         const controller=new AbortController();
         const timeout=window.setTimeout(()=>controller.abort(),25000);
         let response;
