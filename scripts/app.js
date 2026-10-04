@@ -1085,6 +1085,19 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   applyAssistantEnvironment(ASSISTANTS[0]);
   renderConversation();
   renderHistory();
+  // Final startup guard: the home surface must be visible on a fresh session.
+  const enforceFreshHomeSurface=()=>{
+    const hasMessages=(conversations[currentAssistant]||[]).length>0;
+    if(!hasMessages){
+      document.body.classList.add('home-active');
+      document.body.classList.remove('chat-active');
+      if(responseCard) responseCard.hidden=true;
+    }
+  };
+  enforceFreshHomeSurface();
+  requestAnimationFrame(enforceFreshHomeSurface);
+  window.setTimeout(enforceFreshHomeSurface,250);
+
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();ensureAttachmentControls();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   document.querySelectorAll('[data-assistant-shortcut]').forEach(button=>button.addEventListener('click',()=>{
