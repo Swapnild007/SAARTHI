@@ -113,11 +113,12 @@
     } finally { send.disabled=false; }
   };
 
-  if (send) send.addEventListener('click', () => {
-    if (window.SaarthiApp?.submit) window.SaarthiApp.submit();
-    else fallbackSend();
+  const composer = document.getElementById('conversationComposer');
+  composer?.addEventListener('submit',e=>{
+    if(window.SaarthiApp?.submit) return;
+    e.preventDefault();
+    fallbackSend();
   });
-  input?.addEventListener('keydown',e=>{if(e.key==='Enter' && !window.SaarthiApp?.submit) fallbackSend();});
 })();
 
   // Splash lifecycle moved here so production CSP can keep script-src self.
