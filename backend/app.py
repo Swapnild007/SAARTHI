@@ -32,7 +32,6 @@ ALLOWED_ORIGINS = (
     [origin.strip() for origin in _allowed_origins_raw.split(",") if origin.strip()]
     if _allowed_origins_raw
     else [
-        "https://eeldalviz-1192.vercel.app",
         "https://saarthi-nine-chi.vercel.app",
         "https://swapnild007.github.io",
         "http://localhost:8000",
@@ -101,7 +100,7 @@ async def security_middleware(request: Request, call_next):
             "font-src 'self' https://fonts.gstatic.com data:; "
             "img-src 'self' data: blob:; "
             "media-src 'self' blob:; "
-            "connect-src 'self' https://eeldalviz-1192.vercel.app https://saarthi-nine-chi.vercel.app https://api.open-meteo.com https://api.bigdatacloud.net https://ipwho.is; "
+            "connect-src 'self' https://saarthi-nine-chi.vercel.app https://swapnild007.github.io https://api.open-meteo.com https://api.bigdatacloud.net https://ipwho.is; "
             "object-src 'none'; "
             "base-uri 'self'; "
             "frame-ancestors 'none'; "
@@ -260,8 +259,7 @@ def usage():
     return result
 
 
-@app.post("/api/command")
-def command(request: CommandRequest):
+def _execute_command(request: CommandRequest) -> dict[str, Any]:
     result = engine.run(
         message=request.message,
         mode=request.mode,
@@ -270,6 +268,30 @@ def command(request: CommandRequest):
     )
     result["conversation_id"] = request.conversation_id
     return result
+
+
+@app.post("/api/command")
+def command(request: CommandRequest):
+    return _execute_command(request)
+
+
+@app.post("/api/command/plain")
+async def command_plain(request: Request):
+    """Cross-origin fallback that accepts a text/plain JSON body.
+
+    This route exists for static hosts such as GitHub Pages. text/plain is a
+    CORS-safelisted content type, so browsers can send the POST without an
+    OPTIONS preflight. The payload is still validated by the same Pydantic
+    CommandRequest model before reaching the engine.
+    """
+    try:
+        raw = await request.body()
+        payload = json.loads(raw.decode("utf-8"))
+        command_request = CommandRequest.model_validate(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid command payload.") from exc
+    return _execute_command(command_request)
 
 
 @app.post("/api/chat")
