@@ -48,9 +48,9 @@ button:disabled{cursor:not-allowed;opacity:.6}
 .app{min-height:100vh;display:grid;grid-template-columns:218px minmax(0,1fr)}
 .sidebar{display:flex;flex-direction:column;min-height:100vh;padding:20px 14px;background:rgba(250,251,252,.76);border-right:1px solid var(--line);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
 .brand{display:flex;justify-content:center;margin:4px 0 22px}
-.brandmark{width:112px;height:40px;overflow:hidden;display:flex;align-items:center;justify-content:center}
-.saarthi-logo-image{display:block;max-width:100%;height:auto}
-.brandmark .saarthi-logo-image{width:112px}
+.brandmark{width:112px;height:44px;overflow:visible;display:flex;align-items:center;justify-content:flex-start}
+.saarthi-logo-image{display:block;width:auto!important;height:100%!important;max-width:100%;object-fit:contain;object-position:left center}
+.brandmark .saarthi-logo-image{height:44px!important;width:auto!important;max-width:112px}
 .sidebar-new-chat,.nav button,.mobile-control-trigger,.menu-trigger,.history-trigger{border:1px solid var(--line);background:rgba(255,255,255,.62);color:#42535a}
 .sidebar-new-chat{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;min-height:42px;border-radius:13px;font-size:12px;font-weight:650;box-shadow:0 4px 16px rgba(30,50,60,.04)}
 .sidebar-new-chat .ico{font-size:18px;color:var(--blue)}
@@ -67,8 +67,8 @@ button:disabled{cursor:not-allowed;opacity:.6}
 .main{min-width:0;padding:18px 28px calc(34px + var(--safe-bottom))}
 .topbar{width:100%;max-width:1180px;margin:0 auto 10px;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;position:relative;z-index:50}
 .identity-stack{min-width:0}
-.saarthi-wordmark{width:112px;height:34px;overflow:hidden;display:flex;align-items:center;margin-bottom:5px}
-.saarthi-wordmark .saarthi-logo-image{width:112px}
+.saarthi-wordmark{width:112px;height:40px;overflow:visible;display:flex;align-items:center;margin-bottom:5px}
+.saarthi-wordmark .saarthi-logo-image{height:40px!important;width:auto!important;max-width:112px}
 .greeting-block{display:flex;align-items:center}
 .saarthi-identity small{display:block;color:#8b969b;font-size:9px;letter-spacing:.17em;font-weight:650}
 .topbar h2{margin:5px 0 0;font-size:23px;line-height:1.12;letter-spacing:-.04em;font-weight:650}
@@ -95,7 +95,11 @@ button:disabled{cursor:not-allowed;opacity:.6}
 }
 #homeWorkspace>div{display:block!important;width:100%!important;margin:0!important;padding:0!important;position:relative!important}
 body.home-active #homeWorkspace{display:block!important}
-body.chat-active:not(.home-active) #homeWorkspace{display:none!important}
+/* Conversation keeps the workspace shell alive; only the home card yields to the response. */
+body.chat-active:not(.home-active) #homeWorkspace{display:block!important}
+body.chat-active:not(.home-active) #homeWorkspace .core-panel{display:none!important}
+body.chat-active:not(.home-active) #homeWorkspace .assistant-response{display:block!important}
+body.chat-active:not(.home-active) #homeWorkspace .conversation-composer{display:flex!important}
 
 /* Main conversational card */
 .core-panel{
@@ -277,8 +281,10 @@ body.chat-active .assistant-response{display:block!important}
   .sidebar{display:none}
   .main{width:100%;padding:10px 11px calc(92px + var(--safe-bottom))}
   .topbar{margin:0 3px 11px}
-  .saarthi-wordmark{width:96px;height:30px}
-  .saarthi-wordmark .saarthi-logo-image{width:96px}
+  .saarthi-wordmark{width:96px;height:38px}
+  .saarthi-wordmark .saarthi-logo-image{height:38px!important;width:auto!important;max-width:96px}
+  .brandmark{width:96px;height:38px}
+  .brandmark .saarthi-logo-image{height:38px!important;max-width:96px}
   .topbar h2{font-size:20px}
   .top-actions{gap:5px}
   .clock-chip{padding:7px 8px}
