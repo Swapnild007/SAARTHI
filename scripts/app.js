@@ -1040,26 +1040,28 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
         const target=new URL('/api/command',base);
         const crossOrigin=target.origin!==window.location.origin;
         const endpoint=crossOrigin?'/api/command/plain':'/api/command';
-        const request=fetch(apiUrl(endpoint,base),{
-          method:'POST',
-          headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
-          body:payload,
-          cache:'no-store'
-        });
-        const timeout=new Promise((_,reject)=>window.setTimeout(
-          ()=>reject(new Error('Cloud request timed out after 15 seconds.')),15000
-        ));
-        const response=await Promise.race([request,timeout]);
+        const controller=new AbortController();
+        const response=await Promise.race([
+          fetch(apiUrl(endpoint,base),{
+            method:'POST',
+            headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
+            body:payload,
+            signal:controller.signal
+          }),
+          new Promise((_,reject)=>window.setTimeout(()=>{
+            controller.abort();
+            reject(new Error('Cloud request timed out after 12 seconds'));
+          },12000))
+        ]);
         if(!response.ok){
           lastError=new Error('API '+response.status+' from '+base);
           continue;
         }
-        const jsonTimeout=new Promise((_,reject)=>window.setTimeout(
-          ()=>reject(new Error('Cloud response timed out while being read.')),5000
-        ));
-        const data=await Promise.race([response.json(),jsonTimeout]);
         API_BASE=base;
-        return data;
+        return await Promise.race([
+          response.json(),
+          new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('Cloud response timed out')),3000))
+        ]);
       }catch(error){
         lastError=error;
       }
@@ -1103,7 +1105,10 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
     appendConversation('user',value);
     try{
-      const result=await runCommand(value,mode);
+      const result=await Promise.race([
+        runCommand(value,mode),
+        new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('SAARTHI request deadline reached')),15000))
+      ]);
       if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);
     }catch(error){
       updateIntelligenceFlow('idle');
