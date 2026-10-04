@@ -567,7 +567,7 @@ class OpenAICompatibleProvider(LLMProvider):
             },
             method="POST",
         )
-        with urlopen(request, timeout=18) as response:
+        with urlopen(request, timeout=10) as response:
             body = json.loads(response.read().decode("utf-8"))
         usage = body.get("usage") if isinstance(body, dict) else None
         reply = str(body["choices"][0]["message"]["content"]).strip()
@@ -659,7 +659,7 @@ class OpenAICompatibleProvider(LLMProvider):
             "If the request contains enough information to act, act first and state only material assumptions; ask questions only when missing information would materially change the result."
         )
         failures: list[dict[str, str]] = []
-        for route in self.routes:
+        for route in self.routes[:2]:
             try:
                 reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
                 chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
@@ -1014,9 +1014,14 @@ class SaarthiEngine:
                 )
             else:
                 reply = fallback_response(message, intent, tool_results, assistant_id)
-        except Exception:
+        except Exception as exc:
             provider_name = "deterministic-fallback"
             reply = fallback_response(message, intent, tool_results, assistant_id)
+            if intent.name == "chat":
+                reply = (
+                    "I received your message, but the cloud AI gateway is temporarily unavailable. "
+                    "The request did not complete through the model provider. Please try again shortly."
+                )
 
         return {
             "ok": True,
