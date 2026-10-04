@@ -1036,29 +1036,30 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     let lastError=null;
     for(const base of API_BASES){
       try{
-        await checkRuntimeHealth(base);
-        const controller=new AbortController();
-        const timeout=window.setTimeout(()=>controller.abort(),25000);
-        let response;
-        try{
-          const payload=JSON.stringify({message:value,mode,assistant:currentAssistant,context});
+        const payload=JSON.stringify({message:value,mode,assistant:currentAssistant,context});
         const target=new URL('/api/command',base);
         const crossOrigin=target.origin!==window.location.origin;
         const endpoint=crossOrigin?'/api/command/plain':'/api/command';
-        response=await fetch(apiUrl(endpoint,base),{
-            method:'POST',
-            headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
-            body:payload,
-            signal:controller.signal
-          });
-        }finally{
-          window.clearTimeout(timeout);
+        const request=fetch(apiUrl(endpoint,base),{
+          method:'POST',
+          headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
+          body:payload,
+          cache:'no-store'
+        });
+        const timeout=new Promise((_,reject)=>window.setTimeout(
+          ()=>reject(new Error('Cloud request timed out after 15 seconds.')),15000
+        ));
+        const response=await Promise.race([request,timeout]);
+        if(!response.ok){
+          lastError=new Error('API '+response.status+' from '+base);
+          continue;
         }
-        if(response.ok){
-          API_BASE=base;
-          return response.json();
-        }
-        lastError=new Error('API '+response.status+' from '+base);
+        const jsonTimeout=new Promise((_,reject)=>window.setTimeout(
+          ()=>reject(new Error('Cloud response timed out while being read.')),5000
+        ));
+        const data=await Promise.race([response.json(),jsonTimeout]);
+        API_BASE=base;
+        return data;
       }catch(error){
         lastError=error;
       }
@@ -1072,7 +1073,11 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     setStatus('Understanding…');setCoreState('understanding','Separating intent from noise.');
     const request=apiCommand(value,mode);await new Promise(r=>setTimeout(r,120));
     setStatus('Planning…');setCoreState('planning','Building an execution path.');
-    const result=await request;if(!result?.ok)throw new Error('SAARTHI runtime rejected the command');
+    const requestDeadline=new Promise((_,reject)=>window.setTimeout(
+      ()=>reject(new Error('SAARTHI stopped the request safely because the cloud runtime did not respond.')),18000
+    ));
+    const result=await Promise.race([request,requestDeadline]);
+    if(!result?.ok)throw new Error('SAARTHI runtime rejected the command');
     clearRecoveredRuntimeErrors();
     const intent=result?.intent?.name||mode;setStatus('Verifying…');setCoreState('verifying','Checking the execution result.');
     await new Promise(r=>setTimeout(r,120));
