@@ -1,4 +1,10 @@
 (() => {
+  // Start the product at the top. Mobile browsers may restore a previous scroll offset.
+  try {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    window.scrollTo(0,0);
+    requestAnimationFrame(() => window.scrollTo(0,0));
+  } catch (_) {}
   const clock = document.getElementById('topClock');
   const greeting = document.getElementById('greeting');
   const liveDay = document.getElementById('liveDay');
