@@ -85,3 +85,22 @@ def test_frontend_composer_contract():
     assert "if(window.SaarthiApp?.submit) return;" in boot_js
     assert "eeldalviz-1192.vercel.app" not in runtime
     assert "https://saarthi-nine-chi.vercel.app" in runtime
+
+def test_command_plain_has_runtime_deadline(monkeypatch):
+    import asyncio
+    from backend import app as app_module
+
+    async def fake_wait_for(awaitable, timeout):
+        if hasattr(awaitable, "close"):
+            awaitable.close()
+        raise asyncio.TimeoutError
+
+    monkeypatch.setattr(app_module.asyncio, "wait_for", fake_wait_for)
+    client = TestClient(app_module.app)
+    response = client.post(
+        "/api/command/plain",
+        content='{"message":"Hello Saarthi","mode":"chat","assistant":"saarthi","context":{}}',
+        headers={"Content-Type": "text/plain"},
+    )
+    assert response.status_code == 200
+    assert response.json()["execution"] == "timed-out-safely"
