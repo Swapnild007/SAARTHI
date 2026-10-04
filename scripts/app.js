@@ -29,6 +29,7 @@ const SaarthiApp = (() => {
   const MAX_THREADS_PER_ASSISTANT=100;
   const MAX_ATTACHMENT_BYTES=2*1024*1024;
   const MAX_ATTACHMENT_TOTAL_BYTES=3*1024*1024;
+  let sendInFlight=false;
   const attachmentsByAssistant=Object.create(null);
   const conversations=Object.create(null);
   const currentThreads=Object.create(null);
@@ -1064,17 +1065,38 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   };
 
   const submit=async()=>{
-    const value=command?.value.trim();if(!value||command.disabled)return;
-    const mode=parseCommand(value);addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
+    const value=command?.value.trim();
+    if(!value||sendInFlight)return;
+    sendInFlight=true;
+    const sendButton=$('#sendCommand');
+    if(sendButton){
+      sendButton.disabled=true;
+      sendButton.setAttribute('aria-busy','true');
+      sendButton.textContent='…';
+    }
+    const mode=parseCommand(value);
+    addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
     appendConversation('user',value);
-    command.disabled=true;
-    try{const result=await runCommand(value,mode);if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);}
-    catch(error){
+    try{
+      const result=await runCommand(value,mode);
+      if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);
+    }catch(error){
       updateIntelligenceFlow('idle');
-      setStatus('Connection issue');setCoreState('offline','Cloud runtime is unavailable.');
+      setStatus('Connection issue');
+      setCoreState('offline','Cloud runtime is unavailable.');
       addActivity('Run failed',error?.message||'Cloud runtime unavailable.');
       showResponse('### Connection issue\n\nSAARTHI could not reach the cloud runtime. Check the backend connection and try again.',{intent:{name:'runtime'},provider:'unavailable'});
-    }finally{window.SaarthiApp.voiceTurn=false;command.value='';command.disabled=false;setTimeout(()=>setStatus('Saarthi is present'),1200);}
+    }finally{
+      window.SaarthiApp.voiceTurn=false;
+      if(command)command.value='';
+      if(sendButton){
+        sendButton.disabled=false;
+        sendButton.removeAttribute('aria-busy');
+        sendButton.textContent='➤';
+      }
+      sendInFlight=false;
+      setTimeout(()=>setStatus('Saarthi is present'),1200);
+    }
   };
 
   const voice=()=>{
@@ -1129,7 +1151,17 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
-  $('#conversationComposer')?.addEventListener('submit',event=>{event.preventDefault();submit();});
+  const composerForm=$('#conversationComposer');
+  composerForm?.addEventListener('submit',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    submit();
+  });
+  $('#sendCommand')?.addEventListener('click',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    submit();
+  });
   $('#voiceCommand')?.addEventListener('click',event=>{event.preventDefault();voice();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 
