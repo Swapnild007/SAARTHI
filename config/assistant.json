@@ -5,10 +5,11 @@
   "decision_authority": "user",
   "llm": {
     "provider": "cloud",
-    "adapter": "replaceable"
+    "adapter": "openai-compatible-routes"
   },
   "memory": {
-    "provider": "cloud-database",
-    "browser_local_storage": false
+    "provider": "supabase-postgrest",
+    "status": "optional-server-side",
+    "browser_local_storage": true
   }
 }
