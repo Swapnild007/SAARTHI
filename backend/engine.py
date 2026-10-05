@@ -1131,7 +1131,7 @@ class SaarthiEngine:
             "usage": usage,
             "execution": "completed",
             "tool_results": tool_results,
-            "verification": {"verified": True, "claims": "response generated from available execution context", "data_analysis": assistant_id == "data_analyst", "calculation_source": "server-side attachment profile" if assistant_id == "data_analyst" else None},
+            "verification": {"verified": True, "claims": "response generated from available execution context", "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
             "work_product": build_work_product(
                 objective=message,
                 intent=intent.name,
