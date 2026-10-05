@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .engine import SaarthiEngine
+from .storage import CloudStore, store_status
 from .agent_capabilities import AGENT_CAPABILITIES, INDUSTRY_PACKS
 
 _docs_enabled = os.getenv("SAARTHI_ENABLE_DOCS", "").lower() in {"1", "true", "yes"}
@@ -138,6 +139,7 @@ class CommandRequest(BaseModel):
     mode: Mode = "chat"
     assistant: Assistant = "saarthi"
     conversation_id: str | None = None
+    session_id: str | None = None
     context: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -149,6 +151,7 @@ class ChatRequest(BaseModel):
 
 
 engine = SaarthiEngine()
+store = CloudStore()
 
 
 @app.get("/api/health")
@@ -160,7 +163,60 @@ def health():
         "architecture": "cloud",
         "engine": "saarthi-runtime-v1",
         "provider_configured": engine.cloud.configured,
+        "persistence": store_status(store),
     }
+
+
+@app.get("/api/persistence")
+def persistence():
+    return {"ok": True, **store_status(store)}
+
+
+@app.get("/api/conversations")
+def conversations(session_id: str, limit: int = 50):
+    if not store.configured:
+        return {"ok": False, "provider": "browser-local", "conversations": []}
+    try:
+        return {"ok": True, "provider": "supabase-postgrest", "conversations": store.conversations(session_id, limit)}
+    except Exception as exc:
+        return {"ok": False, "provider": "supabase-postgrest", "conversations": [], "error": str(exc)[:180]}
+
+
+@app.get("/api/conversations/{conversation_id}/messages")
+def conversation_messages(conversation_id: str, session_id: str, limit: int = 100):
+    if not store.configured:
+        return {"ok": False, "provider": "browser-local", "messages": []}
+    try:
+        return {"ok": True, "provider": "supabase-postgrest", "messages": store.messages(session_id, conversation_id, limit)}
+    except Exception as exc:
+        return {"ok": False, "provider": "supabase-postgrest", "messages": [], "error": str(exc)[:180]}
+
+
+@app.get("/api/memory")
+def memory(session_id: str, limit: int = 50):
+    if not store.configured:
+        return {"ok": False, "provider": "browser-local", "memories": []}
+    try:
+        return {"ok": True, "provider": "supabase-postgrest", "memories": store.memories(session_id, limit)}
+    except Exception as exc:
+        return {"ok": False, "provider": "supabase-postgrest", "memories": [], "error": str(exc)[:180]}
+
+
+@app.post("/api/memory")
+async def memory_create(request: Request):
+    if not store.configured:
+        return {"ok": False, "provider": "browser-local", "saved": False}
+    try:
+        payload = await request.json()
+        session_id = str(payload.get("session_id") or "").strip()
+        content = str(payload.get("content") or "").strip()
+        if not session_id or not content:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="session_id and content are required")
+        row = store.save_memory(session_id, str(payload.get("memory_type") or "general"), content, float(payload.get("importance", 0.5)))
+        return {"ok": True, "provider": "supabase-postgrest", "saved": True, "memory": row}
+    except Exception as exc:
+        return {"ok": False, "provider": "supabase-postgrest", "saved": False, "error": str(exc)[:180]}
 
 
 @app.get("/api/menus")
