@@ -335,6 +335,18 @@ body.chat-active .assistant-response{display:block!important}
 .reduce-motion *{scroll-behavior:auto!important;transition:none!important;animation:none!important}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 
+/* Compact viewport / mobile-browser desktop-mode guard. Some Android browsers report a desktop CSS viewport even when the physical screen is narrow. */
+@media (hover:none) and (pointer:coarse) and (max-width:1100px){
+  .app{display:block;min-height:100dvh}
+  .sidebar{display:none!important}
+  .main{width:100%!important;max-width:none!important;padding:10px 11px calc(92px + var(--safe-bottom))!important}
+  .dashboard{max-width:none!important}
+  .topbar{margin:0 3px 11px}
+  .assistant-response-body{padding-left:4px;padding-right:4px}
+  .conversation-message.user{max-width:88%}
+  .conversation-content{font-size:14px;line-height:1.62}
+}
+
 /* Mobile */
 @media(max-width:900px){
   .app{display:block;min-height:100dvh}
