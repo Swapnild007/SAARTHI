@@ -16,7 +16,7 @@
   const weatherSymbol = document.getElementById('weatherSymbol');
   const input = document.getElementById('saarthiCommand');
   const send = document.getElementById('sendCommand');
-  const CANONICAL_API_BASE = 'https://saarthi-nine-chi.vercel.app';
+  const CANONICAL_API_BASE = 'https://saarthi-swapneeldalvi3-1192.vercel.app';
 
   const tick = () => {
     const now = new Date();
