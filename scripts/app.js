@@ -240,7 +240,7 @@ const SaarthiApp = (() => {
     '/workflow':'workflow','/workflows':'workflows','/briefing':'briefing','/system':'system',
     '/settings':'settings','/voice':'voice'
   });
-  const CANONICAL_API_BASE='https://saarthi-nine-chi.vercel.app';
+  const CANONICAL_API_BASE='https://saarthi-swapneeldalvi3-1192.vercel.app';
   let API_BASE=CANONICAL_API_BASE;
   let API_BASES=[CANONICAL_API_BASE];
   const loadRuntimeConfig=async()=>{
