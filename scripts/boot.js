@@ -105,8 +105,17 @@
           });
           if(!r.ok){lastError=new Error('API '+r.status);continue;}
           const data=await r.json();
-          const p=document.querySelector('.chat-strip p');
-          if(p) p.innerHTML='<b>'+String(data.reply||'Command completed.').replace(/</g,'&lt;')+'</b>';
+          const escape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+          const responseCard=document.getElementById('assistantResponse');
+          const responseBody=document.getElementById('assistantResponseBody');
+          if(responseBody){
+            responseBody.innerHTML=
+              '<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+escape(value)+'</div></div>'+
+              '<div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">'+escape(data.reply||'Command completed.')+'</div></div>';
+          }
+          if(responseCard) responseCard.hidden=false;
+          document.body.classList.add('chat-active');
+          document.body.classList.remove('home-active');
           input.value='';
           return;
         } catch(e){lastError=e;}
@@ -122,8 +131,17 @@
   composer?.addEventListener('submit',e=>{
     if(window.SaarthiApp?.submit) return;
     e.preventDefault();
+    e.stopPropagation();
     fallbackSend();
   });
+  // Last-resort direct activation. This does not compete with the main app:
+  // if SaarthiApp initialized, its own handler remains authoritative.
+  send?.addEventListener('click',e=>{
+    if(window.SaarthiApp?.submit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    fallbackSend();
+  },true);
 })();
 
   // Splash lifecycle moved here so production CSP can keep script-src self.
