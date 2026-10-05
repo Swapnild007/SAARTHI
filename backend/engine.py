@@ -363,20 +363,27 @@ SPECIALIST_BY_INTENT = {
 }
 
 def infer_internal_specialist(assistant: str, intent: Intent, message: str) -> str | None:
-    """Select an internal capability without turning SAARTHI into a menu of bots."""
+    """Choose one hidden execution capability only when the objective is clearly specialized."""
     if assistant != "saarthi":
         return assistant
     if intent.name in SPECIALIST_BY_INTENT:
         return SPECIALIST_BY_INTENT[intent.name]
-    text = message.lower()
-    if re.search(r"\b(code|coding|debug|refactor|repository|api|python|javascript|typescript)\b", text):
-        return "coding"
-    if re.search(r"\b(dataset|csv|excel|spreadsheet|kpi|metrics|statistics|chart|charts|graph|graphs|dashboard|heatmap|heat map|visualization|visualisation)\b", text):
-        return "data_analyst"
-    if re.search(r"\b(write|draft|rewrite|story|copy|prompt|presentation)\b", text):
-        return "create"
-    if re.search(r"\b(plan|roadmap|schedule|prioritize|timeline|dependencies)\b", text):
-        return "plan"
+    text = str(message or "").lower()
+    candidates = [
+        ("coding", r"\b(code|coding|debug|refactor|repository|repo|api|sdk|python|javascript|typescript|github|vercel|deploy|bug)\b"),
+        ("data_analyst", r"\b(dataset|csv|excel|spreadsheet|kpi|metrics|statistics|chart|graph|dashboard|heatmap|visualization|forecast)\b"),
+        ("research", r"\b(research|deep dive|investigate|sources?|evidence|literature)\b"),
+        ("analyze", r"\b(analy[sz]e|compare|break down|trade[- ]?offs?|evaluate|assess|diagnose)\b"),
+        ("plan", r"\b(plan|roadmap|schedule|prioriti[sz]e|timeline|dependencies|strategy)\b"),
+        ("create", r"\b(write|draft|rewrite|story|copy|prompt|presentation|compose)\b"),
+    ]
+    ranked = sorted(
+        ((name, len(re.findall(pattern, text, re.IGNORECASE))) for name, pattern in candidates),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    if ranked and ranked[0][1] > 0 and (len(ranked) == 1 or ranked[0][1] > ranked[1][1]):
+        return ranked[0][0]
     return None
 
 def infer_industry(message: str, context: dict[str, Any] | None = None) -> str | None:
@@ -713,7 +720,14 @@ class OpenAICompatibleProvider(LLMProvider):
 
 
 def classify(message: str, requested_mode: str = "chat") -> Intent:
-    text = message.strip().lower()
+    """Autonomous intent router.
+
+    The user-facing entry point is always Saarthi. UI mode is not allowed to
+    select a specialist. Explicit system commands remain available, while
+    ordinary language is scored across capabilities so mixed requests can be
+    handled without manual agent selection.
+    """
+    text = str(message or "").strip().lower()
     explicit = {
         "/research": ("research", 1.0, "explicit command"),
         "/search": ("search", 1.0, "explicit command"),
@@ -734,36 +748,48 @@ def classify(message: str, requested_mode: str = "chat") -> Intent:
         name, confidence, reason = explicit[token]
         return Intent(name, confidence, reason)
 
-    mode_aliases = {
-        "tasks": "task",
-        "workflows": "workflow",
-    }
-    requested_mode = mode_aliases.get(requested_mode, requested_mode)
-    if requested_mode not in {"chat", ""}:
-        return Intent(requested_mode, 0.95, "UI-selected mode")
-
-    patterns = [
-        ("research", r"\b(research|deep dive|investigate|sources?)\b"),
-        ("search", r"\b(search|find|look up|lookup)\b"),
-        ("analyze", r"\b(analy[sz]e|compare|break down|trade[- ]?offs?)\b"),
-        ("plan", r"\b(plan|roadmap|steps?|schedule)\b"),
-        ("remember", r"\b(remember|save this|store this)\b"),
-        ("recall", r"\b(recall|what did i|remember when|previously)\b"),
-        ("task", r"\b(task|todo|to-do)\b"),
-        ("remind", r"\b(remind|reminder)\b"),
-        ("workflow", r"\b(workflow|automate|automation)\b"),
-        ("briefing", r"\b(briefing|brief me|what matters today)\b"),
-        ("date", r"\b(what(?:'s| is)?\s+(?:today(?:'s)?\s+)?date|today(?:'s)?\s+date|what date is it|what day is today)\b"),
-        ("time", r"\b(what(?:'s| is)?\s+the\s+(?:current\s+)?time|current\s+time|time\s+now|what time is it|tell me the time)\b"),
-        ("calculate", r"\b(calculate|calculator|compute)\b|\b\d+(?:\s*[+\-*/x×]\s*\d+)+\b"),
-        ("convert", r"\b(convert|how many)\b.*\b(km|kilometer|kilometers|mile|miles|mi|kg|kilogram|kilograms|lb|lbs|pound|pounds|celsius|fahrenheit|°c|°f)\b"),
-        ("system", r"\b(system status|health check|diagnostics)\b"),
-        ("help", r"\b(help|what can you do|commands)\b"),
+    # Never treat a UI-selected mode as specialist selection for Saarthi.
+    # The capability router decides from the actual objective.
+    signals = [
+        ("research", 3, r"\b(research|deep dive|investigate|sources?|evidence|literature review)\b"),
+        ("search", 2, r"\b(search|find|look up|lookup|latest|current)\b"),
+        ("analyze", 3, r"\b(analy[sz]e|compare|break down|trade[- ]?offs?|evaluate|assess|diagnose)\b"),
+        ("plan", 3, r"\b(plan|roadmap|schedule|prioriti[sz]e|timeline|dependencies|strategy)\b"),
+        ("coding", 4, r"\b(code|coding|debug|refactor|repository|repo|api|sdk|python|javascript|typescript|html|css|github|vercel|deploy|function|bug)\b"),
+        ("create", 2, r"\b(write|draft|rewrite|story|copy|prompt|presentation|design|create|compose)\b"),
+        ("data_analyst", 4, r"\b(dataset|csv|excel|spreadsheet|kpi|metrics|statistics|chart|charts|graph|graphs|dashboard|heatmap|visualization|visualisation|forecast|regression)\b"),
+        ("calculate", 5, r"\b(calculate|calculator|compute|percentage|percent|how much remains|what is .*\d+%|\d+(?:\.\d+)?\s*[+\-*/x×]\s*\d+(?:\.\d+)?)\b"),
+        ("convert", 4, r"\b(convert|how many)\b.*\b(km|kilometer|kilometers|mile|miles|mi|kg|kilogram|kilograms|lb|lbs|pound|pounds|celsius|fahrenheit|°c|°f)\b"),
+        ("remember", 4, r"\b(remember|save this|store this)\b"),
+        ("recall", 4, r"\b(recall|what did i|remember when|previously)\b"),
+        ("task", 3, r"\b(task|todo|to-do)\b"),
+        ("remind", 4, r"\b(remind|reminder)\b"),
+        ("workflow", 3, r"\b(workflow|automate|automation)\b"),
+        ("briefing", 3, r"\b(briefing|brief me|what matters today)\b"),
+        ("date", 5, r"\b(what(?:'s| is)?\s+(?:today(?:'s)?\s+)?date|what date is it|what day is today)\b"),
+        ("time", 5, r"\b(what(?:'s| is)?\s+(?:the\s+)?(?:current\s+)?time|time now|what time is it|tell me the time)\b"),
+        ("system", 5, r"\b(system status|health check|diagnostics)\b"),
+        ("help", 3, r"\b(help|what can you do|commands)\b"),
     ]
-    for name, pattern in patterns:
-        if re.search(pattern, text):
-            return Intent(name, 0.82, "semantic command routing")
-    return Intent("chat", 0.74, "general conversation")
+    scores: dict[str, int] = {}
+    for name, weight, pattern in signals:
+        hits = len(re.findall(pattern, text, re.IGNORECASE))
+        if hits:
+            scores[name] = hits * weight
+
+    if not scores:
+        return Intent("chat", 0.74, "general conversation")
+
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    winner, score = ranked[0]
+    second = ranked[1][1] if len(ranked) > 1 else 0
+
+    # Broad mixed requests stay with Saarthi and are handled as a composed
+    # objective rather than forcing one specialist to own the conversation.
+    if len(ranked) >= 3 and score <= second + 2:
+        return Intent("chat", 0.86, "multi-capability objective")
+    confidence = min(0.98, 0.70 + (score / max(1, score + second)) * 0.25)
+    return Intent(winner, confidence, "autonomous capability routing")
 
 
 def build_plan(intent: Intent) -> list[PlanStep]:
