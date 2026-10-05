@@ -122,8 +122,14 @@
       }
       throw lastError||new Error('No cloud runtime configured');
     } catch(e) {
-      const p=document.querySelector('.chat-strip p');
-      if(p) p.innerHTML='<b>SAARTHI cloud connection failed.</b> '+String(e.message||'Please retry.');
+      const responseCard=document.getElementById('assistantResponse');
+      const responseBody=document.getElementById('assistantResponseBody');
+      if(responseBody){
+        responseBody.innerHTML='<div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content"><p><strong>Connection issue.</strong> '+String(e.message||'The cloud runtime could not be reached. Please try again.')+'</p></div></div>';
+      }
+      if(responseCard) responseCard.hidden=false;
+      document.body.classList.add('chat-active');
+      document.body.classList.remove('home-active');
     } finally { send.disabled=false; }
   };
 
