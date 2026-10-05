@@ -347,6 +347,24 @@ body.chat-active .assistant-response{display:block!important}
   .conversation-content{font-size:14px;line-height:1.62}
 }
 
+.autonomous-note{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin:14px 0 0;
+  padding:9px 12px;
+  border:1px solid rgba(75,110,128,.10);
+  border-radius:14px;
+  background:rgba(255,255,255,.38);
+  color:rgba(34,52,61,.66);
+  font-size:11px;
+  letter-spacing:.01em;
+}
+.autonomous-note span:first-child{
+  color:rgba(42,139,190,.92);
+  font-size:14px;
+}
+
 /* Mobile */
 @media(max-width:900px){
   .app{display:block;min-height:100dvh}
