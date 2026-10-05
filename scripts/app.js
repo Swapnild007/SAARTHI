@@ -37,8 +37,8 @@ const SaarthiApp = (() => {
   };
   const MAX_CONTEXT_MESSAGES=20;
   const MAX_THREADS_PER_ASSISTANT=100;
-  const MAX_ATTACHMENT_BYTES=2*1024*1024;
-  const MAX_ATTACHMENT_TOTAL_BYTES=3*1024*1024;
+  const MAX_ATTACHMENT_BYTES=1500*1024;
+  const MAX_ATTACHMENT_TOTAL_BYTES=1500*1024;
   let sendInFlight=false;
   const attachmentsByAssistant=Object.create(null);
   const conversations=Object.create(null);
@@ -1077,8 +1077,8 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
           }),
           new Promise((_,reject)=>window.setTimeout(()=>{
             controller.abort();
-            reject(new Error('Cloud request timed out after 12 seconds'));
-          },12000))
+            reject(new Error('Cloud request timed out after 28 seconds'));
+          },28000))
         ]);
         if(!response.ok){
           lastError=new Error('API '+response.status+' from '+base);
@@ -1103,7 +1103,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const request=apiCommand(value,mode);await new Promise(r=>setTimeout(r,120));
     setStatus('Planning…');setCoreState('planning','Building an execution path.');
     const requestDeadline=new Promise((_,reject)=>window.setTimeout(
-      ()=>reject(new Error('SAARTHI stopped the request safely because the cloud runtime did not respond.')),18000
+      ()=>reject(new Error('SAARTHI stopped the request safely because the cloud runtime did not respond.')),32000
     ));
     const result=await Promise.race([request,requestDeadline]);
     if(!result?.ok)throw new Error('SAARTHI runtime rejected the command');
@@ -1174,7 +1174,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
         runCommand(value,mode),
         new Promise((_,reject)=>window.setTimeout(
           ()=>reject(new Error('SAARTHI request deadline reached')),
-          15000
+          30000
         ))
       ]);
       completed=true;
