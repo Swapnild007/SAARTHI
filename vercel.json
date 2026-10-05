@@ -4,5 +4,10 @@
     "env": {
       "PYTHON_VERSION": "3.14"
     }
+  },
+  "functions": {
+    "backend/app.py": {
+      "maxDuration": 30
+    }
   }
 }
