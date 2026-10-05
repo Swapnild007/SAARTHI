@@ -332,7 +332,7 @@ async def _execute_command_bounded(request: CommandRequest) -> dict[str, Any]:
     try:
         return await asyncio.wait_for(
             asyncio.to_thread(_execute_command, request),
-            timeout=12.0,
+            timeout=28.0,
         )
     except asyncio.TimeoutError:
         return {
