@@ -613,6 +613,20 @@ class OpenAICompatibleProvider(LLMProvider):
         chart_hint = ""
         research_hint = ""
         analyst_knowledge_hint = ""
+        attachment_analysis_hint = ""
+        if isinstance(context, dict) and context.get("attachment_dataset"):
+            dataset = context.get("attachment_dataset") or {}
+            profile = context.get("attachment_profile") or {}
+            analysis = context.get("attachment_analysis") or {}
+            attachment_analysis_hint = (
+                " Deterministic attachment analysis is authoritative. "
+                "The supplied file was parsed before generation. "
+                f"Dataset: {json.dumps({'name':dataset.get('name'),'columns':dataset.get('columns',[]),'row_count':dataset.get('row_count',0)}, ensure_ascii=False)}. "
+                f"Profile: {json.dumps(profile, ensure_ascii=False)[:12000]}. "
+                f"Analysis: {json.dumps(analysis, ensure_ascii=False)[:12000]}. "
+                "Use these supplied values; never invent dataset values. "
+                "If the user requested a dashboard, return a concise decision-ready dashboard interpretation and use the deterministic chart data when provided."
+            )
         if active_assistant == "data_analyst":
             analyst_methods = agent_knowledge.get("methods", {}) if isinstance(agent_knowledge, dict) else {}
             analyst_failures = agent_knowledge.get("failure_modes", []) if isinstance(agent_knowledge, dict) else []
@@ -663,7 +677,8 @@ class OpenAICompatibleProvider(LLMProvider):
             f"Agent knowledge principles: {' | '.join(agent_knowledge.get('principles', [])) or 'none'}. "
             f"Agent quality gates: {', '.join(agent_knowledge.get('quality_gates', [])) or 'none'}. "
             f"{analyst_knowledge_hint} "
-            "Treat these principles as execution guidance, not as a source of factual claims. "
+            + attachment_analysis_hint
+            + " Treat these principles as execution guidance, not as a source of factual claims. "
             "When an industry is active, make the answer materially domain-aware: use the industry's terminology, relevant workflow, constraints, KPIs and decision framework where applicable. "
             "Prefer a decision-ready work product over generic advice. Do not merely mention the industry name. "
             "Format answers for human reading: avoid long wall-of-text paragraphs. For explanations, use a short opening answer followed by compact headings, bullets or numbered steps when there are multiple ideas. Keep paragraphs to roughly 2-4 sentences. Use Markdown headings, bullets, numbered lists, tables and bold emphasis when they improve scanability. Do not output Markdown emphasis markers in a malformed way such as '* **text**'. For simple factual questions, answer directly in 1-3 short paragraphs or a concise list. "
