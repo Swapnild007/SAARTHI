@@ -25,6 +25,8 @@ const SaarthiApp = (() => {
     cost: 0
   };
   const HISTORY_KEY='saarthi.history.v2';
+  const SESSION_KEY='saarthi.session.v1';
+  const getSessionId=()=>{let id=localStorage.getItem(SESSION_KEY);if(!id){id=uid();try{localStorage.setItem(SESSION_KEY,id);}catch{}}return id;};
   const MAX_CONTEXT_MESSAGES=20;
   const MAX_THREADS_PER_ASSISTANT=100;
   const MAX_ATTACHMENT_BYTES=2*1024*1024;
