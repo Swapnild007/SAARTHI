@@ -728,6 +728,27 @@ def classify(message: str, requested_mode: str = "chat") -> Intent:
     handled without manual agent selection.
     """
     text = str(message or "").strip().lower()
+    requested = str(requested_mode or "").strip().lower()
+    requested_aliases = {
+        "tasks": "task",
+        "task": "task",
+        "research": "research",
+        "search": "search",
+        "analyze": "analyze",
+        "analysis": "analyze",
+        "coding": "coding",
+        "code": "coding",
+        "create": "create",
+        "writing": "create",
+        "plan": "plan",
+        "planning": "plan",
+        "data": "data_analyst",
+        "data_analyst": "data_analyst",
+    }
+    # Legacy UI mode aliases are accepted for compatibility, but they do not
+    # create a user-selectable specialist in Saarthi's public experience.
+    if requested in requested_aliases:
+        return Intent(requested_aliases[requested], 0.99, "compatibility alias")
     explicit = {
         "/research": ("research", 1.0, "explicit command"),
         "/search": ("search", 1.0, "explicit command"),
