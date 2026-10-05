@@ -136,14 +136,16 @@
     if(button && !button.__saarthiBridgeBound){
       button.__saarthiBridgeBound=true;
       button.addEventListener('click',event=>{
+        const submit=window.SaarthiApp?.submit;
+        if(typeof submit!=='function') return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        window.SaarthiApp?.submit?.();
+        try{ submit(); }catch(error){ console.error('[Saarthi] send failed',error); }
       },true);
     }
   };
   bind();
   new MutationObserver(bind).observe(document.documentElement,{childList:true,subtree:true});
 })();
-</script></script><script src="./scripts/app.js?v=20261005-25" defer></script><script src="./scripts/boot.js?v=20261005-20" defer></script>
+</script></script><script src="./scripts/app.js?v=20261005-26" defer></script><script src="./scripts/boot.js?v=20261005-20" defer></script>
 </body></html>
