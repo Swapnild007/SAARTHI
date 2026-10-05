@@ -1166,7 +1166,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
         '### Connection issue\\n\\nSAARTHI could not complete this request within the safe response window. Your message is still in this conversation. You can send it again.',
         {intent:{name:'runtime'},provider:'timeout'}
       );
-    },16000);
+    },28000);
 
     try{
       addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
@@ -1254,18 +1254,21 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
-  const composerForm=$('#conversationComposer');
-  composerForm?.addEventListener('submit',event=>{
+  // Single authoritative send path. Delegation survives DOM refreshes and avoids
+  // competing form/click handlers on mobile browsers.
+  document.addEventListener('click',event=>{
+    const button=event.target?.closest?.('#sendCommand');
+    if(!button)return;
     event.preventDefault();
     event.stopPropagation();
     submit();
-  });
-  // Explicit click binding fixes mobile/browser cases where submit-button activation
-  // is swallowed by a form, overlay, or browser-specific interaction.
-  $('#sendCommand')?.addEventListener('click',event=>{
-    event.preventDefault();
-    event.stopPropagation();
-    submit();
+  },true);
+  $('#conversationComposer')?.addEventListener('keydown',event=>{
+    if(event.key==='Enter'&&!event.shiftKey){
+      event.preventDefault();
+      event.stopPropagation();
+      submit();
+    }
   });
   $('#voiceCommand')?.addEventListener('click',event=>{event.preventDefault();voice();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
