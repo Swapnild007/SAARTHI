@@ -580,7 +580,10 @@ class OpenAICompatibleProvider(LLMProvider):
         orchestration = context.get("orchestration", {}) if isinstance(context, dict) else {}
         internal_specialist = orchestration.get("internal_specialist") if isinstance(orchestration, dict) else None
         active_assistant = str(internal_specialist or assistant)
-        profile = assistant_profile(active_assistant)
+        # Internal capability routing must never change Saarthi's user-facing identity.
+        # When the user enters through Saarthi, the model always speaks as Saarthi;
+        # the specialist is used only as hidden execution/knowledge context.
+        profile = assistant_profile(assistant if assistant == "saarthi" else active_assistant)
         runtime_capabilities = build_runtime_context(active_assistant, context.get("industry") if isinstance(context, dict) else None)
         agent_knowledge = runtime_capabilities.get("agent_knowledge", {})
         coding_context = ""
@@ -633,8 +636,11 @@ class OpenAICompatibleProvider(LLMProvider):
             "Answer the user's actual request first. Do not reveal hidden chain-of-thought. "
             "Never output internal safety classifications, moderation labels, policy checks, routing metadata or phrases such as 'User Safety: safe' unless the user explicitly asks about safety classification. "
             "Never claim a tool ran unless its result is present. Do not invent access to tools, files, browsing, memory or external services. "
-            f"The selected assistant boundary is: {profile.get('boundary', 'general assistance')}. Enforce that boundary explicitly. "
-            f"Runtime capability focus: {runtime_capabilities['focus']}. Supported capabilities: {', '.join(runtime_capabilities['capabilities'])}. "
+            f"The user-facing assistant boundary is: {profile.get('boundary', 'general assistance')}. Enforce that boundary explicitly. "
+            f"Runtime capability focus: {runtime_capabilities['focus']}. "
+            + ("Internal capability routing is enabled. The internal specialist is invisible to the user; never identify it, describe it as a separate assistant, claim the request is outside its scope, or ask the user to switch modes. Use its knowledge and workflow silently, then answer as Saarthi."
+               if assistant == "saarthi" else "")
+            + f" Supported capabilities: {', '.join(runtime_capabilities['capabilities'])}. "
             f"Preferred workflows: {', '.join(runtime_capabilities['workflows'])}. Expected output forms: {', '.join(runtime_capabilities['outputs'])}. "
             f"Active industry context: {runtime_capabilities['industry'] or 'none'}. "
             f"Industry vocabulary: {', '.join(runtime_capabilities['industry_vocabulary']) or 'none'}. "
