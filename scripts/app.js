@@ -2,6 +2,7 @@ const SaarthiApp = (() => {
   const $ = (s, root = document) => root.querySelector(s);
   const activity = $('#activityStream');
   const command = $('#saarthiCommand');
+  const composerForm = $('#conversationComposer');
   const status = $('#presenceText');
   const liveDay = $('#liveDay');
   const topClock = $('#topClock');
@@ -1254,21 +1255,12 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
-  // Single authoritative send path. Delegation survives DOM refreshes and avoids
-  // competing form/click handlers on mobile browsers.
-  document.addEventListener('click',event=>{
-    const button=event.target?.closest?.('#sendCommand');
-    if(!button)return;
+  // Single authoritative send path: native form submission.
+  // This is resilient on mobile browsers and keeps keyboard/button behavior identical.
+  composerForm?.addEventListener('submit',event=>{
     event.preventDefault();
     event.stopPropagation();
     submit();
-  },true);
-  $('#conversationComposer')?.addEventListener('keydown',event=>{
-    if(event.key==='Enter'&&!event.shiftKey){
-      event.preventDefault();
-      event.stopPropagation();
-      submit();
-    }
   });
   $('#voiceCommand')?.addEventListener('click',event=>{event.preventDefault();voice();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});

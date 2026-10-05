@@ -82,7 +82,8 @@ def test_frontend_composer_contract():
     assert "composerForm?.addEventListener('submit'" in app_js
     assert "sendInFlight" in app_js
     assert "/api/command/plain" in app_js
-    assert "if(window.SaarthiApp?.submit) return;" in boot_js
+    assert "fallbackSend" not in boot_js
+    assert "/api/command" not in boot_js
     assert "eeldalviz-1192.vercel.app" not in runtime
     assert "https://saarthi-swapneeldalvi3-1192.vercel.app" in runtime
 
