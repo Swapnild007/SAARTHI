@@ -185,7 +185,10 @@
       const payload={
         message:value, mode:'chat', assistant:'saarthi',
         session_id:sessionId, conversation_id:localStorage.getItem('saarthi_conversation_id')||null,
-        context:{timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'}
+        context:{
+          timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
+          attachments:(window.SaarthiApp?.getAttachments?.()||[])
+        }
       };
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),15000);
@@ -218,5 +221,5 @@
   bind();
   new MutationObserver(bind).observe(document.documentElement,{childList:true,subtree:true});
 })();
-</script><script src="./scripts/app.js?v=20261005-22" defer></script><script src="./scripts/boot.js?v=20261005-20" defer></script>
+</script><script src="./scripts/app.js?v=20261005-24" defer></script><script src="./scripts/boot.js?v=20261005-20" defer></script>
 </body></html>
