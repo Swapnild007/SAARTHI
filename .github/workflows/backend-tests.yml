@@ -46,7 +46,7 @@ jobs:
         run: python -m pytest -q backend tests
       - name: Smoke test production runtime
         env:
-          SAARTHI_RUNTIME_URL: https://saarthi-nine-chi.vercel.app
+          SAARTHI_RUNTIME_URL: https://saarthi-swapneeldalvi3-1192.vercel.app
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --max-time 30 "$SAARTHI_RUNTIME_URL/api/health" > /tmp/saarthi-health.json
