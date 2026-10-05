@@ -1038,7 +1038,15 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     let lastError=null;
     for(const base of API_BASES){
       try{
-        const payload=JSON.stringify({message:value,mode,assistant:currentAssistant,context});
+        const thread=ensureThread(currentAssistant,true);
+        const payload=JSON.stringify({
+          message:value,
+          mode,
+          assistant:currentAssistant,
+          conversation_id:thread?.id||null,
+          session_id:getSessionId(),
+          context
+        });
         const target=new URL('/api/command',base);
         const crossOrigin=target.origin!==window.location.origin;
         const endpoint=crossOrigin?'/api/command/plain':'/api/command';
@@ -1102,6 +1110,8 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   };
 
   const submit=async()=>{
+    // The send action is intentionally independent of button styling/form quirks.
+    // Keep the guard inside the handler so every invocation has a deterministic recovery path.
     const value=command?.value.trim();
     if(!value||sendInFlight)return;
     sendInFlight=true;
@@ -1111,7 +1121,15 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     // Put the user's message into the durable conversation immediately.
     // The UI must never depend on the AI response arriving before showing it.
     const mode=parseCommand(value);
-    appendConversation('user',value);
+    try {
+      appendConversation('user',value);
+    } catch(error) {
+      sendInFlight=false;
+      setStatus('Ready');
+      setCoreState('ready','Composer recovered. Please try again.');
+      addActivity('Composer recovered',String(error?.message||'Unable to save message locally.'));
+      return;
+    }
     if(command)command.value='';
 
     if(sendButton){
@@ -1224,6 +1242,13 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
   const composerForm=$('#conversationComposer');
   composerForm?.addEventListener('submit',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    submit();
+  });
+  // Explicit click binding fixes mobile/browser cases where submit-button activation
+  // is swallowed by a form, overlay, or browser-specific interaction.
+  $('#sendCommand')?.addEventListener('click',event=>{
     event.preventDefault();
     event.stopPropagation();
     submit();
