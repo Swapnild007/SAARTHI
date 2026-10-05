@@ -1132,7 +1132,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     },16000);
 
     try{
-      addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\\/\\w+\\s*/,''));
+      addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
       const result=await Promise.race([
         runCommand(value,mode),
         new Promise((_,reject)=>window.setTimeout(
