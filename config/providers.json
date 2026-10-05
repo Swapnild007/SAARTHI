@@ -1,0 +1,14 @@
+{
+  "architecture": "single-intelligence",
+  "routing": "server-side",
+  "providers": [
+    {"id":"openai","name":"OpenAI","adapter":"openai-compatible","configured_by":"SAARTHI_LLM_ROUTES_JSON"},
+    {"id":"anthropic","name":"Anthropic","adapter":"openai-compatible-gateway-or-provider-proxy","configured_by":"SAARTHI_LLM_ROUTES_JSON"},
+    {"id":"google","name":"Google Gemini","adapter":"openai-compatible-gateway-or-provider-proxy","configured_by":"SAARTHI_LLM_ROUTES_JSON"},
+    {"id":"xai","name":"xAI","adapter":"openai-compatible","configured_by":"SAARTHI_LLM_ROUTES_JSON"},
+    {"id":"deepseek","name":"DeepSeek","adapter":"openai-compatible","configured_by":"SAARTHI_LLM_ROUTES_JSON"},
+    {"id":"qwen","name":"Qwen","adapter":"openai-compatible-gateway-or-provider-proxy","configured_by":"SAARTHI_LLM_ROUTES_JSON"},
+    {"id":"meta","name":"Meta Llama","adapter":"openai-compatible-gateway-or-provider-proxy","configured_by":"SAARTHI_LLM_ROUTES_JSON"}
+  ],
+  "policy": "SAARTHI chooses the route internally. Provider names are infrastructure, not user-facing assistant identities."
+}
