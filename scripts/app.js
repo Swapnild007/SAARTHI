@@ -362,12 +362,17 @@ const SaarthiApp = (() => {
   };
 
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-  const inlineMarkdown=value=>escapeHtml(value)
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
-    .replace(/__([^_]+)__/g,'<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g,'<em>$1</em>')
-    .replace(/_([^_]+)_/g,'<em>$1</em>');
+  const inlineMarkdown=value=>{
+    let text=escapeHtml(value);
+    const strong=[];
+    text=text.replace(/\*\*([^*\n]+?)\*\*/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
+    text=text.replace(/__([^_\n]+?)__/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
+    text=text.replace(/`([^`]+)`/g,'<code>$1</code>');
+    text=text.replace(/(^|\s)\*([^*\n]+?)\*(?=\s|$)/g,'$1<em>$2</em>');
+    text=text.replace(/(^|\s)_([^_\n]+?)_(?=\s|$)/g,'$1<em>$2</em>');
+    strong.forEach((html,i)=>{text=text.replace('SAARTHISTRONG'+i+'TOKEN',html);});
+    return text;
+  };
 
   const renderMarkdown=markdown=>{
     const source=String(markdown||'').replace(new RegExp('<toolcall>[\\s\\S]*?</toolcall>','gi'),'').trim();
