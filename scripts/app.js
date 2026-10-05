@@ -1009,7 +1009,9 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     if(responseCard) responseCard.dataset.assistant = item.id;
   };
 
-  const selectAssistant=id=>{
+  const selectAssistant=()=>{
+    // Public UI always remains in the Saarthi workspace.
+    const id='saarthi';
     currentAssistant=id;
     attachmentsByAssistant[id]=attachmentsByAssistant[id]||[];
     const item=ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
@@ -1055,7 +1057,9 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
         const payload=JSON.stringify({
           message:value,
           mode,
-          assistant:currentAssistant,
+          // Saarthi is the single user-facing entry point. Internal capability
+          // routing is always decided by the server from the objective.
+          assistant:'saarthi',
           conversation_id:thread?.id||null,
           session_id:getSessionId(),
           context
@@ -1237,11 +1241,8 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
 
   updateClock();setInterval(updateClock,1000);loadRuntimeConfig();ensureAttachmentControls();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
-  document.querySelectorAll('[data-assistant-shortcut]').forEach(button=>button.addEventListener('click',()=>{
-    const id=button.dataset.assistantShortcut;
-    selectAssistant(id);
-    addActivity('Capability selected',id);
-  }));
+  // Specialist capabilities are intentionally not user-selectable.
+  // Saarthi owns routing; capability selection remains an internal server decision.
   document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
   $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
   $('#mobileControlButton')?.addEventListener('click',()=>renderControlCenter());
