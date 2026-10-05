@@ -574,7 +574,7 @@ class OpenAICompatibleProvider(LLMProvider):
             },
             method="POST",
         )
-        with urlopen(request, timeout=10) as response:
+        with urlopen(request, timeout=25) as response:
             body = json.loads(response.read().decode("utf-8"))
         usage = body.get("usage") if isinstance(body, dict) else None
         reply = str(body["choices"][0]["message"]["content"]).strip()
@@ -898,6 +898,34 @@ def fallback_response(message: str, intent: Intent, tool_results: dict[str, Any]
     return f"I've understood the request as a general conversation: “{message[:180]}”."
 
 
+def _public_tool_results(results: dict[str, Any]) -> dict[str, Any]:
+    """Return a bounded API-safe execution summary; keep full datasets server-side."""
+    public: dict[str, Any] = {}
+    for key, value in (results or {}).items():
+        if key == "data.profile" and isinstance(value, dict):
+            datasets = []
+            raw_datasets = value.get("datasets", [])
+            if isinstance(raw_datasets, list):
+                for dataset in raw_datasets:
+                    if isinstance(dataset, dict):
+                        datasets.append({
+                            "name": dataset.get("name"),
+                            "columns": list(dataset.get("columns", []))[:50],
+                            "row_count": dataset.get("row_count", 0),
+                            "profile": dataset.get("profile", {}),
+                        })
+            public[key] = {"dataset_count": value.get("dataset_count", len(datasets)), "datasets": datasets}
+        elif key == "data.analysis" and isinstance(value, dict):
+            public[key] = {k: v for k, v in value.items() if k not in {"rows", "data", "raw_rows"}}
+        elif key in {"data.chart", "data.charts", "data.chart_error"}:
+            public[key] = value
+        elif key == "analysis.brief" and isinstance(value, dict):
+            public[key] = {k: v for k, v in value.items() if k not in {"rows", "data", "raw_text"}}
+        else:
+            public[key] = value
+    return public
+
+
 class SaarthiEngine:
     def __init__(self) -> None:
         self.tools = ToolRegistry()
@@ -1072,7 +1100,7 @@ class SaarthiEngine:
                 "failover": [],
                 "usage": None,
                 "execution": "completed",
-                "tool_results": tool_results,
+                "tool_results": _public_tool_results(tool_results),
                 "verification": {"verified": True, "claims": f"deterministic {intent.name} tool result returned before model execution"},
                 "work_product": build_work_product(
                     objective=message,
