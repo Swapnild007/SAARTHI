@@ -84,7 +84,7 @@ def test_frontend_composer_contract():
     assert "/api/command/plain" in app_js
     assert "if(window.SaarthiApp?.submit) return;" in boot_js
     assert "eeldalviz-1192.vercel.app" not in runtime
-    assert "https://saarthi-nine-chi.vercel.app" in runtime
+    assert "https://saarthi-swapneeldalvi3-1192.vercel.app" in runtime
 
 def test_command_plain_has_runtime_deadline(monkeypatch):
     import asyncio
