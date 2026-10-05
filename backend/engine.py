@@ -904,10 +904,12 @@ class SaarthiEngine:
         intent = classify(message, mode)
         plan = build_plan(intent)
         orchestration = build_orchestration(assistant_id, intent, message, ctx)
-        if assistant_id == "data_analyst":
+        internal_specialist = str(orchestration.get("internal_specialist") or "").strip().lower()
+        execution_assistant = internal_specialist if assistant_id == "saarthi" and internal_specialist in ASSISTANT_PROFILES else assistant_id
+        if execution_assistant == "data_analyst":
             plan = [PlanStep("profile", "Profile supplied data"), PlanStep("validate", "Validate data quality"), PlanStep("analyze", "Calculate and analyze"), PlanStep("visualize", "Create requested visualization"), PlanStep("respond", "Explain findings")]
         tool_results: dict[str, Any] = {}
-        if assistant_id == "data_analyst":
+        if execution_assistant == "data_analyst":
             inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             tool_results["data.profile"] = analyze_attachments_for_data(inspected)
             datasets = tool_results["data.profile"].get("datasets", [])
@@ -935,7 +937,7 @@ class SaarthiEngine:
                 elif re.search(r"\b(dashboard|visuali[sz]e|visualization|visualisation|show me|plot|graph|chart)\b", message, re.IGNORECASE):
                     tool_results["data.charts"] = recommend_visuals(dataset["columns"], dataset["rows"])
 
-        if assistant_id == "analyze":
+        if execution_assistant == "analyze":
             inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             texts = []
             for item in inspected:
@@ -946,6 +948,18 @@ class SaarthiEngine:
                 tool_results["analysis.brief"] = analyze_text(supplied, message)
             else:
                 tool_results["analysis.brief"] = analyze_text(message, message)
+
+        # Hidden capability execution: Saarthi remains the user-facing assistant,
+        # but the resolved internal capability owns deterministic tools and evidence.
+        if assistant_id == "saarthi" and execution_assistant == "data_analyst":
+            datasets = tool_results.get("data.profile", {}).get("datasets", [])
+            if datasets:
+                ctx["attachment_analysis"] = tool_results.get("data.analysis", {})
+                ctx["attachment_dataset"] = datasets[0]
+                ctx["attachment_profile"] = tool_results.get("data.profile", {})
+            else:
+                ctx["attachment_analysis"] = {"datasets": [], "dataset_count": 0}
+                ctx["attachment_profile"] = tool_results.get("data.profile", {})
 
         # Evidence-first research pass before model generation.
         if assistant_id == "research":
