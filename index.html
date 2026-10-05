@@ -136,5 +136,67 @@
 <div class="menu-picker" id="menuPicker" hidden aria-label="Saarthi menu"></div>
 <div class="assistant-picker" id="assistantPicker" hidden aria-label="Saarthi assistants"></div>
 <div class="control-picker" id="controlPicker" hidden aria-label="Saarthi controls"></div>
-</main></div><script src="./scripts/app.js?v=20261005-17" defer></script><script src="./scripts/boot.js?v=20261005-19" defer></script>
+</main></div><script>
+(function(){
+  if(window.__SAARTHI_DIRECT_SEND__) return;
+  window.__SAARTHI_DIRECT_SEND__=true;
+  const API='https://saarthi-swapneeldalvi3-1192.vercel.app';
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const send=async function(event){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const input=document.getElementById('saarthiCommand');
+    const button=document.getElementById('sendCommand');
+    const body=document.getElementById('assistantResponseBody');
+    const card=document.getElementById('assistantResponse');
+    const value=(input?.value||'').trim();
+    if(!value || !button) return;
+    const old=button.innerHTML;
+    button.disabled=true;
+    button.setAttribute('aria-busy','true');
+    button.innerHTML='…';
+    if(body){
+      body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">Thinking…</div></div>';
+    }
+    if(card) card.hidden=false;
+    try{
+      let sessionId=localStorage.getItem('saarthi_session_id');
+      if(!sessionId){ sessionId='web_'+crypto.randomUUID(); localStorage.setItem('saarthi_session_id',sessionId); }
+      const payload={
+        message:value, mode:'chat', assistant:'saarthi',
+        session_id:sessionId, conversation_id:localStorage.getItem('saarthi_conversation_id')||null,
+        context:{timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'}
+      };
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),15000);
+      const response=await fetch(API+'/api/command/plain',{
+        method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
+        body:JSON.stringify(payload),signal:controller.signal,cache:'no-store'
+      });
+      clearTimeout(timer);
+      const raw=await response.text();
+      let data={}; try{data=JSON.parse(raw)}catch(_){}
+      if(!response.ok) throw new Error((data&&data.detail)||('Server returned '+response.status));
+      if(data.conversation_id) localStorage.setItem('saarthi_conversation_id',data.conversation_id);
+      if(body) body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">'+esc(data.reply||'Command completed.')+'</div></div>';
+      if(input) input.value='';
+    }catch(error){
+      if(body) body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">Unable to reach Saarthi: '+esc(error?.message||'Request failed')+'</div></div>';
+    }finally{
+      button.disabled=false;
+      button.removeAttribute('aria-busy');
+      button.innerHTML=old;
+    }
+  };
+  const bind=()=>{
+    const button=document.getElementById('sendCommand');
+    if(button && !button.__directSendBound){
+      button.__directSendBound=true;
+      button.addEventListener('click',send,true);
+    }
+  };
+  bind();
+  new MutationObserver(bind).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script><script src="./scripts/app.js?v=20261005-17" defer></script><script src="./scripts/boot.js?v=20261005-20" defer></script>
 </body></html>
