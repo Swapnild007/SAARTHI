@@ -1,7 +1,7 @@
 """Deterministic verification primitives for SAARTHI run results.
 
-This module deliberately distinguishes runtime checks from factual verification.
-It does not claim model-generated prose is true merely because generation succeeded.
+This module distinguishes runtime checks from factual verification. Successful
+model generation alone is never treated as proof that generated claims are true.
 """
 from __future__ import annotations
 
@@ -42,7 +42,10 @@ def verify_run(
             "detail": f"{len(tools)} execution result(s) are available." if tools else "No deterministic tool result was attached to this run.",
         },
     ]
-    deterministic = bool(tools) and str(provider or "").startswith("system.")
+    deterministic = bool(tools) and (
+        str(provider or "").startswith("system.")
+        or all(str(name).startswith("system.") for name in tools)
+    )
     if deterministic:
         factual_scope = "Deterministic server-side tool output is available; only the recorded tool result is verified."
         status = "partially_verified"
