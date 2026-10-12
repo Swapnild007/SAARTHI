@@ -1255,8 +1255,15 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
-  // Single authoritative send path: native form submission.
-  // This is resilient on mobile browsers and keeps keyboard/button behavior identical.
+  // Explicit button activation is the primary mobile send path. Prevent the
+  // browser's default form submit here, then keep native submit for Enter.
+  // submitInFlight is set synchronously inside submit(), preventing duplicates.
+  const sendButton=$('#sendCommand');
+  sendButton?.addEventListener('click',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    submit();
+  });
   composerForm?.addEventListener('submit',event=>{
     event.preventDefault();
     event.stopPropagation();
