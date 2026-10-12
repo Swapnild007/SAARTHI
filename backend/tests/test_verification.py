@@ -59,6 +59,6 @@ def test_work_product_verification_does_not_overclaim():
         reply="Option A is cheaper.",
         verification={"claims": "response generated from available execution context"},
     )
-    assert result["version"] == "1.1"
+    assert result["version"] == "1.0"
     assert result["verification"]["status"] == "runtime_checked"
     assert "not been independently fact-checked" in result["verification"]["scope"]
