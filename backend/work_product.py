@@ -95,7 +95,7 @@ def build_work_product(
         verification_out["runtime_claim"] = str(verification["claims"])[:500]
 
     return {
-        "version": "1.1",
+        "version": "1.0",
         "objective": str(objective or "").strip(),
         "industry": orchestration.get("industry") or "General",
         "capability": orchestration.get("active_capability") or "Saarthi",
