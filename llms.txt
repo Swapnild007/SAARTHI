@@ -1,0 +1,20 @@
+# SAARTHI
+
+> SAARTHI is an AI workspace that coordinates research, software engineering, creative production, data analysis, structured analysis, and planning.
+
+## Main website
+
+- https://swapnild007.github.io/SAARTHI/
+
+## Capabilities
+
+- Research: evidence retrieval, source comparison, and synthesis.
+- Software engineering: code analysis, implementation guidance, debugging, and testing.
+- Creative production: writing, editing, prompt design, and structured deliverables.
+- Data analysis: dataset profiling, calculations, KPIs, and visualizations.
+- Analysis: evidence mapping, hypothesis testing, risk review, and root-cause reasoning.
+- Planning: prioritization, dependencies, milestones, and execution plans.
+
+## Important limitations
+
+Capabilities depend on configured model providers, available tools, and supplied context. A generated response is not automatically independently fact-checked. Do not assume a task was executed unless the system reports execution evidence.
