@@ -343,8 +343,8 @@ async def _execute_command_bounded(request: CommandRequest) -> dict[str, Any]:
             "plan": [],
             "orchestration": {},
             "reply": (
-                "I received your message, but the cloud model is taking longer than expected. "
-                "Your request was stopped safely. Please try again in a moment."
+                "The cloud model did not return a response before SAARTHI's 28-second deadline. "
+                "Please retry once; if it happens again, try a shorter prompt."
             ),
             "provider": "runtime-timeout",
             "route": None,
