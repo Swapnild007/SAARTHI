@@ -127,6 +127,51 @@
   window.__SAARTHI_DIRECT_SEND__=true;
   const API='https://saarthi-swapneeldalvi3-1192.vercel.app';
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const inlineReplyMarkdown=value=>{
+    let text=esc(value);
+    const strong=[];
+    text=text.replace(/\*\*([^*\n]+?)\*\*/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
+    text=text.replace(/__([^_\n]+?)__/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
+    text=text.replace(/\x60([^\x60]+)\x60/g,'<code>$1</code>');
+    text=text.replace(/(^|\s)\*([^*\n]+?)\*(?=\s|$)/g,'$1<em>$2</em>');
+    text=text.replace(/(^|\s)_([^_\n]+?)_(?=\s|$)/g,'$1<em>$2</em>');
+    strong.forEach((html,i)=>{text=text.replace('SAARTHISTRONG'+i+'TOKEN',html);});
+    return text;
+  };
+  const formatReplyMarkdown=markdown=>{
+    const lines=String(markdown??'').replace(/\r/g,'').trim().split('\n');
+    const out=[];let inCode=false,code=[],listType=null,tableMode=false;
+    const closeList=()=>{if(listType){out.push('</'+listType+'>');listType=null;}};
+    const closeTable=()=>{if(tableMode){out.push('</tbody></table>');tableMode=false;}};
+    for(let i=0;i<lines.length;i++){
+      const raw=lines[i],line=raw.trim();
+      if(line.slice(0,3)===String.fromCharCode(96,96,96)){closeList();closeTable();if(inCode){out.push('<pre><code>'+esc(code.join('\n'))+'</code></pre>');code=[];inCode=false;}else inCode=true;continue;}
+      if(inCode){code.push(raw);continue;}
+      if(!line){closeList();closeTable();continue;}
+      if(/^\|.*\|$/.test(line)){
+        const cells=line.slice(1,-1).split('|').map(x=>x.trim());
+        if(cells.every(x=>/^:?-{3,}:?$/.test(x)))continue;
+        closeList();
+        if(!tableMode){tableMode=true;out.push('<table><thead><tr>'+cells.map(x=>'<th>'+inlineReplyMarkdown(x)+'</th>').join('')+'</tr></thead><tbody>');}
+        else out.push('<tr>'+cells.map(x=>'<td>'+inlineReplyMarkdown(x)+'</td>').join('')+'</tr>');
+        continue;
+      }
+      closeTable();
+      const heading=line.match(/^(#{1,4})\s+(.+)$/);
+      if(heading){closeList();const n=heading[1].length;out.push('<h'+n+'>'+inlineReplyMarkdown(heading[2])+'</h'+n+'>');continue;}
+      const bullet=line.match(/^[-*•]\s+(.+)$/);
+      if(bullet){if(listType!=='ul'){closeList();listType='ul';out.push('<ul>');}out.push('<li>'+inlineReplyMarkdown(bullet[1])+'</li>');continue;}
+      const numbered=line.match(/^\d+[.)]\s+(.+)$/);
+      if(numbered){if(listType!=='ol'){closeList();listType='ol';out.push('<ol>');}out.push('<li>'+inlineReplyMarkdown(numbered[1])+'</li>');continue;}
+      if(/^>\s?/.test(line)){closeList();out.push('<blockquote>'+inlineReplyMarkdown(line.replace(/^>\s?/,''))+'</blockquote>');continue;}
+      if(/^---+$/.test(line)){closeList();out.push('<hr>');continue;}
+      closeList();out.push('<p>'+inlineReplyMarkdown(line)+'</p>');
+    }
+    if(inCode)out.push('<pre><code>'+esc(code.join('\n'))+'</code></pre>');
+    closeList();closeTable();
+    return out.join('');
+  };
+
   const send=async function(event){
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -163,7 +208,7 @@
       let data={}; try{data=JSON.parse(raw)}catch(_){}
       if(!response.ok) throw new Error((data&&data.detail)||('Server returned '+response.status));
       if(data.conversation_id) localStorage.setItem('saarthi_conversation_id',data.conversation_id);
-      if(body) body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">'+esc(data.reply||'Command completed.')+'</div></div>';
+      if(body) body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">'+formatReplyMarkdown(data.reply||'Command completed.')+'</div></div>';
       if(input) input.value='';
     }catch(error){
       if(body) body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">Unable to reach Saarthi: '+esc(error?.message||'Request failed')+'</div></div>';
