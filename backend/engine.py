@@ -534,6 +534,13 @@ class OpenAICompatibleProvider(LLMProvider):
                 "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
             }]
         self.routes = routes
+        # Vercel allows 30 seconds for this function. Keep each provider attempt
+        # bounded so a slow primary still leaves time for the second route.
+        try:
+            configured_timeout = float(os.getenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "10"))
+        except (TypeError, ValueError):
+            configured_timeout = 10.0
+        self.request_timeout = min(12.0, max(3.0, configured_timeout))
         self.last_route = routes[0].get("name", "unknown") if routes else "unavailable"
         self.last_failures: list[dict[str, str]] = []
 
@@ -574,7 +581,7 @@ class OpenAICompatibleProvider(LLMProvider):
             },
             method="POST",
         )
-        with urlopen(request, timeout=25) as response:
+        with urlopen(request, timeout=self.request_timeout) as response:
             body = json.loads(response.read().decode("utf-8"))
         usage = body.get("usage") if isinstance(body, dict) else None
         reply = str(body["choices"][0]["message"]["content"]).strip()
