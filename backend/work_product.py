@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .verification import verify_run
+
 
 _ARTIFACT_BY_INTENT = {
     "research": "research_brief",
@@ -28,7 +30,6 @@ def infer_deliverable_type(intent: str, orchestration: dict[str, Any] | None = N
     intent_name = str(intent or "").lower()
     for artifact in artifacts:
         if artifact:
-            # Prefer an industry artifact when it is clearly aligned with the request.
             if intent_name in {"research", "search"} and "research" in artifact:
                 return artifact
             if intent_name == "analyze" and ("analysis" in artifact or "review" in artifact):
@@ -47,11 +48,7 @@ def build_work_product(
     tool_results: dict[str, Any] | None = None,
     verification: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Create a stable, machine-readable delivery contract around every run.
-
-    This does not pretend the model's prose is factually verified. Verification
-    describes what SAARTHI actually checked or executed in the runtime.
-    """
+    """Build a stable delivery contract without overstating verification."""
     orchestration = orchestration or {}
     tool_results = tool_results or {}
     verification = verification or {}
@@ -85,18 +82,20 @@ def build_work_product(
         else:
             evidence.append({"source": name, "type": "runtime_result", "available": True})
 
-    verification_out = {
-        "status": "runtime_verified",
-        "scope": (
-            "Confirms the SAARTHI runtime path and listed tool executions; "
-            "it does not independently fact-check model-generated prose."
-        ),
-        "tool_count": len(tool_results),
-        "claims": verification.get("claims"),
-    }
+    provider = str(verification.get("provider") or "")
+    execution = str(verification.get("execution") or "completed")
+    verification_out = verify_run(
+        objective=objective,
+        reply=reply,
+        tool_results=tool_results,
+        execution=execution,
+        provider=provider,
+    )
+    if verification.get("claims"):
+        verification_out["runtime_claim"] = str(verification["claims"])[:500]
 
     return {
-        "version": "1.0",
+        "version": "1.1",
         "objective": str(objective or "").strip(),
         "industry": orchestration.get("industry") or "General",
         "capability": orchestration.get("active_capability") or "Saarthi",
