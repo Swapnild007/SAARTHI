@@ -153,7 +153,7 @@
         context:{timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'}
       };
       const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),15000);
+      const timer=setTimeout(()=>controller.abort(new Error('SAARTHI response timed out after 29 seconds')),29000);
       const response=await fetch(API+'/api/command/plain',{
         method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
         body:JSON.stringify(payload),signal:controller.signal,cache:'no-store'
