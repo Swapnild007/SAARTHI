@@ -105,3 +105,52 @@ def test_command_plain_has_runtime_deadline(monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["execution"] == "timed-out-safely"
+
+def test_provider_request_timeout_is_bounded(monkeypatch):
+    import json
+    from backend.engine import OpenAICompatibleProvider
+
+    monkeypatch.setenv("SAARTHI_LLM_API_KEY", "test-key")
+    monkeypatch.setenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "10")
+    provider = OpenAICompatibleProvider()
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "choices": [{"message": {"content": "ok"}}],
+                "usage": {},
+            }).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr("backend.engine.urlopen", fake_urlopen)
+    reply, _ = provider._request(
+        provider.routes[0],
+        message="Hello",
+        system="Be helpful",
+        context={},
+        assistant="saarthi",
+    )
+
+    assert reply == "ok"
+    assert captured["timeout"] == 10.0
+
+
+def test_provider_request_timeout_is_clamped(monkeypatch):
+    from backend.engine import OpenAICompatibleProvider
+
+    monkeypatch.setenv("SAARTHI_LLM_API_KEY", "test-key")
+    monkeypatch.setenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "99")
+    provider = OpenAICompatibleProvider()
+
+    assert provider.request_timeout == 12.0
+
