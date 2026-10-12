@@ -17,6 +17,7 @@ from .data_analysis import analyze_dataset, build_chart, recommend_visuals
 from .analysis_engine import analyze_text
 from .research import research
 from .work_product import build_work_product
+from .verification import verify_run
 from urllib.request import Request, urlopen
 
 
@@ -1166,7 +1167,7 @@ class SaarthiEngine:
             "usage": usage,
             "execution": "completed",
             "tool_results": tool_results,
-            "verification": {"verified": True, "claims": "response generated from available execution context", "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
+            "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
             "work_product": build_work_product(
                 objective=message,
                 intent=intent.name,
