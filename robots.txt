@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://swapnild007.github.io/SAARTHI/sitemap.xml
