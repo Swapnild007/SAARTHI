@@ -164,6 +164,8 @@ def health():
         "engine": "saarthi-runtime-v1",
         "provider_configured": engine.cloud.configured,
         "persistence": store_status(store),
+        "rag": __rag_status(),
+        "mcp": __mcp_status(),
     }
 
 
@@ -230,6 +232,76 @@ def menus():
         "settings": ["model", "voice", "privacy", "connections", "permissions"],
     }
 
+
+def __rag_status():
+    from .rag import status as rag_status
+    return rag_status()
+
+def __mcp_status():
+    from .mcp_runtime import status as mcp_status, list_tools
+    result = mcp_status()
+    tools, errors = list_tools()
+    result["available_tool_count"] = len(tools)
+    result["unavailable_servers"] = errors
+    return result
+
+@app.get("/api/rag/status")
+def rag_status_endpoint():
+    return {"ok": True, **__rag_status()}
+
+@app.post("/api/knowledge/search")
+async def knowledge_search(request: Request):
+    from .rag import search
+    try:
+        payload = await request.json()
+        query = str(payload.get("query") or "").strip()
+        if not query:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="query is required")
+        return {"ok": True, "results": search(query, limit=int(payload.get("limit", 5)),
+                                                 collection=str(payload.get("collection") or "default"))}
+    except Exception as exc:
+        return {"ok": False, "results": [], "error": str(exc)[:180]}
+
+@app.post("/api/knowledge/ingest")
+async def knowledge_ingest(request: Request):
+    from .rag import admin_token_valid, ingest_text
+    authorization = request.headers.get("authorization", "")
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    if not admin_token_valid(token):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Knowledge ingestion is not authorized.")
+    try:
+        payload = await request.json()
+        text_value = str(payload.get("text") or "")
+        title = str(payload.get("title") or "Untitled document").strip()
+        source = str(payload.get("source") or "").strip()
+        collection = str(payload.get("collection") or "default").strip()
+        if not text_value.strip():
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="text is required")
+        if len(text_value) > 500000:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=413, detail="Document exceeds the 500,000-character ingestion limit.")
+        return {"ok": True, **ingest_text(text_value, title=title, source=source, collection=collection)}
+    except Exception as exc:
+        from fastapi import HTTPException
+        if isinstance(exc, HTTPException):
+            raise
+        return {"ok": False, "error": str(exc)[:180]}
+
+@app.get("/api/mcp/status")
+def mcp_status_endpoint():
+    return {"ok": True, **__mcp_status()}
+
+@app.get("/api/mcp/tools")
+def mcp_tools_endpoint():
+    from .mcp_runtime import list_tools
+    tools, errors = list_tools(force_refresh=True)
+    return {"ok": True, "tools": [{"name": item["function"]["name"],
+            "description": item["function"]["description"],
+            "input_schema": item["function"]["parameters"]} for item in tools],
+            "unavailable_servers": errors}
 
 @app.get("/api/capabilities")
 def capabilities():
