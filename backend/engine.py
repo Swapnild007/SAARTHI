@@ -601,7 +601,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 return str(reply or "").strip(), usage if isinstance(usage, dict) else None
 
             messages.append({"role": "assistant", "content": choice.get("content"),
-                             "tool_calls": tool_calls})
+                             "tool_calls": tool_calls[:3]})
             for tool_call in tool_calls[:3]:
                 function = tool_call.get("function", {}) if isinstance(tool_call, dict) else {}
                 name = str(function.get("name") or "")
