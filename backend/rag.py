@@ -67,7 +67,7 @@ def embed(texts: list[str]) -> list[list[float]]:
     req = Request(endpoint, data=json.dumps({"model": c["embedding_model"], "input": texts}).encode("utf-8"),
         headers={"Content-Type": "application/json", "Authorization": "Bearer " + c["embedding_key"]}, method="POST")
     try:
-        with urlopen(req, timeout=7.0) as response:
+        with urlopen(req, timeout=4.0) as response:
             body = json.loads(response.read(2_000_000).decode("utf-8"))
     except HTTPError as exc:
         raise RuntimeError(f"Embedding provider returned HTTP {exc.code}") from None
@@ -78,6 +78,8 @@ def embed(texts: list[str]) -> list[list[float]]:
     vectors = [item.get("embedding") for item in data if isinstance(item, dict)]
     if len(vectors) != len(texts) or any(not isinstance(v, list) or not v for v in vectors):
         raise RuntimeError("Embedding provider returned an unexpected vector shape")
+    if any(len(vector) != 1536 for vector in vectors):
+        raise RuntimeError("Embedding dimension mismatch: database schema expects 1536 dimensions")
     return vectors
 
 def ingest_text(text: str, *, title: str, source: str = "", collection: str = "default") -> dict[str, Any]:
@@ -103,7 +105,7 @@ def search(query: str, *, limit: int = 5, collection: str = "default") -> list[d
     vector = embed([query[:4000]])[0]
     rows = _request(c["db_url"] + "/rest/v1/rpc/match_saarthi_knowledge", c["db_key"],
         payload={"query_embedding": vector, "match_count": max(1, min(int(limit), 8)),
-                 "filter_collection": collection[:100]}, timeout=7.0)
+                 "filter_collection": collection[:100]}, timeout=4.0)
     if not isinstance(rows, list):
         return []
     return [{"title": str(row.get("title") or "Untitled source")[:300],
