@@ -38,3 +38,9 @@ AS $$
 $$;
 
 -- Backend service-role credentials are server-side only. Never expose them to the browser.
+
+ALTER TABLE public.knowledge_chunks ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.knowledge_chunks FROM anon, authenticated;
+GRANT ALL ON public.knowledge_chunks TO service_role;
+REVOKE ALL ON FUNCTION public.match_saarthi_knowledge(VECTOR, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.match_saarthi_knowledge(VECTOR, INTEGER, TEXT) TO service_role;
