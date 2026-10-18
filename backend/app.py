@@ -323,6 +323,9 @@ def mcp_tools_endpoint(request: Request):
     from .mcp_runtime import list_tools
     tools, errors = list_tools(force_refresh=True)
     return {"ok": True, "tools": [{"name": item["function"]["name"],
+            "remote_name": item["_remote_tool"], "server": item["_server"],
+            "approved": item.get("_approved", False), "safe_to_call": item.get("_safe_to_call", False),
+            "read_only": item.get("_read_only", False),
             "description": item["function"]["description"],
             "input_schema": item["function"]["parameters"]} for item in tools],
             "unavailable_servers": errors}
