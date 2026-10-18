@@ -103,17 +103,16 @@ def _tools_for_server(server: dict[str, Any]) -> list[dict[str, Any]]:
         if not isinstance(tool, dict):
             continue
         name = str(tool.get("name") or "")
-        if name not in server["allowed_tools"]:
-            continue
         annotations = tool.get("annotations") if isinstance(tool.get("annotations"), dict) else {}
-        if annotations.get("readOnlyHint") is not True and not server["allow_write"]:
-            continue
-        public_name = "mcp__" + re.sub(r"[^a-zA-Z0-9_]", "_", server["name"]) + "__" + re.sub(r"[^a-zA-Z0-9_]", "_", name)
+        approved = name in server["allowed_tools"]
+        read_only = annotations.get("readOnlyHint") is True
+        safe_to_call = read_only or server["allow_write"]
+        public_name = ("mcp__" + re.sub(r"[^a-zA-Z0-9_]", "_", server["name"]) + "__" + re.sub(r"[^a-zA-Z0-9_]", "_", name))[:64]
         schema = tool.get("inputSchema") if isinstance(tool.get("inputSchema"), dict) else {"type": "object", "properties": {}}
         output.append({"type": "function", "function": {"name": public_name,
             "description": str(tool.get("description") or f"Remote MCP tool {name}")[:700],
             "parameters": schema}, "_server": server["name"], "_remote_tool": name,
-            "_read_only": annotations.get("readOnlyHint") is True})
+            "_read_only": read_only, "_approved": approved, "_safe_to_call": safe_to_call})
     return output
 
 def list_tools(force_refresh: bool = False) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -131,13 +130,14 @@ def list_tools(force_refresh: bool = False) -> tuple[list[dict[str, Any]], list[
 
 def openai_tool_definitions() -> list[dict[str, Any]]:
     tools, _ = list_tools()
-    return [{"type": "function", "function": item["function"]} for item in tools]
+    return [{"type": "function", "function": item["function"]} for item in tools
+            if item.get("_approved") is True and item.get("_safe_to_call") is True]
 
 def call_tool(public_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     tools, _ = list_tools()
     match = next((item for item in tools if item["function"]["name"] == public_name), None)
-    if not match:
-        raise ValueError("MCP tool is not allowlisted or is unavailable")
+    if not match or match.get("_approved") is not True or match.get("_safe_to_call") is not True:
+        raise ValueError("MCP tool is not approved for execution or is unavailable")
     server = next((item for item in _servers() if item["name"] == match["_server"]), None)
     if not server:
         raise ValueError("MCP server is no longer configured")
