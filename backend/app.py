@@ -238,12 +238,8 @@ def __rag_status():
     return rag_status()
 
 def __mcp_status():
-    from .mcp_runtime import status as mcp_status, list_tools
-    result = mcp_status()
-    tools, errors = list_tools()
-    result["available_tool_count"] = len(tools)
-    result["unavailable_servers"] = errors
-    return result
+    from .mcp_runtime import status as mcp_status
+    return mcp_status()
 
 @app.get("/api/rag/status")
 def rag_status_endpoint():
@@ -251,7 +247,12 @@ def rag_status_endpoint():
 
 @app.post("/api/knowledge/search")
 async def knowledge_search(request: Request):
-    from .rag import search
+    from .rag import admin_token_valid, search
+    authorization = request.headers.get("authorization", "")
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    if not admin_token_valid(token):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Knowledge search is not authorized.")
     try:
         payload = await request.json()
         query = str(payload.get("query") or "").strip()
@@ -261,6 +262,9 @@ async def knowledge_search(request: Request):
         return {"ok": True, "results": search(query, limit=int(payload.get("limit", 5)),
                                                  collection=str(payload.get("collection") or "default"))}
     except Exception as exc:
+        from fastapi import HTTPException
+        if isinstance(exc, HTTPException):
+            raise
         return {"ok": False, "results": [], "error": str(exc)[:180]}
 
 @app.post("/api/knowledge/ingest")
