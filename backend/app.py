@@ -313,7 +313,13 @@ def mcp_status_endpoint():
     return {"ok": True, **__mcp_status()}
 
 @app.get("/api/mcp/tools")
-def mcp_tools_endpoint():
+def mcp_tools_endpoint(request: Request):
+    from .rag import admin_token_valid
+    authorization = request.headers.get("authorization", "")
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    if not admin_token_valid(token):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="MCP tool discovery is not authorized.")
     from .mcp_runtime import list_tools
     tools, errors = list_tools(force_refresh=True)
     return {"ok": True, "tools": [{"name": item["function"]["name"],
