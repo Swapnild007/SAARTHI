@@ -9,7 +9,7 @@ _PROTOCOL_VERSION = "2025-03-26"
 try:
     _TIMEOUT = min(2.0, max(0.8, float(os.getenv("SAARTHI_MCP_TIMEOUT_SECONDS", "1.5"))))
 except ValueError:
-    _TIMEOUT = 3.5
+    _TIMEOUT = 1.5
 _CACHE_TTL = 45.0
 _cache: dict[str, Any] = {"at": 0.0, "tools": [], "errors": []}
 
