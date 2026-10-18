@@ -281,9 +281,23 @@ async def knowledge_ingest(request: Request):
         title = str(payload.get("title") or "Untitled document").strip()
         source = str(payload.get("source") or "").strip()
         collection = str(payload.get("collection") or "default").strip()
+        attachment = payload.get("attachment")
+        if not text_value.strip() and isinstance(attachment, dict):
+            from .attachments import inspect_attachment
+            parsed = inspect_attachment(attachment)
+            if parsed.get("error"):
+                from fastapi import HTTPException
+                raise HTTPException(status_code=400, detail=str(parsed["error"])[:180])
+            text_value = str(parsed.get("text") or "")
+            if not text_value and isinstance(parsed.get("workbook"), dict):
+                text_value = json.dumps(parsed["workbook"].get("analysis_rows", {}), ensure_ascii=False)
+            if not source:
+                source = str(parsed.get("name") or attachment.get("name") or "")
+            if title == "Untitled document":
+                title = str(parsed.get("name") or title)
         if not text_value.strip():
             from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="text is required")
+            raise HTTPException(status_code=400, detail="Provide text or a supported text/PDF/CSV/JSON/Excel attachment.")
         if len(text_value) > 500000:
             from fastapi import HTTPException
             raise HTTPException(status_code=413, detail="Document exceeds the 500,000-character ingestion limit.")
