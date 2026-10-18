@@ -73,7 +73,9 @@ class EngineContractTests(unittest.TestCase):
         self.assertEqual(result["deliverable_type"], "capacity_plan")
         self.assertTrue(result["actions_taken"])
         self.assertTrue(result["evidence"])
-        self.assertEqual(result["verification"]["status"], "runtime_verified")
+        self.assertEqual(result["verification"]["status"], "partially_verified")
+        self.assertTrue(result["verification"]["verified"])
+        self.assertIn("not every sentence", result["verification"]["limitations"][0])
 
     def test_deliverable_type_defaults_to_intent(self):
         self.assertEqual(infer_deliverable_type("plan", {}), "execution_plan")
