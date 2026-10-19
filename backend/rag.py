@@ -148,7 +148,7 @@ def ingest_text(text: str, *, title: str, source: str = "", collection: str = "d
 def search(query: str, *, limit: int = 5, collection: str = "default") -> list[dict[str, Any]]:
     c = _config()
     if not _managed_configured(c):
-        terms = list(dict.fromkeys(re.findall(r"[\\w'-]{2,}", query.casefold())))
+        terms = list(dict.fromkeys(re.findall(r"[\w'-]{2,}", query.casefold())))
         if not terms:
             return []
         with _local_connection() as connection:
