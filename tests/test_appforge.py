@@ -62,3 +62,10 @@ def test_appforge_route_does_not_accept_unbounded_payloads():
         json={"prompt": "Build a dashboard " + ("x" * 5000), "project_name": "Test"},
     )
     assert response.status_code == 422
+
+
+def test_appforge_workspace_route_serves_builder_html():
+    response = TestClient(app).get("/appforge")
+    assert response.status_code == 200
+    assert "SAARTHI AppForge" in response.text
+    assert 'src="/appforge/app.js"' in response.text
