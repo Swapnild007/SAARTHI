@@ -118,6 +118,39 @@
   function setStatus(message) {
     $("statusText").textContent = message.length > 76 ? message.slice(0, 73) + "…" : message;
   }
+  async function runCloudBuild() {
+    if (busy) return;
+    if (!active.html) { setStatus("Generate an application before running a cloud build."); return; }
+    const key = $("buildKey").value.trim();
+    if (!key) { setStatus("Enter the private build key to authorize an isolated build."); $("buildKey").focus(); return; }
+    busy = true;
+    $("cloudBuild").disabled = true;
+    $("statusText").textContent = "Starting isolated cloud build…";
+    $("buildStatus").textContent = "Building inside a restricted microVM…";
+    try {
+      const response = await fetch("/api/appforge/build", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-AppForge-Build-Key": key},
+        body: JSON.stringify({files: {"index.html": active.html}})
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.detail || "Cloud build unavailable (" + response.status + ")");
+      if (!result.ok) throw new Error(result.logs || result.status || "Build failed");
+      const output = typeof result.preview_html === "string" ? result.preview_html : active.html;
+      preview.srcdoc = withPreviewPolicy(output);
+      $("providerLabel").textContent = "Isolated cloud build · network restricted";
+      $("buildStatus").textContent = "Build passed · " + result.files + " file(s) checked in isolated microVM";
+      setStatus("Isolated build passed. No code ran in the SAARTHI API process.");
+    } catch (error) {
+      $("buildStatus").textContent = "Cloud build did not complete";
+      setStatus(error.message);
+    } finally {
+      busy = false;
+      $("cloudBuild").disabled = false;
+      if ($("statusText").textContent.includes("…")) $("statusText").textContent = "Local workspace ready";
+    }
+  }
+  $("cloudBuild").addEventListener("click", runCloudBuild);
   $("generate").addEventListener("click", () => generate(false));
   $("refine").addEventListener("click", () => generate(true));
   $("newProject").addEventListener("click", () => {
