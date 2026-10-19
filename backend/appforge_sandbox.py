@@ -53,7 +53,8 @@ def validate_build_files(files: dict[str, str]) -> dict[str, str]:
         if suffix not in ALLOWED_SUFFIXES:
             raise BuildInputError(f"Unsupported file type: {path[:80]}")
         size = len(content.encode("utf-8"))
-        if size > MAX_FILE_BYTES:
+        file_limit = 120_000 if path in {"index.html", "src/index.html"} else MAX_FILE_BYTES
+        if size > file_limit:
             raise BuildInputError(f"File is too large: {path[:80]}")
         total += size
         normalized[path] = content
