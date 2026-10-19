@@ -61,7 +61,8 @@
       const result = await response.json();
       if (!result || !result.ok || !Array.isArray(result.projects)) return;
       const byId = new Map(projects.map(project => [project.id, project]));
-      const newerLocal = [];
+      const remoteIds = new Set(result.projects.filter(project => project && typeof project.id === "string").map(project => project.id));
+      const newerLocal = projects.filter(project => !remoteIds.has(project.id));
       for (const remote of result.projects) {
         if (!remote || typeof remote.id !== "string") continue;
         const local = byId.get(remote.id);
