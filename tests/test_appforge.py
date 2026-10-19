@@ -71,3 +71,47 @@ def test_appforge_workspace_route_serves_builder_html():
     assert response.status_code == 200
     assert "SAARTHI AppForge" in response.text
     assert 'src="/appforge/app.js"' in response.text
+
+
+
+def test_appforge_build_is_disabled_without_private_key(monkeypatch):
+    monkeypatch.delenv("APPFORGE_BUILD_TOKEN", raising=False)
+    response = TestClient(app).post(
+        "/api/appforge/build",
+        json={"files": {"index.html": "<!doctype html><html></html>"}},
+    )
+    assert response.status_code == 503
+
+
+def test_appforge_build_requires_private_key(monkeypatch):
+    monkeypatch.setenv("APPFORGE_BUILD_TOKEN", "test-private-key")
+    response = TestClient(app).post(
+        "/api/appforge/build",
+        json={"files": {"index.html": "<!doctype html><html></html>"}},
+    )
+    assert response.status_code == 401
+
+
+def test_appforge_build_runs_through_isolated_runner(monkeypatch):
+    import backend.appforge_sandbox as sandbox_runner
+
+    monkeypatch.setenv("APPFORGE_BUILD_TOKEN", "test-private-key")
+
+    async def fake_build(files):
+        assert files["index.html"].startswith("<!doctype html>")
+        return {
+            "ok": True,
+            "status": "built",
+            "files": 1,
+            "preview_html": files["index.html"],
+            "isolation": "ephemeral-microvm-network-restricted",
+        }
+
+    monkeypatch.setattr(sandbox_runner, "run_isolated_build", fake_build)
+    response = TestClient(app).post(
+        "/api/appforge/build",
+        headers={"X-AppForge-Build-Key": "test-private-key"},
+        json={"files": {"index.html": "<!doctype html><html><body>Built</body></html>"}},
+    )
+    assert response.status_code == 200
+    assert response.json()["isolation"] == "ephemeral-microvm-network-restricted"
