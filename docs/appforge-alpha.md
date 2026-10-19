@@ -9,12 +9,13 @@ An additive workspace inside SAARTHI for prompt-driven creation and iterative re
 - Intelligence: delegates to the existing `SaarthiEngine` with the `coding` assistant profile.
 - Preview: HTML is rendered in a browser iframe with the `sandbox="allow-scripts"` attribute and a restrictive Content Security Policy. Generated code is not executed inside the trusted FastAPI process.
 - Local state: project metadata and version checkpoints remain in browser localStorage. When the existing Supabase/PostgREST store is configured and the AppForge table migration is applied, project snapshots are also backed up to the managed database under a UUID-derived anonymous browser identity.
-- Export: downloads the current HTML as a portable file.
+- Export: downloads a single-file app as HTML or packages a multi-file project into a ZIP without executing its contents.
 - Cloud build: `backend/appforge_sandbox.py` writes submitted files to an ephemeral Vercel Sandbox microVM. The sandbox uses one vCPU, a short execution timeout, and no persistence. Package downloads are restricted to the npm registry; package lifecycle scripts are disabled during installation, then network access is denied before project build scripts run. The sandbox is always cleaned up by its async context manager.
 
 ## API
 - `GET /api/appforge/health`: reports Alpha boundaries and whether isolated builds are configured.
 - `POST /api/appforge/generate`: accepts `prompt`, `project_name`, and optional `current_html` / `change_request`. It returns a complete HTML document when the coding engine provides one; otherwise it returns a safe starter document.
+- `POST /api/appforge/export`: validates a bounded file map and returns a ZIP archive without executing project code.
 - `POST /api/appforge/build`: accepts a bounded file map and requires `X-AppForge-Build-Key`. It validates paths and file sizes, then runs the build in the isolated sandbox. Configure `APPFORGE_BUILD_TOKEN` only on the private `feat/appforge-alpha` Vercel Preview environment. The endpoint is disabled when that variable is absent.
 - `GET /api/appforge/projects`, `POST /api/appforge/projects`, and `DELETE /api/appforge/projects/{project_id}`: optional cloud backup/list/delete endpoints. They fall back to browser-local mode if Supabase is not configured. Apply `database/appforge_projects.sql` (or the full `database/schema.sql`) once to enable the table.
 
@@ -34,7 +35,7 @@ An additive workspace inside SAARTHI for prompt-driven creation and iterative re
 
 ## Known Alpha limitations
 - Projects and checkpoints are browser-local, not synchronized across devices.
-- The source editor supports multiple project files and sends the file map to the build endpoint. Prompt generation currently creates/refines the primary HTML entry; additional source files can be added in the editor.
+- The source editor supports multiple project files, ZIP export, cloud backup, and isolated builds. Prompt generation currently creates/refines the primary HTML entry; additional source files can be added in the editor.
 - The current cloud build validates JavaScript syntax or runs an existing `npm run build` script; it does not deploy or publish the result.
 - Durable Git-backed persistence, account authentication, distributed quotas, deployment approvals, and public publishing remain release gates.
 - The fallback template is not a substitute for a configured coding model.
