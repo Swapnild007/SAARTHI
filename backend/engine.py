@@ -550,11 +550,21 @@ class OpenAICompatibleProvider(LLMProvider):
             if not any(route.get("local") for route in routes):
                 routes.append(local_route)
 
+        # Add the legacy cloud route as failover when a local route is enabled.
+        cloud_key = os.getenv("SAARTHI_LLM_API_KEY", "").strip()
+        if not any(not route.get("local") for route in routes) and cloud_key:
+            routes.append({
+                "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
+                "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
+                "key": cloud_key,
+                "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
+                "local": False,
+            })
         if not routes:
             routes = [{
                 "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
                 "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
-                "key": os.getenv("SAARTHI_LLM_API_KEY", ""),
+                "key": cloud_key,
                 "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
                 "local": False,
             }]
