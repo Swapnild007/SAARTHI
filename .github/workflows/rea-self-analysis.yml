@@ -1,0 +1,46 @@
+name: REA Self-Analysis
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "appforge/**"
+      - "scripts/**"
+      - "index.html"
+      - "styles/**"
+      - "backend/appforge_api.py"
+      - "docs/rea-integration-adr.md"
+      - ".github/workflows/rea-self-analysis.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-owned-code:
+    name: Analyze owned SAARTHI source
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out SAARTHI
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+      - name: Install process inspection prerequisite
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y procps
+      - name: Run pinned REA JavaScript analysis
+        run: |
+          mkdir -p artifacts/rea
+          npx --yes rea-agents@6.7.0 analyze-javascript-application "$GITHUB_WORKSPACE" --json > artifacts/rea/saarthi-self-analysis.json
+      - name: Upload evidence report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: saarthi-rea-self-analysis
+          path: artifacts/rea/
+          if-no-files-found: warn
+          retention-days: 7
