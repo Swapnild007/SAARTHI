@@ -91,7 +91,8 @@ def appforge_health() -> dict[str, Any]:
     return {
         "ok": True,
         "feature": "appforge-alpha",
-        "execution": "browser-preview-only",
+        "execution": "browser-preview-with-optional-isolated-build",
+        "isolated_builds_configured": bool(os.getenv("APPFORGE_BUILD_TOKEN")),
         "persistent_projects": "browser-local",
         "production_deployments": False,
     }
