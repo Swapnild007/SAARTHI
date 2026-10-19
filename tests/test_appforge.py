@@ -10,7 +10,8 @@ def test_appforge_health_is_explicit_about_alpha_boundaries():
     assert body["ok"] is True
     assert body["feature"] == "appforge-alpha"
     assert body["production_deployments"] is False
-    assert body["execution"] == "browser-preview-only"
+    assert body["execution"] == "browser-preview-with-optional-isolated-build"
+    assert isinstance(body["isolated_builds_configured"], bool)
 
 
 def test_appforge_generate_requires_a_meaningful_prompt():
