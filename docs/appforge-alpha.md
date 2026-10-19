@@ -8,7 +8,7 @@ An additive workspace inside SAARTHI for prompt-driven creation and iterative re
 - API: FastAPI router under `/api/appforge`.
 - Intelligence: delegates to the existing `SaarthiEngine` with the `coding` assistant profile.
 - Preview: HTML is rendered in a browser iframe with the `sandbox="allow-scripts"` attribute and a restrictive Content Security Policy. Generated code is not executed inside the trusted FastAPI process.
-- Local state: project metadata and version checkpoints remain in browser localStorage. When the existing Supabase/PostgREST store is configured and the AppForge table migration is applied, project snapshots are also backed up to the managed database under a UUID-derived anonymous browser identity.
+- Local state: project metadata and version checkpoints remain in browser localStorage. When the existing Supabase/PostgREST store is configured and the AppForge table migration is applied, the 10 most recently updated projects are also backed up to the managed database under a UUID-derived anonymous browser identity, with the latest checkpoint retained in the cloud copy.
 - Export: downloads a single-file app as HTML or packages a multi-file project into a ZIP without executing its contents.
 - Cloud build: `backend/appforge_sandbox.py` writes submitted files to an ephemeral Vercel Sandbox microVM. The sandbox uses one vCPU, a short execution timeout, and no persistence. Package downloads are restricted to the npm registry; package lifecycle scripts are disabled during installation, then network access is denied before project build scripts run. The sandbox is always cleaned up by its async context manager.
 
