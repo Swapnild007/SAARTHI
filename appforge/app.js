@@ -41,7 +41,7 @@
     });
   }
   function readProjects() {
-    try { const parsed = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(parsed) ? parsed.filter(p => p && typeof p.id === "string").map(p => ({...p, files: p.files && typeof p.files === "object" ? p.files : (p.html ? {"index.html": p.html} : {})})) : []; }
+    try { const parsed = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(parsed) ? parsed.filter(p => p && typeof p.id === "string").map(p => ({...p, versions: Array.isArray(p.versions) ? p.versions : [], files: p.files && typeof p.files === "object" ? p.files : (p.html ? {"index.html": p.html} : {})})) : []; }
     catch { return []; }
   }
   function makeProject(name) {
