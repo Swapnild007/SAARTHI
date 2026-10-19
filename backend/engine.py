@@ -543,10 +543,12 @@ class OpenAICompatibleProvider(LLMProvider):
             local_route = {
                 "name": "local-runtime",
                 "url": local_url,
-                "key": os.getenv("SAARTHI_LOCAL_LLM_API_KEY", "").strip(),
                 "model": local_model,
                 "local": True,
             }
+            local_key = os.getenv("SAARTHI_LOCAL_LLM_API_KEY", "").strip()
+            if local_key:
+                local_route["key"] = local_key
             if not any(route.get("local") for route in routes):
                 routes.append(local_route)
 
@@ -575,8 +577,8 @@ class OpenAICompatibleProvider(LLMProvider):
         local_only = os.getenv("SAARTHI_LOCAL_ONLY", "false").strip().lower() in {"1", "true", "yes"}
         local_routes = [route for route in routes if route.get("local")]
         cloud_routes = [route for route in routes if not route.get("local")]
-        self.routes = (local_routes + ([] if local_only else cloud_routes)) if prefer_local else (cloud_routes + ([] if local_only else local_routes))
-        self.routes = routes
+        ordered_routes = (local_routes + ([] if local_only else cloud_routes)) if prefer_local else (cloud_routes + ([] if local_only else local_routes))
+        self.routes = ordered_routes
         # Vercel allows 30 seconds for this function. Keep each provider attempt
         # bounded so a slow primary still leaves time for the second route.
         try:
