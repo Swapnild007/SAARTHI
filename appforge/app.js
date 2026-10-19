@@ -384,12 +384,44 @@
     const previous = active.versions.pop();
     active.html = previous.html || ""; active.files = previous.files && typeof previous.files === "object" ? previous.files : (active.html ? {"index.html": active.html} : {}); active.buildHtml = null; selectedFile = "index.html"; active.name = previous.name || active.name; active.prompt = previous.prompt || active.prompt; active.provider = "Restored checkpoint"; active.updatedAt = new Date().toISOString(); persist(); render(); saveProjectToCloud(active); setStatus("Previous checkpoint restored.");
   });
-  $("downloadProject").addEventListener("click", () => {
-    if (!active.html) { setStatus("Generate an application before exporting."); return; }
-    const blob = new Blob([active.html], {type: "text/html;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = (active.name || "appforge-project").replace(/[^a-z0-9-_]+/gi, "-").slice(0, 60) + ".html"; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $("downloadProject").addEventListener("click", async () => {
+    const files = {...(active.files || {})};
+    if (active.html) files["index.html"] = active.html;
+    const paths = Object.keys(files);
+    if (!paths.length || (!active.html && paths.every(path => !files[path]))) {
+      setStatus("Generate an application or add project files before exporting.");
+      return;
+    }
+    const baseName = (active.name || "appforge-project").replace(/[^a-z0-9-_]+/gi, "-").slice(0, 60) || "appforge-project";
+    try {
+      let blob;
+      let extension;
+      if (paths.length > 1 || Object.prototype.hasOwnProperty.call(files, "package.json")) {
+        const response = await fetch("/api/appforge/export", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({project_name: active.name, files})
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.detail || "Project export failed.");
+        }
+        blob = await response.blob();
+        extension = ".zip";
+      } else {
+        blob = new Blob([files["index.html"] || active.html], {type: "text/html;charset=utf-8"});
+        extension = ".html";
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = baseName + extension;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus(extension === ".zip" ? "Project source exported as ZIP." : "HTML exported.");
+    } catch (error) {
+      setStatus(error.message);
+    }
   });
   window.addEventListener("beforeunload", () => persist(false));
 })();
