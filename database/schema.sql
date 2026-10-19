@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS public.appforge_projects (
   CONSTRAINT appforge_projects_html_length CHECK (octet_length(html) <= 480000)
 );
 
+ALTER TABLE public.appforge_projects ADD COLUMN IF NOT EXISTS files JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_appforge_projects_user_updated
   ON public.appforge_projects (user_id, updated_at DESC);
 
