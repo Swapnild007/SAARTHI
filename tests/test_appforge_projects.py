@@ -20,7 +20,7 @@ def test_appforge_project_sync_falls_back_when_cloud_store_is_unconfigured(monke
         "/api/appforge/projects",
         json={
             "session_id": session_id,
-            "project": {"id": "a" * 36, "name": "Demo", "html": "<html></html>"},
+            "project": {"id": "6e3a1c9d-7bb3-4b80-a72e-cbd0d8cc8c4a", "name": "Demo", "html": "<html></html>"},
         },
     )
     assert saved.status_code == 200
