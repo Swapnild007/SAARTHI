@@ -267,6 +267,8 @@ def appforge_list_projects(request: Request, session_id: str) -> dict[str, Any]:
 
 @router.post("/projects")
 def appforge_save_project(payload: ProjectSaveRequest, request: Request) -> dict[str, Any]:
+    if not _valid_project_session_id(payload.session_id):
+        raise HTTPException(status_code=400, detail="A valid browser session identifier is required.")
     store = _cloud_store(request)
     if store is None:
         return {"ok": False, "provider": "browser-local", "saved": False}
@@ -280,7 +282,7 @@ def appforge_save_project(payload: ProjectSaveRequest, request: Request) -> dict
 
 @router.delete("/projects/{project_id}")
 def appforge_delete_project(project_id: str, request: Request, session_id: str) -> dict[str, Any]:
-    if len(session_id) < 24 or len(session_id) > 128:
+    if not _valid_project_session_id(session_id):
         raise HTTPException(status_code=400, detail="A valid browser session identifier is required.")
     store = _cloud_store(request)
     if store is None:
