@@ -45,7 +45,7 @@ def test_appforge_generate_uses_complete_html_from_coding_engine(monkeypatch):
                 "provider": "test-provider",
             }
 
-    app.state.saarthi_engine = FakeEngine()
+    monkeypatch.setattr(app.state, "saarthi_engine", FakeEngine(), raising=False)
     response = TestClient(app).post(
         "/api/appforge/generate",
         json={"prompt": "Create a simple product dashboard", "project_name": "Test"},
