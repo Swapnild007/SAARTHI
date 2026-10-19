@@ -256,7 +256,7 @@ def appforge_list_projects(request: Request, session_id: str) -> dict[str, Any]:
     if store is None:
         return {"ok": False, "provider": "browser-local", "projects": []}
     try:
-        rows = store.appforge_projects(session_id, limit=30)
+        rows = store.appforge_projects(session_id, limit=10)
         projects = [
             {
                 "id": row.get("project_id"),
