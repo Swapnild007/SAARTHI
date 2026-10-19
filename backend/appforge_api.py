@@ -144,7 +144,6 @@ async def appforge_generate(payload: GenerateRequest, request: Request) -> dict[
         return {
             "ok": True,
             "html": generated,
-            "provider": str(result.get("provider") or "configured-model"),
             "mode": "ai-generated",
             "note": "Generated code is untrusted and shown only in the isolated browser preview.",
         }
@@ -152,7 +151,6 @@ async def appforge_generate(payload: GenerateRequest, request: Request) -> dict[
     return {
         "ok": True,
         "html": _fallback_html(project_name, task),
-        "provider": str(result.get("provider") or "deterministic-fallback"),
         "mode": "safe-starter",
         "note": "The coding model did not return a complete HTML document. A safe starter preview was created instead.",
     }
