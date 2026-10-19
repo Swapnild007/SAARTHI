@@ -157,6 +157,7 @@ class ChatRequest(BaseModel):
 engine = SaarthiEngine()
 app.state.saarthi_engine = engine
 store = CloudStore()
+app.state.cloud_store = store
 
 from .appforge_api import router as appforge_router
 app.include_router(appforge_router)
