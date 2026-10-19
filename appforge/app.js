@@ -201,17 +201,24 @@
       filePicker.value = selectedFile;
     }
     const source = String(active.files[selectedFile] ?? "");
-    const hasPreview = !!(active.buildHtml || active.html);
+    const previewSource = String(active.buildHtml || active.html || "");
+    const hasPreview = previewSource.trim().length > 0;
+    const completeHtml = /<(?:!doctype\\s+html|html)(?:\\s|>)/i.test(previewSource) && /<\\/html\\s*>/i.test(previewSource);
     $("versionLabel").textContent = (hasPreview || fileNames.length > 1) ? "Draft · v" + (active.versions.length + 1) : "New draft";
     $("emptyState").classList.toggle("hidden", hasPreview);
     $("previewWrap").classList.toggle("hidden", view !== "preview");
     $("codeWrap").classList.toggle("hidden", view !== "code");
     $("previewLabel").textContent = view === "preview" ? "LIVE PREVIEW" : "SOURCE EDITOR";
     document.querySelectorAll("[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
-    if (hasPreview) {
-      preview.srcdoc = withPreviewPolicy(active.buildHtml || active.html);
+    if (hasPreview && completeHtml) {
+      preview.srcdoc = withPreviewPolicy(previewSource);
       $("providerLabel").textContent = active.buildHtml ? "Isolated cloud build · preview artifact" : "SAARTHI workspace · isolated preview";
-      $("buildStatus").textContent = active.buildHtml ? "Cloud build output ready" : "Preview ready · cloud build optional";
+      $("buildStatus").textContent = active.buildHtml ? "Cloud build output ready" : "HTML document loaded · cloud build optional";
+    } else if (hasPreview) {
+      const safeText = previewSource.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      preview.srcdoc = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>body{font:15px/1.6 system-ui,sans-serif;color:#263238;margin:0;padding:24px;background:#f7faf9}h2{font-size:20px}p{color:#64716f}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;border:1px solid #dfe8e5;border-radius:12px;padding:16px}</style></head><body><h2>Preview could not render</h2><p>The saved source is not a complete HTML document. Open the Code tab, check the source, or regenerate this project.</p><pre>" + safeText + "</pre></body></html>";
+      $("providerLabel").textContent = "Preview validation";
+      $("buildStatus").textContent = "Preview unavailable · incomplete HTML source";
     } else {
       $("providerLabel").textContent = "Ready for first generation";
       $("buildStatus").textContent = "Add a file or generate your first application";
