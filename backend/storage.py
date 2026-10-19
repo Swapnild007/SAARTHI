@@ -127,6 +127,7 @@ class CloudStore:
             "name": str(project.get("name") or "Untitled project")[:80],
             "prompt": str(project.get("prompt") or "")[:4000],
             "html": str(project.get("html") or "")[:120000],
+            "files": project.get("files") if isinstance(project.get("files"), dict) else {},
             "versions": project.get("versions") if isinstance(project.get("versions"), list) else [],
             "created_at": str(project.get("createdAt") or now),
             "updated_at": now,
@@ -145,7 +146,7 @@ class CloudStore:
         rows = self._request(
             "appforge_projects",
             query=(
-                f"user_id=eq.{user_id}&select=project_id,name,prompt,html,versions,created_at,updated_at"
+                f"user_id=eq.{user_id}&select=project_id,name,prompt,html,files,versions,created_at,updated_at"
                 f"&order=updated_at.desc&limit={max(1, min(limit, 30))}"
             ),
         )
