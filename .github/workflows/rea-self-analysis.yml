@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   inspect-owned-code:
-    name: Analyze owned SAARTHI source
+    name: Analyze owned SAARTHI AppForge source
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -30,19 +30,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24.11.0"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install process inspection prerequisite
         run: |
           sudo apt-get update
           sudo apt-get install -y procps
       - name: Run pinned REA JavaScript analysis
         run: |
-          mkdir -p artifacts/rea
-          npx --yes rea-agents@6.7.0 analyze-javascript-application "$GITHUB_WORKSPACE" --json > artifacts/rea/saarthi-self-analysis.json
-      - name: Upload evidence report
+          test -f appforge/index.html
+          test -f appforge/app.js
+          npx --yes rea-agents@6.7.0 analyze-javascript-application "$GITHUB_WORKSPACE/appforge" --json > /tmp/saarthi-rea-raw.json
+      - name: Validate and normalize REA evidence
+        run: |
+          python scripts/normalize_rea_evidence.py /tmp/saarthi-rea-raw.json artifacts/rea/saarthi-appforge-evidence.json
+      - name: Upload validated evidence report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: saarthi-rea-self-analysis
+          name: saarthi-rea-appforge-evidence
           path: artifacts/rea/
           if-no-files-found: warn
           retention-days: 7
