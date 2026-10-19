@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.appforge_projects (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, project_id),
   CONSTRAINT appforge_projects_name_length CHECK (char_length(name) <= 80),
-  CONSTRAINT appforge_projects_html_length CHECK (octet_length(html) <= 120000)
+  CONSTRAINT appforge_projects_html_length CHECK (octet_length(html) <= 480000)
 );
 
 CREATE INDEX IF NOT EXISTS idx_appforge_projects_user_updated
