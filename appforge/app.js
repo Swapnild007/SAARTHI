@@ -42,6 +42,17 @@
   function render() {
     projectName.value = active.name;
     $("workspaceTitle").textContent = active.name;
+    const picker = $("projectPicker");
+    if (picker) {
+      picker.innerHTML = "";
+      projects.slice(0, 30).forEach(project => {
+        const option = document.createElement("option");
+        option.value = project.id;
+        option.textContent = project.name || "Untitled project";
+        picker.appendChild(option);
+      });
+      picker.value = active.id;
+    }
     $("versionLabel").textContent = active.html ? "Draft · v" + (active.versions.length + 1) : "New draft";
     $("emptyState").classList.toggle("hidden", !!active.html);
     $("previewWrap").classList.toggle("hidden", view !== "preview");
@@ -113,6 +124,10 @@
     const p = makeProject("Untitled project");
     projects.unshift(p); active = p; view = "preview"; persist(); render();
     prompt.focus();
+  });
+  $("projectPicker").addEventListener("change", () => {
+    const selected = projects.find(project => project.id === $("projectPicker").value);
+    if (selected) { active = selected; view = "preview"; render(); setStatus("Project opened from this browser."); }
   });
   $("projectName").addEventListener("change", () => {
     active.name = projectName.value.trim().slice(0, 80) || "My App";
