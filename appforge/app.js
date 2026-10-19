@@ -23,13 +23,19 @@
     try {
       let value = localStorage.getItem(SESSION_KEY);
       if (!value) {
-        value = crypto.randomUUID ? crypto.randomUUID() : "saarthi-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+        value = crypto.randomUUID ? crypto.randomUUID() : fallbackUuid();
         localStorage.setItem(SESSION_KEY, value);
       }
       return value;
     } catch {
-      return "saarthi-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+      return fallbackUuid();
     }
+  }
+  function fallbackUuid() {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, character => {
+      const random = Math.random() * 16 | 0;
+      return (character === "x" ? random : (random & 3 | 8)).toString(16);
+    });
   }
   function readProjects() {
     try { const parsed = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(parsed) ? parsed.filter(p => p && typeof p.id === "string") : []; }
