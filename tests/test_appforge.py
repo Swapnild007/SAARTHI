@@ -23,7 +23,7 @@ def test_appforge_generate_returns_complete_safe_starter_when_model_has_no_html(
         def run(self, **kwargs):
             return {"reply": "I can help with that.", "provider": "deterministic-fallback"}
 
-    app.state.saarthi_engine = FakeEngine()
+    monkeypatch.setattr(app.state, "saarthi_engine", FakeEngine(), raising=False)
     response = TestClient(app).post(
         "/api/appforge/generate",
         json={"prompt": "Create a useful customer support dashboard", "project_name": "Support Desk"},
