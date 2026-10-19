@@ -1275,3 +1275,27 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,getAttachments:()=>currentAttachments().map(({name,type,size,data})=>({name,type,size,data})),clearConversation:assistant=>{const id=assistant||currentAssistant;const list=ensureAssistantHistory(id);attachmentsByAssistant[id]=[];const tid=currentThreads[id];const index=list.findIndex(t=>t.id===tid);if(index>=0)list.splice(index,1);currentThreads[id]=null;conversations[id]=[];saveHistory();if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();renderHistory();}},startNewConversation,voiceTurn:false};
   return window.SaarthiApp;
 })()
+
+
+// AppForge is an additive SAARTHI workspace. Keep the existing navigation intact.
+(() => {
+  const nav = document.querySelector(".sidebar .nav");
+  if (!nav || nav.querySelector("[data-appforge-nav]")) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.appforgeNav = "true";
+  button.innerHTML = '<span class="ico">✦</span>AppForge';
+  button.setAttribute("aria-label", "Open AppForge application builder");
+  button.addEventListener("click", async () => {
+    let base = "https://saarthi-swapneeldalvi3-1192.vercel.app";
+    try {
+      const response = await fetch("./config/runtime.json", {cache: "no-store"});
+      if (response.ok) {
+        const runtime = await response.json();
+        if (typeof runtime.api_base_url === "string" && /^https:\/\//i.test(runtime.api_base_url)) base = runtime.api_base_url.replace(/\/+$/, "");
+      }
+    } catch (_) { /* The configured backend URL remains the fallback. */ }
+    window.open(base + "/appforge", "_blank", "noopener,noreferrer");
+  });
+  nav.appendChild(button);
+})();
