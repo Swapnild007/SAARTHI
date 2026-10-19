@@ -206,7 +206,7 @@ def main(argv: list[str]) -> int:
         raw = json.loads(source.read_text(encoding="utf-8"))
         result = normalize(raw)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        destination.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"REA evidence validation failed: {exc}", file=sys.stderr)
         return 1
