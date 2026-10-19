@@ -79,7 +79,7 @@
   async function loadCloudProjects() {
     try {
       const response = await fetch("/api/appforge/projects?session_id=" + encodeURIComponent(sessionId));
-      if (!response.ok) return;
+      if (!response.ok) { $("saveStatus").textContent = "Cloud backup unavailable · local copy safe"; return; }
       const result = await response.json();
       if (!result || !result.ok || !Array.isArray(result.projects)) return;
       const byId = new Map(projects.map(project => [project.id, project]));
@@ -147,6 +147,7 @@
       });
       const result = await response.json().catch(() => ({}));
       if (response.ok && result.ok) $("saveStatus").textContent = "Saved to cloud + browser";
+      else if (response.status >= 500) $("saveStatus").textContent = "Saved locally · cloud backup unavailable";
     } catch {
       // Keep the browser copy as the source of truth when cloud storage is unavailable.
     }
