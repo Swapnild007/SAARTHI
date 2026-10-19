@@ -6,6 +6,7 @@ import hmac
 import os
 import re
 import time
+import uuid
 from collections import defaultdict, deque
 from typing import Any
 
@@ -36,6 +37,16 @@ class ProjectRecord(BaseModel):
 class ProjectSaveRequest(BaseModel):
     session_id: str = Field(min_length=24, max_length=128)
     project: ProjectRecord
+
+
+def _valid_project_session_id(session_id: str) -> bool:
+    if not isinstance(session_id, str) or len(session_id) > 128:
+        return False
+    try:
+        uuid.UUID(session_id)
+        return True
+    except (ValueError, AttributeError):
+        return False
 
 
 def _cloud_store(request: Request):
@@ -230,7 +241,7 @@ async def appforge_build(
 
 @router.get("/projects")
 def appforge_list_projects(request: Request, session_id: str) -> dict[str, Any]:
-    if len(session_id) < 24 or len(session_id) > 128:
+    if not _valid_project_session_id(session_id):
         raise HTTPException(status_code=400, detail="A valid browser session identifier is required.")
     store = _cloud_store(request)
     if store is None:
