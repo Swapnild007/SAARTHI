@@ -7,7 +7,6 @@ the sandbox access to application secrets.
 from __future__ import annotations
 
 import json
-import re
 from datetime import timedelta
 from typing import Any
 
@@ -104,6 +103,13 @@ async def run_isolated_build(files: dict[str, str]) -> dict[str, Any]:
             tags={"app": "saarthi", "purpose": "appforge-build"},
         ) as box:
             await box.fs.mkdir("workspace")
+            directories: set[str] = set()
+            for file_path in normalized:
+                segments = file_path.split("/")[:-1]
+                for index in range(1, len(segments) + 1):
+                    directories.add("workspace/" + "/".join(segments[:index]))
+            for directory in sorted(directories, key=lambda value: (value.count("/"), value)):
+                await box.fs.mkdir(directory)
             async with box.fs.batch() as batch:
                 for path, content in normalized.items():
                     batch.write_text(f"workspace/{path}", content)
@@ -176,6 +182,13 @@ async def run_isolated_build(files: dict[str, str]) -> dict[str, Any]:
                 if candidate and len(candidate.encode("utf-8")) <= MAX_PREVIEW_BYTES:
                     preview_html = candidate
                     break
+
+            if has_manifest and preview_html is None:
+                return {
+                    "ok": False,
+                    "status": "build-output-missing",
+                    "logs": "\\n".join(part for part in log_parts if part)[-6000:],
+                }
 
             return {
                 "ok": True,
