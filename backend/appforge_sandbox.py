@@ -103,6 +103,7 @@ async def run_isolated_build(files: dict[str, str]) -> dict[str, Any]:
             region="bom1",
             tags={"app": "saarthi", "purpose": "appforge-build"},
         ) as box:
+            await box.fs.mkdir("workspace")
             async with box.fs.batch() as batch:
                 for path, content in normalized.items():
                     batch.write_text(f"workspace/{path}", content)
