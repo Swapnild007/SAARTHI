@@ -65,6 +65,7 @@
       const status = response.ok ? await response.json() : {};
       cloudBuildConfigured = status.isolated_builds_configured === true;
       button.disabled = !cloudBuildConfigured;
+      $("buildAccess").classList.toggle("hidden", !cloudBuildConfigured);
       button.title = cloudBuildConfigured ? "Run an isolated cloud build" : "Private preview build key is not configured yet";
       if (!cloudBuildConfigured) {
         $("buildStatus").textContent = "Cloud build awaits private preview configuration";
@@ -73,6 +74,7 @@
     } catch {
       cloudBuildConfigured = false;
       button.disabled = true;
+      $("buildAccess").classList.add("hidden");
       $("buildStatus").textContent = "Cloud build capability could not be verified";
     }
   }
