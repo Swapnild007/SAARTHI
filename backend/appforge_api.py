@@ -129,13 +129,14 @@ def _extract_html(reply: str) -> str | None:
 
 
 @router.get("/health")
-def appforge_health() -> dict[str, Any]:
+def appforge_health(request: Request) -> dict[str, Any]:
     return {
         "ok": True,
         "feature": "appforge-alpha",
         "execution": "browser-preview-with-optional-isolated-build",
         "isolated_builds_configured": bool(os.getenv("APPFORGE_BUILD_TOKEN")),
-        "persistent_projects": "browser-local",
+        "project_backup_configured": _cloud_store(request) is not None,
+        "persistent_projects": "browser-local-with-optional-supabase-backup",
         "production_deployments": False,
     }
 
