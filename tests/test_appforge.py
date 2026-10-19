@@ -32,6 +32,7 @@ def test_appforge_generate_returns_complete_safe_starter_when_model_has_no_html(
     body = response.json()
     assert body["ok"] is True
     assert body["mode"] == "safe-starter"
+    assert "provider" not in body
     assert "<!doctype html>" in body["html"].lower()
     assert "</html>" in body["html"].lower()
     assert "Support Desk" in body["html"]
@@ -53,6 +54,7 @@ def test_appforge_generate_uses_complete_html_from_coding_engine(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["mode"] == "ai-generated"
+    assert "provider" not in body
     assert "<h1>Built</h1>" in body["html"]
 
 
