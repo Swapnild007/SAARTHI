@@ -269,6 +269,8 @@ def appforge_list_projects(request: Request, session_id: str) -> dict[str, Any]:
 def appforge_save_project(payload: ProjectSaveRequest, request: Request) -> dict[str, Any]:
     if not _valid_project_session_id(payload.session_id):
         raise HTTPException(status_code=400, detail="A valid browser session identifier is required.")
+    if not _valid_project_session_id(payload.project.id):
+        raise HTTPException(status_code=400, detail="A valid project identifier is required.")
     store = _cloud_store(request)
     if store is None:
         return {"ok": False, "provider": "browser-local", "saved": False}
