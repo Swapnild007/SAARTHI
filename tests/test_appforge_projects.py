@@ -8,7 +8,7 @@ def test_appforge_project_sync_falls_back_when_cloud_store_is_unconfigured(monke
         configured = False
 
     monkeypatch.setattr(app.state, "cloud_store", Store(), raising=False)
-    session_id = "saarthi-session-identifier-1234567890"
+    session_id = "11111111-1111-4111-8111-111111111111"
     client = TestClient(app)
 
     listed = client.get("/api/appforge/projects", params={"session_id": session_id})
@@ -54,7 +54,7 @@ def test_appforge_project_sync_uses_managed_store_when_configured(monkeypatch):
 
     store = Store()
     monkeypatch.setattr(app.state, "cloud_store", store, raising=False)
-    session_id = "saarthi-session-identifier-1234567890"
+    session_id = "11111111-1111-4111-8111-111111111111"
     client = TestClient(app)
 
     saved = client.post(
