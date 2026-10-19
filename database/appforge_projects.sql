@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.appforge_projects (
   name TEXT NOT NULL DEFAULT 'Untitled project',
   prompt TEXT NOT NULL DEFAULT '',
   html TEXT NOT NULL DEFAULT '',
+  files JSONB NOT NULL DEFAULT '{}'::jsonb,
   versions JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
