@@ -63,6 +63,8 @@ def validate_build_files(files: dict[str, str]) -> dict[str, str]:
     if "index.html" not in normalized and "src/index.html" not in normalized:
         if "package.json" not in normalized:
             raise BuildInputError("Add index.html or a package.json build project.")
+    if "package.json" not in normalized and not (normalized.get("index.html") or normalized.get("src/index.html", "")).strip():
+        raise BuildInputError("The HTML entry file is empty.")
 
     if "package.json" in normalized:
         try:
