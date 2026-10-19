@@ -129,7 +129,7 @@
       prompt: String(project.prompt || "").slice(0, 4000),
       html: String(project.html || "").slice(0, 120000),
       files: project.files && typeof project.files === "object" ? project.files : {"index.html": String(project.html || "")},
-      versions: (Array.isArray(project.versions) ? project.versions : []).slice(-3).map(version => ({
+      versions: (Array.isArray(project.versions) ? project.versions : []).slice(-1).map(version => ({
         name: String(version.name || "").slice(0, 80),
         at: String(version.at || "").slice(0, 64),
         prompt: String(version.prompt || "").slice(0, 4000),
