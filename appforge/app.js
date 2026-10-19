@@ -18,6 +18,7 @@
   persist(false);
   render();
   loadCloudProjects();
+  refreshBuildCapability();
 
   function getSessionId() {
     try {
@@ -52,6 +53,24 @@
       $("projectCount").textContent = projects.length + (projects.length === 1 ? " project" : " projects");
     } catch {
       $("saveStatus").textContent = "Storage full · export your HTML";
+    }
+  }
+  async function refreshBuildCapability() {
+    const button = $("cloudBuild");
+    if (!button) return;
+    try {
+      const response = await fetch("/api/appforge/health");
+      const status = response.ok ? await response.json() : {};
+      const configured = status.isolated_builds_configured === true;
+      button.disabled = !configured;
+      button.title = configured ? "Run an isolated cloud build" : "Private preview build key is not configured yet";
+      if (!configured) {
+        $("buildStatus").textContent = "Cloud build awaits private preview configuration";
+        $("providerLabel").textContent = "Isolated build · not configured";
+      }
+    } catch {
+      button.disabled = true;
+      $("buildStatus").textContent = "Cloud build capability could not be verified";
     }
   }
   async function loadCloudProjects() {
