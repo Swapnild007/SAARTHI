@@ -2,6 +2,8 @@ name: REA Self-Analysis
 
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/appforge-alpha]
   pull_request:
     branches: [main]
     paths:
