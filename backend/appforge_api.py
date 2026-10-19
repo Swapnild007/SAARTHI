@@ -2,17 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import html
+import hmac
+import os
 import re
 import time
 from collections import defaultdict, deque
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/appforge", tags=["appforge"])
 _generation_buckets: dict[str, deque[float]] = defaultdict(deque)
 _GENERATION_LIMIT_PER_MINUTE = 8
+_build_buckets: dict[str, deque[float]] = defaultdict(deque)
+_BUILD_LIMIT_PER_MINUTE = 3
+
+
+class BuildRequest(BaseModel):
+    files: dict[str, str] = Field(min_length=1, max_length=30)
 
 
 class GenerateRequest(BaseModel):
@@ -154,3 +162,43 @@ async def appforge_generate(payload: GenerateRequest, request: Request) -> dict[
         "mode": "safe-starter",
         "note": "The coding model did not return a complete HTML document. A safe starter preview was created instead.",
     }
+
+
+
+@router.post("/build")
+async def appforge_build(
+    payload: BuildRequest,
+    request: Request,
+    x_appforge_build_key: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Validate/build submitted files in a short-lived isolated Vercel Sandbox."""
+    expected_key = os.getenv("APPFORGE_BUILD_TOKEN", "")
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="Isolated builds are not configured for this deployment.")
+    if not x_appforge_build_key or not hmac.compare_digest(x_appforge_build_key, expected_key):
+        raise HTTPException(status_code=401, detail="A valid private build key is required.")
+
+    client_id = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    bucket = _build_buckets[client_id]
+    while bucket and bucket[0] <= now - 60:
+        bucket.popleft()
+    if len(bucket) >= _BUILD_LIMIT_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="Build limit reached. Retry in about one minute.")
+    bucket.append(now)
+
+    from .appforge_sandbox import BuildInputError, run_isolated_build, validate_build_files
+    try:
+        files = validate_build_files(payload.files)
+    except BuildInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        result = await run_isolated_build(files)
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="The isolated build runtime is not installed.") from exc
+    except Exception as exc:
+        # Never return SDK credentials, environment values, or raw exception text.
+        raise HTTPException(status_code=502, detail="The isolated build could not be completed. Check deployment runtime logs.") from exc
+
+    return result
