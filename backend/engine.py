@@ -519,21 +519,53 @@ class OpenAICompatibleProvider(LLMProvider):
 
     def __init__(self) -> None:
         raw = os.getenv("SAARTHI_LLM_ROUTES_JSON", "").strip()
-        routes: list[dict[str, str]] = []
+        routes: list[dict[str, Any]] = []
         if raw:
             try:
                 parsed = json.loads(raw)
                 if isinstance(parsed, list):
-                    routes = [r for r in parsed if isinstance(r, dict) and r.get("key") and r.get("url") and r.get("model")]
+                    routes = [
+                        {**r, "local": bool(r.get("local", False))}
+                        for r in parsed
+                        if isinstance(r, dict) and r.get("url") and r.get("model")
+                        and (r.get("key") or r.get("local") is True)
+                    ]
             except json.JSONDecodeError:
                 routes = []
+
+        # A local OpenAI-compatible runtime (Ollama, LM Studio, vLLM, or a
+        # Nanobot-compatible gateway) can run without an API key. This only
+        # works when this API process can reach that endpoint, e.g. self-hosted
+        # SAARTHI; localhost on a cloud deployment means the cloud container.
+        local_url = os.getenv("SAARTHI_LOCAL_LLM_API_URL", "").strip()
+        local_model = os.getenv("SAARTHI_LOCAL_LLM_MODEL", "").strip()
+        if local_url and local_model:
+            local_route = {
+                "name": "local-runtime",
+                "url": local_url,
+                "key": os.getenv("SAARTHI_LOCAL_LLM_API_KEY", "").strip(),
+                "model": local_model,
+                "local": True,
+            }
+            if not any(route.get("local") for route in routes):
+                routes.append(local_route)
+
         if not routes:
             routes = [{
                 "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
                 "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
                 "key": os.getenv("SAARTHI_LLM_API_KEY", ""),
                 "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
+                "local": False,
             }]
+
+        # Local-first is opt-in. If configured, cloud routes remain available
+        # as failover unless SAARTHI_LOCAL_ONLY is enabled.
+        prefer_local = os.getenv("SAARTHI_PREFER_LOCAL", "true").strip().lower() not in {"0", "false", "no"}
+        local_only = os.getenv("SAARTHI_LOCAL_ONLY", "false").strip().lower() in {"1", "true", "yes"}
+        local_routes = [route for route in routes if route.get("local")]
+        cloud_routes = [route for route in routes if not route.get("local")]
+        self.routes = (local_routes + ([] if local_only else cloud_routes)) if prefer_local else (cloud_routes + ([] if local_only else local_routes))
         self.routes = routes
         # Vercel allows 30 seconds for this function. Keep each provider attempt
         # bounded so a slow primary still leaves time for the second route.
@@ -547,7 +579,7 @@ class OpenAICompatibleProvider(LLMProvider):
 
     @property
     def configured(self) -> bool:
-        return bool(self.routes and any(r.get("url") and r.get("key") and r.get("model") for r in self.routes))
+        return bool(self.routes and any(r.get("url") and r.get("model") and (r.get("key") or r.get("local")) for r in self.routes))
 
     def _request(self, route: dict[str, str], *, message: str, system: str, context: dict[str, Any], assistant: str) -> tuple[str, dict[str, Any] | None]:
         inspected = inspect_attachments(context.get("attachments") if isinstance(context, dict) else [])
@@ -580,11 +612,19 @@ class OpenAICompatibleProvider(LLMProvider):
             if mcp_tools and tool_round == 0:
                 payload["tools"] = mcp_tools
                 payload["tool_choice"] = "auto"
+            headers = {
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://swapnild007.github.io/SAARTHI/",
+                "X-Title": "SAARTHI",
+            }
+            # Local runtimes such as Ollama commonly accept requests without a
+            # bearer token. Never send an empty Authorization header.
+            if route.get("key"):
+                headers["Authorization"] = f"Bearer {route['key']}"
             request = Request(
                 route["url"].rstrip("/") + "/chat/completions",
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {route['key']}",
-                         "HTTP-Referer": "https://swapnild007.github.io/SAARTHI/", "X-Title": "SAARTHI"},
+                headers=headers,
                 method="POST",
             )
             timeout = min(self.request_timeout, 6.0) if mcp_tools else self.request_timeout
