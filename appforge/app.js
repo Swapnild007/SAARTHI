@@ -396,7 +396,7 @@
     try {
       let blob;
       let extension;
-      if (paths.length > 1 || Object.prototype.hasOwnProperty.call(files, "package.json")) {
+      if (paths.length > 1 || Object.prototype.hasOwnProperty.call(files, "package.json") || !Object.prototype.hasOwnProperty.call(files, "index.html")) {
         const response = await fetch("/api/appforge/export", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
