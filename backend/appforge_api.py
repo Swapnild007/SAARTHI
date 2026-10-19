@@ -23,6 +23,28 @@ class BuildRequest(BaseModel):
     files: dict[str, str] = Field(min_length=1, max_length=30)
 
 
+class ProjectRecord(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    name: str = Field(default="Untitled project", min_length=1, max_length=80)
+    prompt: str = Field(default="", max_length=4000)
+    html: str = Field(default="", max_length=120000)
+    versions: list[dict[str, Any]] = Field(default_factory=list, max_length=12)
+    createdAt: str | None = Field(default=None, max_length=64)
+    updatedAt: str | None = Field(default=None, max_length=64)
+
+
+class ProjectSaveRequest(BaseModel):
+    session_id: str = Field(min_length=24, max_length=128)
+    project: ProjectRecord
+
+
+def _cloud_store(request: Request):
+    store = getattr(request.app.state, "cloud_store", None)
+    if store is None or not getattr(store, "configured", False):
+        return None
+    return store
+
+
 class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=8, max_length=4000)
     project_name: str = Field(default="My App", min_length=1, max_length=80)
@@ -203,3 +225,57 @@ async def appforge_build(
         raise HTTPException(status_code=502, detail="The isolated build could not be completed. Check deployment runtime logs.") from exc
 
     return result
+
+
+
+@router.get("/projects")
+def appforge_list_projects(request: Request, session_id: str) -> dict[str, Any]:
+    if len(session_id) < 24 or len(session_id) > 128:
+        raise HTTPException(status_code=400, detail="A valid browser session identifier is required.")
+    store = _cloud_store(request)
+    if store is None:
+        return {"ok": False, "provider": "browser-local", "projects": []}
+    try:
+        rows = store.appforge_projects(session_id, limit=30)
+        projects = [
+            {
+                "id": row.get("project_id"),
+                "name": row.get("name") or "Untitled project",
+                "prompt": row.get("prompt") or "",
+                "html": row.get("html") or "",
+                "versions": row.get("versions") if isinstance(row.get("versions"), list) else [],
+                "createdAt": row.get("created_at"),
+                "updatedAt": row.get("updated_at"),
+            }
+            for row in rows
+        ]
+        return {"ok": True, "provider": "supabase-postgrest", "projects": projects}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Cloud project storage is unavailable.") from exc
+
+
+@router.post("/projects")
+def appforge_save_project(payload: ProjectSaveRequest, request: Request) -> dict[str, Any]:
+    store = _cloud_store(request)
+    if store is None:
+        return {"ok": False, "provider": "browser-local", "saved": False}
+    project = payload.project.model_dump()
+    try:
+        row = store.save_appforge_project(payload.session_id, project)
+        return {"ok": True, "provider": "supabase-postgrest", "saved": True, "project_id": row.get("project_id")}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Cloud project storage is unavailable.") from exc
+
+
+@router.delete("/projects/{project_id}")
+def appforge_delete_project(project_id: str, request: Request, session_id: str) -> dict[str, Any]:
+    if len(session_id) < 24 or len(session_id) > 128:
+        raise HTTPException(status_code=400, detail="A valid browser session identifier is required.")
+    store = _cloud_store(request)
+    if store is None:
+        return {"ok": False, "provider": "browser-local", "deleted": False}
+    try:
+        deleted = store.delete_appforge_project(session_id, project_id)
+        return {"ok": True, "provider": "supabase-postgrest", "deleted": deleted}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Cloud project storage is unavailable.") from exc
