@@ -173,7 +173,7 @@
     const picker = $("projectPicker");
     if (picker) {
       picker.innerHTML = "";
-      projects.slice(0, 15).forEach(project => {
+      projects.slice(0, 30).forEach(project => {
         const option = document.createElement("option");
         option.value = project.id;
         option.textContent = project.name || "Untitled project";
