@@ -31,5 +31,11 @@ The normalizer deliberately omits raw graph internals that are not needed for Ap
 ## Current findings and known limitations
 The first successful repository-wide run produced a static application graph with 37 nodes and 48 relationships, no integrity contradictions, and one JavaScript parse failure. It also explicitly reported incomplete graph coverage and inline JavaScript bodies in `index.html` and `command-center.html` that were not analyzed. Those observations are not evidence that the runtime has no other behavior. The next run narrows scope to AppForge so the evidence is directly relevant to the feature.
 
+## Scoped AppForge evidence result
+
+The scoped workflow completed successfully and emitted a 3.5 KB normalized evidence artifact. REA inventoried 2 relevant files, parsed 1 JavaScript file with 0 parse failures, and produced 8 application-graph nodes and 10 relationships. It also reported 325 semantic unknowns, so semantic coverage must not be treated as complete. The graph reported 6 findings; 11 observations included four local-storage observations and one `fetch` call targeting `/api/appforge/generate`.
+
+One HTML script reference was marked unresolved because the analyzer's filesystem root is `appforge/` while the browser URL is rooted at `/appforge/app.js`. This is a static path-resolution caveat, not proof that the deployed browser cannot load the script. Confirm actual loading through preview/runtime tests before acting on it.
+
 ## Next gate
 After the scoped evidence workflow succeeds, use the validated report to draft a reviewed AppForge architecture plan and targeted tests. A user-facing target upload feature is deferred until authentication, quotas, artifact isolation, and a separate managed execution worker are implemented.
