@@ -9,8 +9,11 @@ import time
 import uuid
 from collections import defaultdict, deque
 from typing import Any
+from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/appforge", tags=["appforge"])
@@ -33,6 +36,11 @@ class ProjectRecord(BaseModel):
     versions: list[dict[str, Any]] = Field(default_factory=list, max_length=12)
     createdAt: str | None = Field(default=None, max_length=64)
     updatedAt: str | None = Field(default=None, max_length=64)
+
+
+class ExportRequest(BaseModel):
+    project_name: str = Field(default="appforge-project", min_length=1, max_length=80)
+    files: dict[str, str] = Field(min_length=1, max_length=30)
 
 
 class ProjectSaveRequest(BaseModel):
@@ -301,3 +309,27 @@ def appforge_delete_project(project_id: str, request: Request, session_id: str) 
         return {"ok": True, "provider": "supabase-postgrest", "deleted": deleted}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Cloud project storage is unavailable.") from exc
+
+
+
+@router.post("/export")
+def appforge_export(payload: ExportRequest) -> Response:
+    """Package validated project files without executing them."""
+    from .appforge_sandbox import BuildInputError, validate_build_files
+
+    try:
+        files = validate_build_files(payload.files)
+    except BuildInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    buffer = BytesIO()
+    with ZipFile(buffer, mode="w", compression=ZIP_DEFLATED) as archive:
+        for path, source in files.items():
+            archive.writestr(path, source.encode("utf-8"))
+
+    slug = re.sub(r"[^a-z0-9_-]+", "-", payload.project_name.lower()).strip("-_")[:60] or "appforge-project"
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.zip"'},
+    )
