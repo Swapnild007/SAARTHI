@@ -16,6 +16,7 @@
   let view = "preview";
   let busy = false;
   let cloudBuildConfigured = false;
+  let selectedFile = "index.html";
   persist(false);
   render();
   loadCloudProjects();
@@ -40,11 +41,11 @@
     });
   }
   function readProjects() {
-    try { const parsed = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(parsed) ? parsed.filter(p => p && typeof p.id === "string") : []; }
+    try { const parsed = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(parsed) ? parsed.filter(p => p && typeof p.id === "string").map(p => ({...p, files: p.files && typeof p.files === "object" ? p.files : (p.html ? {"index.html": p.html} : {})})) : []; }
     catch { return []; }
   }
   function makeProject(name) {
-    return {id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), name, prompt: "", html: "", versions: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), provider: "not-generated"};
+    return {id: crypto.randomUUID ? crypto.randomUUID() : fallbackUuid(), name, prompt: "", html: "", files: {}, buildHtml: null, versions: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), provider: "not-generated"};
   }
   function persist(updateStatus = true) {
     try {
@@ -98,7 +99,9 @@
           name: remote.name || "Untitled project",
           prompt: remote.prompt || "",
           html: remote.html || "",
-          versions: Array.isArray(remote.versions) ? remote.versions.slice(-12) : [],
+          files: remote.files && typeof remote.files === "object" ? remote.files : (remote.html ? {"index.html": remote.html} : {}),
+          buildHtml: null,
+          versions: Array.isArray(remote.versions) ? remote.versions.slice(-5) : [],
           createdAt: remote.createdAt || new Date().toISOString(),
           updatedAt: remote.updatedAt || new Date().toISOString(),
           provider: "Cloud backup"
@@ -125,6 +128,7 @@
       name: String(project.name || "Untitled project").slice(0, 80),
       prompt: String(project.prompt || "").slice(0, 4000),
       html: String(project.html || "").slice(0, 120000),
+      files: project.files && typeof project.files === "object" ? project.files : {"index.html": String(project.html || "")},
       versions: (Array.isArray(project.versions) ? project.versions : []).slice(-3).map(version => ({
         name: String(version.name || "").slice(0, 80),
         at: String(version.at || "").slice(0, 64),
@@ -148,10 +152,17 @@
     }
   }
   function checkpoint() {
-    if (!active.html) return;
+    if (!active.html && !Object.keys(active.files || {}).length) return;
     active.versions = Array.isArray(active.versions) ? active.versions : [];
-    active.versions.push({html: active.html, name: active.name, at: new Date().toISOString(), prompt: active.prompt, provider: active.provider});
-    active.versions = active.versions.slice(-12);
+    active.versions.push({
+      html: active.html,
+      files: {...(active.files || {})},
+      name: active.name,
+      at: new Date().toISOString(),
+      prompt: active.prompt,
+      provider: active.provider
+    });
+    active.versions = active.versions.slice(-5);
   }
   function render() {
     projectName.value = active.name;
@@ -159,7 +170,7 @@
     const picker = $("projectPicker");
     if (picker) {
       picker.innerHTML = "";
-      projects.slice(0, 30).forEach(project => {
+      projects.slice(0, 15).forEach(project => {
         const option = document.createElement("option");
         option.value = project.id;
         option.textContent = project.name || "Untitled project";
@@ -167,24 +178,43 @@
       });
       picker.value = active.id;
     }
-    $("versionLabel").textContent = active.html ? "Draft · v" + (active.versions.length + 1) : "New draft";
-    $("emptyState").classList.toggle("hidden", !!active.html);
+    active.files = active.files && typeof active.files === "object" ? active.files : {};
+    if (active.html && typeof active.files["index.html"] !== "string") active.files["index.html"] = active.html;
+    const fileNames = Object.keys(active.files).sort();
+    if (!fileNames.length) {
+      active.files["index.html"] = active.html || "";
+      fileNames.push("index.html");
+    }
+    if (!fileNames.includes(selectedFile)) selectedFile = fileNames.includes("index.html") ? "index.html" : fileNames[0];
+    const filePicker = $("filePicker");
+    if (filePicker) {
+      filePicker.innerHTML = "";
+      fileNames.forEach(path => {
+        const option = document.createElement("option");
+        option.value = path;
+        option.textContent = path;
+        filePicker.appendChild(option);
+      });
+      filePicker.value = selectedFile;
+    }
+    const source = String(active.files[selectedFile] ?? "");
+    const hasPreview = !!(active.buildHtml || active.html);
+    $("versionLabel").textContent = (hasPreview || fileNames.length > 1) ? "Draft · v" + (active.versions.length + 1) : "New draft";
+    $("emptyState").classList.toggle("hidden", hasPreview);
     $("previewWrap").classList.toggle("hidden", view !== "preview");
     $("codeWrap").classList.toggle("hidden", view !== "code");
     $("previewLabel").textContent = view === "preview" ? "LIVE PREVIEW" : "SOURCE EDITOR";
     document.querySelectorAll("[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
-    if (active.html) {
-      preview.srcdoc = withPreviewPolicy(active.html);
-      $("codeEditor").value = active.html;
-      $("codeSize").textContent = active.html.length.toLocaleString() + " characters";
-      $("providerLabel").textContent = "SAARTHI workspace · isolated preview";
-      $("buildStatus").textContent = "Preview ready · no cloud build executed";
+    if (hasPreview) {
+      preview.srcdoc = withPreviewPolicy(active.buildHtml || active.html);
+      $("providerLabel").textContent = active.buildHtml ? "Isolated cloud build · preview artifact" : "SAARTHI workspace · isolated preview";
+      $("buildStatus").textContent = active.buildHtml ? "Cloud build output ready" : "Preview ready · cloud build optional";
     } else {
-      $("codeEditor").value = "";
-      $("codeSize").textContent = "0 characters";
       $("providerLabel").textContent = "Ready for first generation";
-      $("buildStatus").textContent = "Ready for your first build";
+      $("buildStatus").textContent = "Add a file or generate your first application";
     }
+    $("codeEditor").value = source;
+    $("codeSize").textContent = source.length.toLocaleString() + " characters";
     persist(false);
   }
   function withPreviewPolicy(source) {
@@ -213,6 +243,9 @@
       if (!result || !result.ok || typeof result.html !== "string") throw new Error("The generator returned an invalid response.");
       checkpoint();
       active.html = result.html;
+      active.files = {...(active.files || {}), "index.html": result.html};
+      active.buildHtml = null;
+      selectedFile = "index.html";
       active.provider = result.mode === "ai-generated" ? "Generated by SAARTHI" : "Starter preview";
       active.updatedAt = new Date().toISOString();
       if (isRefine) changeRequest.value = "";
@@ -235,7 +268,9 @@
   }
   async function runCloudBuild() {
     if (busy) return;
-    if (!active.html) { setStatus("Generate an application before running a cloud build."); return; }
+    const files = {...(active.files || {})};
+    if (active.html) files["index.html"] = active.html;
+    if (!Object.keys(files).length) { setStatus("Add project files or generate an application before building."); return; }
     const key = $("buildKey").value.trim();
     if (!key) { setStatus("Enter the private build key to authorize an isolated build."); $("buildKey").focus(); return; }
     busy = true;
@@ -246,16 +281,23 @@
       const response = await fetch("/api/appforge/build", {
         method: "POST",
         headers: {"Content-Type": "application/json", "X-AppForge-Build-Key": key},
-        body: JSON.stringify({files: {"index.html": active.html}})
+        body: JSON.stringify({files})
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.detail || "Cloud build unavailable (" + response.status + ")");
       if (!result.ok) throw new Error(result.logs || result.status || "Build failed");
-      const output = typeof result.preview_html === "string" ? result.preview_html : active.html;
-      preview.srcdoc = withPreviewPolicy(output);
+      if (typeof result.preview_html === "string") {
+        active.buildHtml = result.preview_html;
+        preview.srcdoc = withPreviewPolicy(result.preview_html);
+      } else if (active.html) {
+        active.buildHtml = null;
+        preview.srcdoc = withPreviewPolicy(active.html);
+      }
       $("providerLabel").textContent = "Isolated cloud build · network restricted";
       $("buildStatus").textContent = "Build passed · " + result.files + " file(s) checked in isolated microVM";
       setStatus("Isolated build passed. No code ran in the SAARTHI API process.");
+      persist();
+      saveProjectToCloud(active);
     } catch (error) {
       $("buildStatus").textContent = "Cloud build did not complete";
       setStatus(error.message);
@@ -284,15 +326,63 @@
   });
   document.querySelectorAll("[data-prompt]").forEach(button => button.addEventListener("click", () => { prompt.value = button.dataset.prompt; prompt.focus(); }));
   document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => { view = button.dataset.view; render(); }));
+  $("filePicker").addEventListener("change", () => {
+    selectedFile = $("filePicker").value || "index.html";
+    render();
+  });
+  $("addFile").addEventListener("click", () => {
+    const path = $("newFilePath").value.trim().replace(/\\\\/g, "/");
+    const parts = path.split("/");
+    const suffix = path.includes(".") ? "." + path.split(".").pop().toLowerCase() : "";
+    const allowed = [".html", ".htm", ".css", ".js", ".mjs", ".cjs", ".json", ".svg", ".txt", ".md", ".ts", ".tsx", ".jsx"];
+    if (!path || path.startsWith("/") || path.length > 180 || parts.some(part => !part || part === "." || part === ".." || part.startsWith(".")) || !allowed.includes(suffix)) {
+      setStatus("Use a safe project-relative path with a supported file extension.");
+      return;
+    }
+    active.files = active.files && typeof active.files === "object" ? active.files : {};
+    if (Object.keys(active.files).length >= 30) { setStatus("A project can contain at most 30 files."); return; }
+    if (Object.prototype.hasOwnProperty.call(active.files, path)) { selectedFile = path; view = "code"; render(); setStatus("Opened existing file."); return; }
+    checkpoint();
+    active.files[path] = "";
+    selectedFile = path;
+    active.updatedAt = new Date().toISOString();
+    view = "code";
+    $("newFilePath").value = "";
+    persist();
+    render();
+    saveProjectToCloud(active);
+    $("codeEditor").focus();
+    setStatus("File added to the project.");
+  });
   $("applyCode").addEventListener("click", () => {
     const source = $("codeEditor").value;
-    if (!/<html[\s>]/i.test(source) || !/<\/html\s*>/i.test(source)) { setStatus("The source must contain a complete HTML document."); return; }
-    checkpoint(); active.html = source.slice(0, 120000); active.provider = "Manual edit"; active.updatedAt = new Date().toISOString(); view = "preview"; persist(); render(); saveProjectToCloud(active); setStatus("Edited HTML applied to the sandboxed preview.");
+    const limit = selectedFile === "index.html" ? 120000 : 80000;
+    if (source.length > limit) { setStatus("This file exceeds the size limit."); return; }
+    if (selectedFile === "index.html" && (!/<html[\s>]/i.test(source) || !/<\/html\s*>/i.test(source))) {
+      setStatus("index.html must contain a complete HTML document.");
+      return;
+    }
+    checkpoint();
+    active.files = active.files && typeof active.files === "object" ? active.files : {};
+    active.files[selectedFile] = source;
+    if (selectedFile === "index.html") {
+      active.html = source;
+      active.buildHtml = null;
+      view = "preview";
+    } else {
+      view = "code";
+    }
+    active.provider = "Manual edit";
+    active.updatedAt = new Date().toISOString();
+    persist();
+    render();
+    saveProjectToCloud(active);
+    setStatus("Saved " + selectedFile + " to the project.");
   });
   $("restoreVersion").addEventListener("click", () => {
     if (!active.versions || !active.versions.length) { setStatus("No previous version is available yet."); return; }
     const previous = active.versions.pop();
-    active.html = previous.html; active.name = previous.name || active.name; active.prompt = previous.prompt || active.prompt; active.provider = "Restored checkpoint"; active.updatedAt = new Date().toISOString(); persist(); render(); saveProjectToCloud(active); setStatus("Previous checkpoint restored.");
+    active.html = previous.html || ""; active.files = previous.files && typeof previous.files === "object" ? previous.files : (active.html ? {"index.html": active.html} : {}); active.buildHtml = null; selectedFile = "index.html"; active.name = previous.name || active.name; active.prompt = previous.prompt || active.prompt; active.provider = "Restored checkpoint"; active.updatedAt = new Date().toISOString(); persist(); render(); saveProjectToCloud(active); setStatus("Previous checkpoint restored.");
   });
   $("downloadProject").addEventListener("click", () => {
     if (!active.html) { setStatus("Generate an application before exporting."); return; }
