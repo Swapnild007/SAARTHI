@@ -34,7 +34,13 @@
       <label class="field-label" for="changeRequest">Refine this version</label>
       <textarea id="changeRequest" rows="3" maxlength="2000" placeholder="e.g. Make the cards more compact and add a filter bar"></textarea>
       <button class="btn btn-secondary btn-wide" id="refine">Apply changes</button>
-      <div class="notice"><span class="notice-icon">ⓘ</span><span>Alpha mode: projects and checkpoints are saved in this browser. The preview is sandboxed. Cloud sandbox builds and publishing are not enabled yet.</span></div>
+      <div class="divider"></div>
+      <div class="section-label">Isolated cloud build</div>
+      <label class="field-label" for="buildKey">Private build key</label>
+      <input id="buildKey" class="text-input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your private build key">
+      <p class="helper">The key stays in this tab's memory. Submitted files are built in a short-lived, network-restricted cloud sandbox.</p>
+      <button class="btn btn-secondary btn-wide" id="cloudBuild">Build &amp; validate in cloud</button>
+      <div class="notice"><span class="notice-icon">ⓘ</span><span>Alpha mode: projects and checkpoints are saved in this browser. Cloud builds run in isolated microVMs; publishing and cross-device project storage remain separate steps.</span></div>
     </aside>
     <section class="right-panel">
       <div class="project-toolbar">
