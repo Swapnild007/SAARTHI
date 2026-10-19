@@ -3,6 +3,8 @@
   const $ = (id) => document.getElementById(id);
   const STORE_KEY = "saarthi.appforge.projects.v1";
   const ACTIVE_KEY = "saarthi.appforge.active.v1";
+  const SESSION_KEY = "saarthi.appforge.session.v1";
+  const sessionId = getSessionId();
   const preview = $("preview");
   const prompt = $("prompt");
   const projectName = $("projectName");
@@ -15,7 +17,20 @@
   let busy = false;
   persist(false);
   render();
+  loadCloudProjects();
 
+  function getSessionId() {
+    try {
+      let value = localStorage.getItem(SESSION_KEY);
+      if (!value) {
+        value = crypto.randomUUID ? crypto.randomUUID() : "saarthi-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+        localStorage.setItem(SESSION_KEY, value);
+      }
+      return value;
+    } catch {
+      return "saarthi-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+    }
+  }
   function readProjects() {
     try { const parsed = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(parsed) ? parsed.filter(p => p && typeof p.id === "string") : []; }
     catch { return []; }
@@ -31,6 +46,77 @@
       $("projectCount").textContent = projects.length + (projects.length === 1 ? " project" : " projects");
     } catch {
       $("saveStatus").textContent = "Storage full · export your HTML";
+    }
+  }
+  async function loadCloudProjects() {
+    try {
+      const response = await fetch("/api/appforge/projects?session_id=" + encodeURIComponent(sessionId));
+      if (!response.ok) return;
+      const result = await response.json();
+      if (!result || !result.ok || !Array.isArray(result.projects)) return;
+      const byId = new Map(projects.map(project => [project.id, project]));
+      const newerLocal = [];
+      for (const remote of result.projects) {
+        if (!remote || typeof remote.id !== "string") continue;
+        const local = byId.get(remote.id);
+        const localTime = Date.parse(local?.updatedAt || "") || 0;
+        const remoteTime = Date.parse(remote.updatedAt || "") || 0;
+        if (local && localTime > remoteTime) {
+          newerLocal.push(local);
+          continue;
+        }
+        byId.set(remote.id, {
+          id: remote.id,
+          name: remote.name || "Untitled project",
+          prompt: remote.prompt || "",
+          html: remote.html || "",
+          versions: Array.isArray(remote.versions) ? remote.versions.slice(-12) : [],
+          createdAt: remote.createdAt || new Date().toISOString(),
+          updatedAt: remote.updatedAt || new Date().toISOString(),
+          provider: "Cloud backup"
+        });
+      }
+      projects = Array.from(byId.values())
+        .sort((a, b) => (Date.parse(b.updatedAt || "") || 0) - (Date.parse(a.updatedAt || "") || 0))
+        .slice(0, 30);
+      activeId = localStorage.getItem(ACTIVE_KEY);
+      active = projects.find(project => project.id === activeId) || projects[0] || active;
+      if (!projects.some(project => project.id === active.id)) projects.unshift(active);
+      persist(false);
+      render();
+      for (const project of newerLocal) saveProjectToCloud(project);
+      if (result.projects.length) $("saveStatus").textContent = "Synced with cloud";
+    } catch {
+      // Cloud sync is best-effort; browser-local work remains available offline.
+    }
+  }
+  async function saveProjectToCloud(project = active) {
+    if (!project || !project.id) return;
+    const payload = {
+      id: project.id,
+      name: String(project.name || "Untitled project").slice(0, 80),
+      prompt: String(project.prompt || "").slice(0, 4000),
+      html: String(project.html || "").slice(0, 120000),
+      versions: (Array.isArray(project.versions) ? project.versions : []).slice(-3).map(version => ({
+        name: String(version.name || "").slice(0, 80),
+        at: String(version.at || "").slice(0, 64),
+        prompt: String(version.prompt || "").slice(0, 4000),
+        provider: String(version.provider || "").slice(0, 80),
+        html: String(version.html || "").slice(0, 120000)
+      })),
+      createdAt: project.createdAt || new Date().toISOString(),
+      updatedAt: project.updatedAt || new Date().toISOString()
+    };
+    try {
+      const response = await fetch("/api/appforge/projects", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({session_id: sessionId, project: payload})
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.ok) $("saveStatus").textContent = "Saved to cloud + browser";
+    } catch {
+      // Keep the browser copy as the source of truth when cloud storage is unavailable.
     }
   }
   function checkpoint() {
@@ -106,6 +192,7 @@
       view = "preview";
       persist();
       render();
+      saveProjectToCloud(active);
     } catch (error) {
       setStatus(error.message + ". Use Export HTML to keep local work; check the SAARTHI API connection.");
       $("buildStatus").textContent = "Generation could not be completed";
@@ -156,6 +243,7 @@
   $("newProject").addEventListener("click", () => {
     const p = makeProject("Untitled project");
     projects.unshift(p); active = p; view = "preview"; persist(); render();
+    saveProjectToCloud(active);
     prompt.focus();
   });
   $("projectPicker").addEventListener("change", () => {
@@ -164,19 +252,19 @@
   });
   $("projectName").addEventListener("change", () => {
     active.name = projectName.value.trim().slice(0, 80) || "My App";
-    active.updatedAt = new Date().toISOString(); persist(); render();
+    active.updatedAt = new Date().toISOString(); persist(); render(); saveProjectToCloud(active);
   });
   document.querySelectorAll("[data-prompt]").forEach(button => button.addEventListener("click", () => { prompt.value = button.dataset.prompt; prompt.focus(); }));
   document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => { view = button.dataset.view; render(); }));
   $("applyCode").addEventListener("click", () => {
     const source = $("codeEditor").value;
     if (!/<html[\s>]/i.test(source) || !/<\/html\s*>/i.test(source)) { setStatus("The source must contain a complete HTML document."); return; }
-    checkpoint(); active.html = source.slice(0, 120000); active.provider = "Manual edit"; active.updatedAt = new Date().toISOString(); view = "preview"; persist(); render(); setStatus("Edited HTML applied to the sandboxed preview.");
+    checkpoint(); active.html = source.slice(0, 120000); active.provider = "Manual edit"; active.updatedAt = new Date().toISOString(); view = "preview"; persist(); render(); saveProjectToCloud(active); setStatus("Edited HTML applied to the sandboxed preview.");
   });
   $("restoreVersion").addEventListener("click", () => {
     if (!active.versions || !active.versions.length) { setStatus("No previous version is available yet."); return; }
     const previous = active.versions.pop();
-    active.html = previous.html; active.name = previous.name || active.name; active.prompt = previous.prompt || active.prompt; active.provider = "Restored checkpoint"; active.updatedAt = new Date().toISOString(); persist(); render(); setStatus("Previous checkpoint restored.");
+    active.html = previous.html; active.name = previous.name || active.name; active.prompt = previous.prompt || active.prompt; active.provider = "Restored checkpoint"; active.updatedAt = new Date().toISOString(); persist(); render(); saveProjectToCloud(active); setStatus("Previous checkpoint restored.");
   });
   $("downloadProject").addEventListener("click", () => {
     if (!active.html) { setStatus("Generate an application before exporting."); return; }
