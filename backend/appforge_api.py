@@ -3,12 +3,16 @@ from __future__ import annotations
 import asyncio
 import html
 import re
+import time
+from collections import defaultdict, deque
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/appforge", tags=["appforge"])
+_generation_buckets: dict[str, deque[float]] = defaultdict(deque)
+_GENERATION_LIMIT_PER_MINUTE = 8
 
 
 class GenerateRequest(BaseModel):
@@ -87,6 +91,16 @@ def appforge_health() -> dict[str, Any]:
 
 @router.post("/generate")
 async def appforge_generate(payload: GenerateRequest, request: Request) -> dict[str, Any]:
+    # Per-instance abuse/cost guard. Edge-level distributed limits should be added before broad release.
+    client_id = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    bucket = _generation_buckets[client_id]
+    while bucket and bucket[0] <= now - 60:
+        bucket.popleft()
+    if len(bucket) >= _GENERATION_LIMIT_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="AppForge generation limit reached. Retry in about one minute.")
+    bucket.append(now)
+
     engine = getattr(request.app.state, "saarthi_engine", None)
     if engine is None:
         raise HTTPException(status_code=503, detail="SAARTHI coding engine is not available")
