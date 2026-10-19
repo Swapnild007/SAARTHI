@@ -116,3 +116,34 @@ def test_appforge_build_runs_through_isolated_runner(monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["isolation"] == "ephemeral-microvm-network-restricted"
+
+
+
+def test_appforge_export_returns_zip_for_multi_file_project():
+    from io import BytesIO
+    from zipfile import ZipFile
+
+    response = TestClient(app).post(
+        "/api/appforge/export",
+        json={
+            "project_name": "Demo App",
+            "files": {
+                "index.html": "<!doctype html><html><body>Demo</body></html>",
+                "styles/app.css": "body { color: teal; }",
+                "src/app.js": "console.log('demo');",
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/zip")
+    with ZipFile(BytesIO(response.content)) as archive:
+        assert set(archive.namelist()) == {"index.html", "styles/app.css", "src/app.js"}
+        assert b"Demo" in archive.read("index.html")
+
+
+def test_appforge_export_rejects_path_traversal():
+    response = TestClient(app).post(
+        "/api/appforge/export",
+        json={"project_name": "Demo", "files": {"../escape.js": "alert(1)", "index.html": "<html></html>"}},
+    )
+    assert response.status_code == 422
