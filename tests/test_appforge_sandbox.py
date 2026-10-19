@@ -34,7 +34,10 @@ def test_build_files_enforces_total_size():
     with pytest.raises(BuildInputError, match="250 KB"):
         validate_build_files({
             "index.html": "<html></html>",
-            "app.js": "x" * 251_000,
+            "a.js": "x" * 70_000,
+            "b.js": "x" * 70_000,
+            "c.js": "x" * 70_000,
+            "d.js": "x" * 45_000,
         })
 
 
