@@ -15,6 +15,7 @@
   if (!projects.some(p => p.id === active.id)) projects.unshift(active);
   let view = "preview";
   let busy = false;
+  let cloudBuildConfigured = false;
   persist(false);
   render();
   loadCloudProjects();
@@ -61,14 +62,15 @@
     try {
       const response = await fetch("/api/appforge/health");
       const status = response.ok ? await response.json() : {};
-      const configured = status.isolated_builds_configured === true;
-      button.disabled = !configured;
-      button.title = configured ? "Run an isolated cloud build" : "Private preview build key is not configured yet";
-      if (!configured) {
+      cloudBuildConfigured = status.isolated_builds_configured === true;
+      button.disabled = !cloudBuildConfigured;
+      button.title = cloudBuildConfigured ? "Run an isolated cloud build" : "Private preview build key is not configured yet";
+      if (!cloudBuildConfigured) {
         $("buildStatus").textContent = "Cloud build awaits private preview configuration";
         $("providerLabel").textContent = "Isolated build · not configured";
       }
     } catch {
+      cloudBuildConfigured = false;
       button.disabled = true;
       $("buildStatus").textContent = "Cloud build capability could not be verified";
     }
@@ -259,7 +261,7 @@
       setStatus(error.message);
     } finally {
       busy = false;
-      $("cloudBuild").disabled = false;
+      $("cloudBuild").disabled = !cloudBuildConfigured;
       if ($("statusText").textContent.includes("…")) $("statusText").textContent = "Local workspace ready";
     }
   }
