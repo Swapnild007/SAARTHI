@@ -29,6 +29,7 @@ class ProjectRecord(BaseModel):
     name: str = Field(default="Untitled project", min_length=1, max_length=80)
     prompt: str = Field(default="", max_length=4000)
     html: str = Field(default="", max_length=120000)
+    files: dict[str, str] = Field(default_factory=dict, max_length=30)
     versions: list[dict[str, Any]] = Field(default_factory=list, max_length=12)
     createdAt: str | None = Field(default=None, max_length=64)
     updatedAt: str | None = Field(default=None, max_length=64)
@@ -254,6 +255,7 @@ def appforge_list_projects(request: Request, session_id: str) -> dict[str, Any]:
                 "name": row.get("name") or "Untitled project",
                 "prompt": row.get("prompt") or "",
                 "html": row.get("html") or "",
+                "files": row.get("files") if isinstance(row.get("files"), dict) else {},
                 "versions": row.get("versions") if isinstance(row.get("versions"), list) else [],
                 "createdAt": row.get("created_at"),
                 "updatedAt": row.get("updated_at"),
@@ -275,6 +277,11 @@ def appforge_save_project(payload: ProjectSaveRequest, request: Request) -> dict
     if store is None:
         return {"ok": False, "provider": "browser-local", "saved": False}
     project = payload.project.model_dump()
+    from .appforge_sandbox import BuildInputError, validate_build_files
+    try:
+        project["files"] = validate_build_files(project["files"] or {"index.html": project["html"]})
+    except BuildInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
         row = store.save_appforge_project(payload.session_id, project)
         return {"ok": True, "provider": "supabase-postgrest", "saved": True, "project_id": row.get("project_id")}
