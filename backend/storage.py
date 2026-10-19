@@ -141,13 +141,13 @@ class CloudStore:
         )
         return result[0] if isinstance(result, list) and result else row
 
-    def appforge_projects(self, session_id: str, limit: int = 30) -> list[dict[str, Any]]:
+    def appforge_projects(self, session_id: str, limit: int = 10) -> list[dict[str, Any]]:
         user_id = self.user_id(session_id)
         rows = self._request(
             "appforge_projects",
             query=(
                 f"user_id=eq.{user_id}&select=project_id,name,prompt,html,files,versions,created_at,updated_at"
-                f"&order=updated_at.desc&limit={max(1, min(limit, 30))}"
+                f"&order=updated_at.desc&limit={max(1, min(limit, 10))}"
             ),
         )
         return rows if isinstance(rows, list) else []
