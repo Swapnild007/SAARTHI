@@ -27,7 +27,7 @@ class CloudStore:
     def configured(self) -> bool:
         return bool(self.url and self.key)
 
-    def _request(self, path: str, *, method: str = "GET", payload: Any = None, query: str = "") -> Any:
+    def _request(self, path: str, *, method: str = "GET", payload: Any = None, query: str = "", prefer: str | None = None) -> Any:
         if not self.configured:
             raise RuntimeError("cloud store is not configured")
         url = f"{self.url}/rest/v1/{path}"
@@ -40,7 +40,9 @@ class CloudStore:
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
-        if method in {"POST", "PATCH"}:
+        if prefer:
+            headers["Prefer"] = prefer
+        elif method in {"POST", "PATCH"}:
             headers["Prefer"] = "return=representation"
         req = Request(url, data=body, headers=headers, method=method)
         with urlopen(req, timeout=8) as response:
@@ -109,6 +111,58 @@ class CloudStore:
             query=f"conversation_id=eq.{conversation_id}&select=id,role,content,created_at&order=created_at.asc&limit={max(1,min(limit,200))}",
         )
         return rows if isinstance(rows, list) else []
+
+    def save_appforge_project(self, session_id: str, project: dict[str, Any]) -> dict[str, Any]:
+        user_id = self.user_id(session_id)
+        self.ensure_user(user_id)
+        raw_id = str(project.get("id") or "")
+        try:
+            project_id = str(uuid.UUID(raw_id))
+        except (ValueError, AttributeError):
+            project_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"saarthi-appforge-project:{user_id}:{raw_id}"))
+        now = datetime.now(timezone.utc).isoformat()
+        row = {
+            "project_id": project_id,
+            "user_id": user_id,
+            "name": str(project.get("name") or "Untitled project")[:80],
+            "prompt": str(project.get("prompt") or "")[:4000],
+            "html": str(project.get("html") or "")[:120000],
+            "versions": project.get("versions") if isinstance(project.get("versions"), list) else [],
+            "created_at": str(project.get("createdAt") or now),
+            "updated_at": now,
+        }
+        result = self._request(
+            "appforge_projects",
+            method="POST",
+            query="on_conflict=user_id,project_id",
+            payload=row,
+            prefer="resolution=merge-duplicates,return=representation",
+        )
+        return result[0] if isinstance(result, list) and result else row
+
+    def appforge_projects(self, session_id: str, limit: int = 30) -> list[dict[str, Any]]:
+        user_id = self.user_id(session_id)
+        rows = self._request(
+            "appforge_projects",
+            query=(
+                f"user_id=eq.{user_id}&select=project_id,name,prompt,html,versions,created_at,updated_at"
+                f"&order=updated_at.desc&limit={max(1, min(limit, 30))}"
+            ),
+        )
+        return rows if isinstance(rows, list) else []
+
+    def delete_appforge_project(self, session_id: str, project_id: str) -> bool:
+        user_id = self.user_id(session_id)
+        try:
+            normalized_id = str(uuid.UUID(project_id))
+        except (ValueError, AttributeError):
+            normalized_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"saarthi-appforge-project:{user_id}:{project_id}"))
+        self._request(
+            "appforge_projects",
+            method="DELETE",
+            query=f"user_id=eq.{user_id}&project_id=eq.{normalized_id}",
+        )
+        return True
 
     def save_memory(self, session_id: str, memory_type: str, content: str, importance: float = 0.5) -> dict[str, Any]:
         user_id = self.user_id(session_id)
