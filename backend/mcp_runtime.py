@@ -27,8 +27,28 @@ def _servers() -> list[dict[str, Any]]:
         name = re.sub(r"[^a-zA-Z0-9_-]", "_", str(item.get("name") or "remote"))[:40]
         url = str(item.get("url") or "").strip()
         parsed = urlparse(url)
-        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        # Reject malformed URLs and URL components that can change request routing.
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.port not in (None, 443)
+        ):
             continue
+        hostname = parsed.hostname.lower().rstrip(".")
+        if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".localhost") or hostname.endswith(".local"):
+            continue
+        try:
+            import ipaddress
+            address = ipaddress.ip_address(hostname.strip("[]"))
+            if not address.is_global:
+                continue
+        except ValueError:
+            # DNS names are permitted; do not resolve them here to avoid startup DNS calls.
+            pass
         allowed = item.get("allowed_tools", [])
         if not isinstance(allowed, list) or not all(isinstance(x, str) for x in allowed):
             continue
