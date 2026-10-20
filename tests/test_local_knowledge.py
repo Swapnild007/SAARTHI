@@ -31,6 +31,7 @@ class LocalKnowledgeTests(unittest.TestCase):
         self.assertEqual(saved["indexed"], 1)
         self.assertTrue(state["configured"])
         self.assertEqual(state["mode"], "local-offline")
+        self.assertNotIn("database_path", state)  # Never disclose server filesystem paths in public health/status.
         self.assertEqual(results[0]["title"], "Offline retrieval")
         self.assertGreater(results[0]["similarity"], 0)
 
