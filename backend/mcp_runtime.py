@@ -28,6 +28,10 @@ def _servers() -> list[dict[str, Any]]:
         url = str(item.get("url") or "").strip()
         parsed = urlparse(url)
         # Reject malformed URLs and URL components that can change request routing.
+        try:
+            port = parsed.port
+        except ValueError:
+            continue
         if (
             parsed.scheme != "https"
             or not parsed.hostname
@@ -35,7 +39,7 @@ def _servers() -> list[dict[str, Any]]:
             or parsed.password
             or parsed.query
             or parsed.fragment
-            or parsed.port not in (None, 443)
+            or port not in (None, 443)
         ):
             continue
         hostname = parsed.hostname.lower().rstrip(".")
