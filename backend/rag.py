@@ -73,7 +73,7 @@ def status() -> dict[str, Any]:
         with _local_connection() as connection:
             connection.execute("SELECT 1")
         return {"configured": True, "provider": "SQLite local lexical retrieval",
-                "mode": "local-offline", "database_path": str(_local_db_path()),
+                "mode": "local-offline",
                 "missing_configuration": [], "self_hosted_server_required": False}
     except (OSError, sqlite3.Error):
         return {"configured": False, "provider": "not_configured", "mode": "unavailable",
