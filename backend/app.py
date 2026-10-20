@@ -112,9 +112,13 @@ async def security_middleware(request: Request, call_next):
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+@app.get("/appforge", include_in_schema=False)
+def appforge_frontend():
+    return FileResponse(PROJECT_ROOT / "appforge" / "index.html")
+
 # Serve the premium static SAARTHI frontend from the same FastAPI application.
 # Keeping frontend and API in one ASGI app avoids Vercel routing ambiguity.
-for _path_name in ("assets", "scripts", "styles", "config"):
+for _path_name in ("assets", "scripts", "styles", "config", "appforge"):
     _path = PROJECT_ROOT / _path_name
     if _path.is_dir():
         app.mount(f"/{_path_name}", StaticFiles(directory=str(_path)), name=_path_name)
@@ -151,7 +155,12 @@ class ChatRequest(BaseModel):
 
 
 engine = SaarthiEngine()
+app.state.saarthi_engine = engine
 store = CloudStore()
+app.state.cloud_store = store
+
+from .appforge_api import router as appforge_router
+app.include_router(appforge_router)
 
 
 @app.get("/api/health")
