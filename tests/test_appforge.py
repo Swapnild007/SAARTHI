@@ -150,6 +150,12 @@ def test_appforge_export_rejects_path_traversal():
     assert response.status_code == 422
 
 def test_appforge_preview_detects_complete_html_with_whitespace():
+    import re
+
     source = __import__("pathlib").Path(__file__).resolve().parents[1].joinpath("appforge", "app.js").read_text(encoding="utf-8")
-    assert r"/<(?:!doctype\s+html|html)(?:\s|>)/i" in source
-    assert r"/<\/html\s*>/i" in source
+    start = source.index("const completeHtml = ")
+    expression = source[start:source.index(";", start)].split("=", 1)[1].strip()
+    assert expression.startswith("/") and expression.endswith("/i.test(previewSource) && /<\\/html\\s*>/i.test(previewSource)")
+    html = "<!DOCTYPE   html><html><body>hello</body></html   >"
+    assert re.search(r"<(?:!doctype\s+html|html)(?:\s|>)", html, re.I)
+    assert re.search(r"</html\s*>", html, re.I)
