@@ -203,7 +203,7 @@
     const source = String(active.files[selectedFile] ?? "");
     const previewSource = String(active.buildHtml || active.html || "");
     const hasPreview = previewSource.trim().length > 0;
-    const completeHtml = /<(?:!doctype\\s+html|html)(?:\\s|>)/i.test(previewSource) && /<\\/html\\s*>/i.test(previewSource);
+    const completeHtml = /<(?:!doctype\s+html|html)(?:\s|>)/i.test(previewSource) && /<\/html\s*>/i.test(previewSource);
     $("versionLabel").textContent = (hasPreview || fileNames.length > 1) ? "Draft · v" + (active.versions.length + 1) : "New draft";
     $("emptyState").classList.toggle("hidden", hasPreview);
     $("previewWrap").classList.toggle("hidden", view !== "preview");
