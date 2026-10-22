@@ -10,6 +10,7 @@
 - Request bodies are limited before parsing, including chunked requests without Content-Length. Rate identity storage is bounded; forwarded identity headers are trusted only with explicit proxy configuration. CORS wraps early error responses and permits the actual DELETE method.
 - Package builds require an explicit nonempty build script, including safe rejection of malformed script containers; an absent script can no longer pass via `--if-present`.
 - AppForge cloud merge and project navigation preserve browser projects beyond 30 and retain equal-version local checkpoints. AppForge now follows light/dark/system preferences, improves text contrast and focus indicators, invalidates stale build artifacts on edits, and includes private access headers on capability/project reads. Internal dialog navigation retains the original focus target.
+- Embedded AppForge’s Back link closes its parent workspace without nesting the home page or reloading in-memory credentials.
 - Mobile AppForge retains visible New project and operation feedback controls; nested workspace overflow is checked at Android widths.
 - Settings exposes the browser's install prompt when available and explains the unsupported state. Installation is not simulated.
 
@@ -24,14 +25,14 @@
 | AppForge static execution | Actual 3-file fixture composed in an opaque `allow-scripts` iframe; counter clicked, JS edited and executed, checkpoint restored; real backend ZIP downloaded and all three archive members checked |
 | Mobile layouts | Touch/mobile emulation at 393×852; overflow checks at widths 360, 393, 412, 768, 1440; composer fits reduced 450px viewport |
 | Accessibility | Axe WCAG A/AA/2.1 AA scan of ten screen/theme states; zero serious/critical findings; [machine-readable results](evidence/accessibility.json) |
-| PWA | Real service worker controls the page; manifest parsed by Chromium; zero browser installability errors; offline reload and calculator passed |
+| PWA | Real service worker control, manifest, zero installability errors, offline shell; **installed and launched** in full Chromium 151 on GitHub CI, ephemeral regular profile |
 | Dependency vulnerability review | `npm audit --omit=optional`: 0 vulnerabilities; `python -m pip_audit -r requirements.txt`: no known vulnerabilities |
 
 Browser version locally: Chromium 153.0.8010.0. The packaged headless binary was needed because the standard archive could not be downloaded in this environment. No browser web-security disabling flag was used. Screenshots contain synthetic data. Width/viewport emulation does not certify a physical Android keyboard, TalkBack, OS safe areas or actual Android installation.
 
 The ten accessibility states are home light/dark, Settings light/dark, tools/MCP, knowledge, chat, history, AppForge light/dark. Automated scanning is not a complete manual accessibility certification. Other legacy tools and external-service controls have not all passed a live end-to-end run.
 
-`PWA.install` is absent in this headless binary; installation/launch is **Blocked**, not passed. [PWA evidence](evidence/pwa.json) records the exact protocol error. The test attempts installation only in an ephemeral test profile and uninstalls if supported.
+`PWA.install` is absent in the local headless-shell binary; [local PWA evidence](evidence/pwa.json) records that limitation. Full Chromium 151 on GitHub CI **successfully installed and launched** the app in an ephemeral regular profile, then uninstalled it. [CI browser run](https://github.com/Swapnild007/SAARTHI/actions/runs/39817746893), job `119960578503`, records the successful protocol calls. This passes desktop installation in CI, not physical Android installation.
 
 ## Vercel 403 diagnosis
 
