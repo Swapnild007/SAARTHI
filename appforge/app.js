@@ -6,6 +6,9 @@
     document.documentElement.classList.toggle('reduce-motion',prefs.reducedMotion===true);
   };
   applyTheme();addEventListener('storage',event=>{if(event.key==='saarthi.preferences.v1')applyTheme();});matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
+  document.querySelector('.brand').addEventListener('click',event=>{
+    if(window.parent!==window && window.parent.SaarthiWorkspace?.close){event.preventDefault();window.parent.SaarthiWorkspace.close();}
+  });
   const $ = (id) => document.getElementById(id);
   const STORE_KEY = "saarthi.appforge.projects.v1";
   const ACTIVE_KEY = "saarthi.appforge.active.v1";

@@ -93,7 +93,7 @@
       try{const ready=prefs.provider==='server'?(await request('/api/health')).provider_configured:!!(key&&prefs.model);if(ready)doc.getElementById('generate')?.click();else announce('Requirements transferred. Configure an AI provider in Settings, then generate your project.');}catch(error){announce(error.message);}
     },{once:true});
   }
-  window.SaarthiWorkspace={open,openProject,providerSelection,headers,retrieve,permissions:()=>({mcp:prefs.mcp})};
+  window.SaarthiWorkspace={open,openProject,close:()=>dialog.close(),providerSelection,headers,retrieve,permissions:()=>({mcp:prefs.mcp})};
   // Do not cache API responses, credentials or uploads in the service worker.
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   const online=()=>{nav.dataset.offline=String(!navigator.onLine);nav.setAttribute('aria-label',navigator.onLine?'Workspace':'Workspace · offline');};

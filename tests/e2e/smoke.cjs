@@ -82,6 +82,7 @@ server.stderr.on('data',()=>{});
   const archiveWorkspace=page.frameLocator('.appforge-workspace');await archiveWorkspace.locator('#newProject').click();assert.equal(await archiveWorkspace.locator('#projectPicker option').count(),33);
   for(const width of [360,393,412]){await page.setViewportSize({width,height:852});assert(await archiveWorkspace.locator('html').evaluate(el=>el.scrollWidth<=innerWidth),'AppForge overflow '+width);}
 
+  await archiveWorkspace.getByRole('link',{name:'Back to SAARTHI'}).click();assert(!await page.locator('#workspaceDialog').isVisible(),'AppForge back should close workspace, not nest the home page');
   assert.deepEqual(errors,[]);
   console.log('PASS: settings, provider preferences, secret non-persistence, calculator routing, history, knowledge upload/search, embedded AppForge, offline shell/utilities, responsive widths 360/393/412/768/1440, no page errors');
  }finally{if(browser)await browser.close();server.kill('SIGTERM');}
