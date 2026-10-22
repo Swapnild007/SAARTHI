@@ -9,9 +9,11 @@
   const save=()=>{localStorage.setItem(PREFS,JSON.stringify(prefs));apply();};
   function apply(){
     document.documentElement.dataset.theme=prefs.theme;
+    const dark=prefs.theme==='dark'||(prefs.theme==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark-theme',dark);
     document.documentElement.classList.toggle('reduce-motion',prefs.reducedMotion);
   }
   apply();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',apply);
   const dialog=document.createElement('dialog');dialog.id='workspaceDialog';dialog.setAttribute('aria-labelledby','workspaceTitle');document.body.append(dialog);
   dialog.addEventListener('close',()=>lastFocus?.focus());
   dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
@@ -76,11 +78,19 @@
     dialog.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this local document?')){localStorage.setItem(LIBRARY,JSON.stringify(documents().filter(d=>d.id!==b.dataset.delete)));knowledge();announce('Document deleted.');}});
   }
   async function tools(){
-    shell('Tools & MCP','<p>Calculator, time and date run without an AI provider. Remote MCP servers are configured on the backend. Chat can use only explicitly approved read-only tools when you enable permission in Settings. Sensitive tools require a separate confirmed invocation.</p><label>Knowledge / MCP admin token · current tab only<input id="adminToken" type="password" autocomplete="off" value="'+esc(admin)+'"></label><button id="discoverTools">Discover remote tools</button><pre id="toolDetails">Remote integration has not been verified on this deployment.</pre>');
+    shell('Tools & MCP','<p>Calculator, time and date run without an AI provider. Remote MCP servers are configured on the backend. Chat can use only explicitly approved read-only tools when you enable permission in Settings. Sensitive tools require a separate confirmed invocation.</p><label>Knowledge / MCP admin token · current tab only<input id="adminToken" type="password" autocomplete="off" value="'+esc(admin)+'"></label><button id="discoverTools">Discover remote tools</button><pre id="toolDetails">Remote integration has not been verified on this deployment.</pre><form id="invokeTool" class="workspace-form"><label>Exact discovered tool name<input name="tool" required maxlength="64"></label><label>Arguments as JSON<textarea name="arguments" rows="4">{}</textarea></label><button type="submit">Review & invoke tool</button></form>');
+    dialog.querySelector('#invokeTool').onsubmit=async e=>{e.preventDefault();admin=dialog.querySelector('#adminToken').value;try{const name=e.target.elements.tool.value.trim(),args=JSON.parse(e.target.elements.arguments.value);if(!confirm('Invoke '+name+' with these arguments?\n'+JSON.stringify(args).slice(0,800)))return;const result=await request('/api/mcp/invoke',{method:'POST',headers:{Authorization:'Bearer '+admin},body:JSON.stringify({name,arguments:args,confirmed:true})});dialog.querySelector('#toolDetails').textContent=JSON.stringify(result,null,2);announce('Remote tool returned a response. Review its output.');}catch(error){announce(error.message);}};
     dialog.querySelector('#discoverTools').onclick=async e=>{admin=dialog.querySelector('#adminToken').value;e.target.disabled=true;try{const r=await request('/api/mcp/tools',{headers:{Authorization:'Bearer '+admin}});const root=dialog.querySelector('#toolDetails');root.textContent=JSON.stringify(r,null,2);announce(r.unavailable_servers?.length?'Some servers are unavailable.':'Discovery completed. Invocation is a separate check.');}catch(error){announce(error.message);}finally{e.target.disabled=false;}};
   }
   function open(screen){if(screen==='appforge'){shell('AppForge','<iframe class="appforge-workspace" title="AppForge workspace" src="/appforge"></iframe>');dialog.classList.add('wide');}else{dialog.classList.remove('wide');if(screen==='knowledge')knowledge();else if(screen==='tools')tools();else settings();}}
-  window.SaarthiWorkspace={open,providerSelection,headers,retrieve,permissions:()=>({mcp:prefs.mcp})};
+  async function openProject(requirements){
+    open('appforge');const frame=dialog.querySelector('iframe');
+    frame.addEventListener('load',async()=>{
+      const doc=frame.contentDocument,input=doc.getElementById('prompt');if(input)input.value=requirements;
+      try{const ready=prefs.provider==='server'?(await request('/api/health')).provider_configured:!!(key&&prefs.model);if(ready)doc.getElementById('generate')?.click();else announce('Requirements transferred. Configure an AI provider in Settings, then generate your project.');}catch(error){announce(error.message);}
+    },{once:true});
+  }
+  window.SaarthiWorkspace={open,openProject,providerSelection,headers,retrieve,permissions:()=>({mcp:prefs.mcp})};
   // Do not cache API responses, credentials or uploads in the service worker.
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   const online=()=>{nav.dataset.offline=String(!navigator.onLine);nav.setAttribute('aria-label',navigator.onLine?'Workspace':'Workspace · offline');};

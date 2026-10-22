@@ -38,6 +38,13 @@ server.stderr.on('data',()=>{});
   await page.screenshot({path:'docs/evidence/android-knowledge.png'});
   await page.getByRole('button',{name:'Close dialog'}).click();
   await page.locator('.workspace-nav a').click();await page.frameLocator('.appforge-workspace').locator('#prompt').waitFor();
+  // Browser fixture checks generated-code editing and isolation; vendor inference is tested separately.
+  const files={'index.html':'<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head><body><button id="counter">0</button><script src="app.js"></script></body></html>','styles.css':'body{background:#eff8f5;font:20px system-ui;padding:24px}button{padding:20px;border-radius:12px;color:teal}','app.js':'document.getElementById("counter").onclick=e=>e.target.textContent=Number(e.target.textContent)+1;'};
+  await page.route('**/api/appforge/generate',route=>route.fulfill({json:{ok:true,files,html:files['index.html'],mode:'ai-generated',note:'Controlled test project'}}));
+  const appforge=page.frameLocator('.appforge-workspace');await appforge.locator('#generate').click();
+  const preview=appforge.frameLocator('#preview');await preview.locator('#counter').click();assert.equal(await preview.locator('#counter').innerText(),'1');
+  assert.equal(await appforge.locator('#preview').getAttribute('sandbox'),'allow-scripts');
+  await appforge.getByRole('button',{name:'Code',exact:true}).click();await appforge.locator('#filePicker').selectOption('app.js');assert.match(await appforge.locator('#codeEditor').inputValue(),/onclick/);
   await page.screenshot({path:'docs/evidence/android-appforge.png'});
   await page.getByRole('button',{name:'Close dialog'}).click();
   await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
@@ -47,8 +54,13 @@ server.stderr.on('data',()=>{});
   await page.locator('#saarthiCommand').fill('calculate 15% of 200');await page.locator('#sendCommand').click();await page.waitForFunction(()=>document.getElementById('assistantResponseBody').textContent.includes('30'));
   assert.match(await page.locator('#assistantResponseBody').innerText(),/30/);
   await context.setOffline(false);
+  await page.setViewportSize({width:393,height:450});
+  const composer=await page.locator('#conversationComposer').boundingBox();assert(composer.y>=0&&composer.y+composer.height<=450,'composer outside reduced keyboard viewport');
   for(const width of [360,412,768,1440]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'overflow '+width);}
   await page.screenshot({path:'docs/evidence/desktop-chat.png'});
+  await page.evaluate(()=>{const state=JSON.parse(localStorage.getItem('saarthi.history.v2'));const thread=state.assistants.saarthi[0];thread.messages=Array.from({length:30},(_,i)=>({role:i%2?'assistant':'user',content:'Archived message '+i}));thread.updatedAt=new Date(Date.now()+1000).toISOString();localStorage.setItem('saarthi.history.v2',JSON.stringify(state));});
+  await page.reload();await page.waitForFunction(()=>!!window.SaarthiWorkspace);await page.evaluate(()=>{document.getElementById('sudarshanSplash')?.remove();document.body.classList.remove('splash-active');});
+  await page.locator('.workspace-nav [data-screen=history]').click();await page.locator('#mobileHistory .history-thread').first().click();await page.locator('#saarthiCommand').fill('calculate 2 + 2');await page.locator('#sendCommand').click();await page.waitForFunction(()=>Object.values(JSON.parse(localStorage.getItem('saarthi.history.v2')).assistants).flat().some(t=>t.messages.length===32));
   assert.deepEqual(errors,[]);
   console.log('PASS: settings, provider preferences, secret non-persistence, calculator routing, history, knowledge upload/search, embedded AppForge, offline shell/utilities, responsive widths 360/393/412/768/1440, no page errors');
  }finally{if(browser)await browser.close();server.kill('SIGTERM');}

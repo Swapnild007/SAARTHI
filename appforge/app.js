@@ -49,7 +49,7 @@
   }
   function persist(updateStatus = true) {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(projects.slice(0, 30)));
+      localStorage.setItem(STORE_KEY, JSON.stringify(projects));
       localStorage.setItem(ACTIVE_KEY, active.id);
       if (updateStatus) $("saveStatus").textContent = "Saved locally";
       $("projectCount").textContent = projects.length + (projects.length === 1 ? " project" : " projects");
@@ -250,9 +250,13 @@
   function withPreviewPolicy(source) {
     const policy = "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'";
     const monitor='<script>addEventListener("error",function(e){parent.postMessage({type:"appforge-preview-error",message:String(e.message).slice(0,240)},"*")});addEventListener("unhandledrejection",function(){parent.postMessage({type:"appforge-preview-error",message:"Unhandled promise rejection in preview"},"*")});<'+ '/script>';
-    const meta = '<meta http-equiv="Content-Security-Policy" content="' + policy + '">';
-    if (/<head[^>]*>/i.test(source)) return source.replace(/<head([^>]*)>/i, "<head$1>" + meta + monitor);
-    return "<!doctype html><html><head>" + meta + monitor + "</head><body>" + source + "</body></html>";
+    // Parse inertly, then put the policy before every untrusted node, including malformed HTML.
+    const doc=new DOMParser().parseFromString(source,'text/html');
+    doc.querySelectorAll('base').forEach(node=>node.remove());
+    const meta=doc.createElement('meta');meta.httpEquiv='Content-Security-Policy';meta.content=policy;
+    doc.head.prepend(meta);
+    const script=doc.createElement('script');script.textContent=monitor.slice(8,-9);meta.after(script);
+    return '<!doctype html>'+doc.documentElement.outerHTML;
   }
   async function generate(isRefine) {
     if (busy) return;

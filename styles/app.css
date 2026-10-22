@@ -101,7 +101,7 @@ body.home-active #homeSurface{display:block!important}
 body.chat-active:not(.home-active) #homeSurface{display:block!important}
 /* Never allow a pending request to blank the application. The home card yields only
    after an actual assistant response exists. */
-body.chat-active:not(.home-active) #homeSurface .core-panel{display:block!important}
+body.chat-active:not(.home-active) #homeSurface .core-panel{display:none!important}
 body.chat-active:not(.home-active) #homeSurface .assistant-response{display:block!important}
 body.chat-active:not(.home-active) #homeSurface .conversation-composer{display:flex!important}
 #homeSurface:has(.assistant-response:not([hidden])) .core-panel{display:none!important}

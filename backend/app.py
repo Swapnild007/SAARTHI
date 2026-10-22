@@ -111,6 +111,11 @@ async def security_middleware(request: Request, call_next):
         )
     if request.url.path.startswith("/api/"):
         response.headers.setdefault("Cache-Control", "no-store")
+    if request.url.path.rstrip("/") == "/appforge":
+        response.headers.setdefault("Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+            "frame-src 'self'; connect-src 'self'; img-src 'self' data: blob:; object-src 'none'; "
+            "base-uri 'none'; frame-ancestors 'self'; form-action 'self'")
     if request.url.path == "/":
         response.headers.setdefault(
             "Content-Security-Policy",

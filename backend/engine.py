@@ -1236,6 +1236,8 @@ class SaarthiEngine:
                 )
             else:
                 reply = fallback_response(message, intent, tool_results, assistant_id)
+                if intent.name == "chat":
+                    reply = "No AI provider is configured. Open Settings to select a provider, model and API key. Calculator, time, history and local knowledge search remain available."
         except Exception as exc:
             provider_error = "The selected provider could not complete this request. Check its key, model, quota and connection in Settings."
             provider_name = "deterministic-fallback"
@@ -1271,9 +1273,9 @@ class SaarthiEngine:
             "route": selected_provider.last_route if selected_provider.configured else None,
             "failover": selected_provider.last_failures if selected_provider.configured else [],
             "usage": usage,
-            "execution": "completed",
+            "execution": "provider-unavailable" if provider_error else "completed",
             "tool_results": tool_results,
-            "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
+            "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="provider-unavailable" if provider_error else "completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
             "work_product": build_work_product(
                 objective=message,
                 intent=intent.name,

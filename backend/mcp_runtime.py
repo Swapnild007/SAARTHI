@@ -139,6 +139,19 @@ def _tools_for_server(server: dict[str, Any]) -> list[dict[str, Any]]:
         safe_to_call = read_only or server["allow_write"]
         public_name = ("mcp__" + re.sub(r"[^a-zA-Z0-9_]", "_", server["name"]) + "__" + re.sub(r"[^a-zA-Z0-9_]", "_", name))[:64]
         schema = tool.get("inputSchema") if isinstance(tool.get("inputSchema"), dict) else {"type": "object", "properties": {}}
+        # Remote schemas are untrusted. Never resolve network references during validation.
+        def unsafe_schema(value, depth=0):
+            if depth > 20:
+                return True
+            if isinstance(value, dict):
+                if "$ref" in value and not str(value["$ref"]).startswith("#/"):
+                    return True
+                return any(unsafe_schema(child, depth+1) for child in value.values())
+            if isinstance(value, list):
+                return any(unsafe_schema(child, depth+1) for child in value)
+            return False
+        if len(json.dumps(schema)) > 20000 or unsafe_schema(schema):
+            continue
         output.append({"type": "function", "function": {"name": public_name,
             "description": str(tool.get("description") or f"Remote MCP tool {name}")[:700],
             "parameters": schema}, "_server": server["name"], "_remote_tool": name,

@@ -1,3 +1,4 @@
+@font-face{font-family:SaarthiDevanagari;src:url(/assets/devanagari.woff2) format("woff2");font-display:swap;unicode-range:U+0900-097F,U+A8E0-A8FF}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",SaarthiDevanagari,sans-serif}
 :root{--workspace-bg:#faf8f2;--workspace-ink:#253536;--workspace-muted:#536766;--workspace-line:#cbd7d2;--workspace-glass:rgba(255,255,255,.94)}
 :root[data-theme=dark]{--workspace-bg:#152324;--workspace-ink:#edf4f0;--workspace-muted:#bdd0c8;--workspace-line:#4c6963;--workspace-glass:rgba(25,43,42,.97);color-scheme:dark}
 @media(prefers-color-scheme:dark){:root[data-theme=system]{--workspace-bg:#152324;--workspace-ink:#edf4f0;--workspace-muted:#bdd0c8;--workspace-line:#4c6963;--workspace-glass:rgba(25,43,42,.97);color-scheme:dark}}
@@ -13,3 +14,7 @@ html[data-theme=dark] body{background:var(--workspace-bg);color:var(--workspace-
 @media(max-width:760px){.conversation-composer{bottom:calc(86px + env(safe-area-inset-bottom))!important;margin-bottom:0!important}.home-surface{padding-bottom:170px!important}}
 
 body.chat-active .core-panel{display:none!important}body.chat-active .home-surface{padding-top:14px}.workspace-nav{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+
+#workspaceDialog textarea{width:100%;box-sizing:border-box;border-radius:12px;border:1px solid var(--workspace-line);background:var(--workspace-bg);color:var(--workspace-ink);padding:12px;font:14px monospace}
+
+html.dark-theme{--bg:#152324;--ink:#edf4f0;--muted:#bdd0c8;--surface:#1c3231;--surface-strong:#233b39;--line:#47625d}html.dark-theme body{background:radial-gradient(circle at top,#244242,transparent 60%),#152324}html.dark-theme :is(.core-panel,.assistant-response,.conversation-composer,.picker-panel,.mobile-history-panel,.sidebar){background:#1c3231!important;color:#edf4f0!important;border-color:#47625d}html.dark-theme :is(.conversation-content,.conversation-role,.core-copy p,.greeting-block h2,.history-thread,.menu-trigger,.history-trigger,.mobile-control-trigger,.clock-chip){color:#edf4f0!important}html.dark-theme :is(.menu-trigger,.history-trigger,.mobile-control-trigger,.clock-chip,.conversation-message.user){background:#2a4845!important}html.dark-theme .conversation-composer:after{background:transparent}html.dark-theme #saarthiCommand{color:#edf4f0}html.dark-theme .sidebar .nav button{color:#edf4f0}

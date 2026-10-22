@@ -72,12 +72,12 @@ const SaarthiApp = (() => {
     return historyState.assistants;
   };
   const saveHistory=()=>{
-    try{localStorage.setItem(HISTORY_KEY,JSON.stringify(historyState));}catch{}
+    try{localStorage.setItem(HISTORY_KEY,JSON.stringify(historyState));return true;}catch{if(status)status.textContent="History storage is full. Export conversations from Settings before closing this tab.";return false;}
   };
   const ensureAssistantHistory=assistant=>{
     const id=assistantInfo(assistant).id;
     if(!Array.isArray(historyState.assistants[id]))historyState.assistants[id]=[];
-    historyState.assistants[id]=historyState.assistants[id].filter(t=>t&&t.id&&Array.isArray(t.messages)).slice(-MAX_THREADS_PER_ASSISTANT);
+    historyState.assistants[id]=historyState.assistants[id].filter(t=>t&&t.id&&Array.isArray(t.messages));
     return historyState.assistants[id];
   };
   const migrateLegacyConversation=assistant=>{
@@ -837,6 +837,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     closePickers();
     renderConversation();
     renderHistory();
+    const mobile=document.querySelector('#mobileHistory');if(mobile)mobile.hidden=true;
     window.scrollTo({top:0,behavior:'smooth'});
     command?.focus();
   };
@@ -1099,6 +1100,11 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   };
 
   const runCommand=async(value,mode)=>{
+    if(/\b(create|build|generate|fix)\b.*\b(website|web app|application|saas|dashboard)\b/i.test(value)){
+      window.SaarthiWorkspace?.openProject(value);
+      const result={ok:true,run_id:'workspace-'+Date.now(),intent:{name:'appforge'},provider:'AppForge workspace',reply:'I opened AppForge with your requirements. A configured AI provider is needed to generate files; isolated cloud builds require separate setup.'};
+      showResponse(result.reply,result);return result;
+    }
     updateIntelligenceFlow('running');
     setStatus('Routing…');setCoreState('routing','Request received.');await new Promise(r=>setTimeout(r,90));
     setStatus('Understanding…');setCoreState('understanding','Separating intent from noise.');
@@ -1210,11 +1216,11 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
 
   const voice=()=>{
     const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SpeechRecognition){addActivity('Voice unavailable','This browser does not expose speech recognition.');return;}
+    if(!SpeechRecognition){setStatus('Voice input is unavailable in this browser. Please type your message.');command?.focus();return;}
     const recognition=new SpeechRecognition();recognition.lang='en-IN';recognition.interimResults=false;recognition.maxAlternatives=1;
     window.SaarthiApp.voiceTurn=true;recognition.onstart=()=>setStatus('Listening…');
     recognition.onresult=e=>{ask(e.results[0][0].transcript);setStatus('Command ready');submit();};
-    recognition.onerror=()=>{window.SaarthiApp.voiceTurn=false;setStatus('Saarthi is present');};
+    recognition.onerror=()=>{window.SaarthiApp.voiceTurn=false;setStatus('Voice input failed. Check microphone permission or type your message.');};
     recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
   };
 
