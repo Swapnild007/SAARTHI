@@ -30,7 +30,7 @@
 
 Browser version locally: Chromium 153.0.8010.0. The packaged headless binary was needed because the standard archive could not be downloaded in this environment. No browser web-security disabling flag was used. Screenshots contain synthetic data. Width/viewport emulation does not certify a physical Android keyboard, TalkBack, OS safe areas or actual Android installation.
 
-The ten accessibility states are home light/dark, Settings light/dark, tools/MCP, knowledge, chat, history, AppForge light/dark. Automated scanning is not a complete manual accessibility certification. Other legacy tools and external-service controls have not all passed a live end-to-end run.
+The dark AppForge check includes the primary-action hover state to guard text contrast. The ten accessibility states are home light/dark, Settings light/dark, tools/MCP, knowledge, chat, history, AppForge light/dark. Automated scanning is not a complete manual accessibility certification. Other legacy tools and external-service controls have not all passed a live end-to-end run.
 
 `PWA.install` is absent in the local headless-shell binary; [local PWA evidence](evidence/pwa.json) records that limitation. Full Chromium 151 on GitHub CI **successfully installed and launched** the app in an ephemeral regular profile, then uninstalled it. [CI browser run](https://github.com/Swapnild007/SAARTHI/actions/runs/39817746893), job `119960578503`, records the successful protocol calls. This passes desktop installation in CI, not physical Android installation.
 
