@@ -98,8 +98,8 @@
         const local = byId.get(remote.id);
         const localTime = Date.parse(local?.updatedAt || "") || 0;
         const remoteTime = Date.parse(remote.updatedAt || "") || 0;
-        if (local && localTime > remoteTime) {
-          newerLocal.push(local);
+        if (local && localTime >= remoteTime) {
+          if (localTime > remoteTime) newerLocal.push(local);
           continue;
         }
         byId.set(remote.id, {
@@ -116,8 +116,7 @@
         });
       }
       projects = Array.from(byId.values())
-        .sort((a, b) => (Date.parse(b.updatedAt || "") || 0) - (Date.parse(a.updatedAt || "") || 0))
-        .slice(0, 30);
+        .sort((a, b) => (Date.parse(b.updatedAt || "") || 0) - (Date.parse(a.updatedAt || "") || 0));
       activeId = localStorage.getItem(ACTIVE_KEY);
       active = projects.find(project => project.id === activeId) || projects[0] || active;
       if (!projects.some(project => project.id === active.id)) projects.unshift(active);
@@ -179,7 +178,7 @@
     const picker = $("projectPicker");
     if (picker) {
       picker.innerHTML = "";
-      projects.slice(0, 30).forEach(project => {
+      projects.forEach(project => {
         const option = document.createElement("option");
         option.value = project.id;
         option.textContent = project.name || "Untitled project";

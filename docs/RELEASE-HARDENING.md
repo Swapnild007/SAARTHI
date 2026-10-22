@@ -9,7 +9,8 @@
 - Shared deployment providers, cloud stores or MCP configuration now fail closed unless private deployment access is configured. Conversation writes check ownership before appending messages; malformed conversation IDs cannot enter PostgREST filters. This remains a private deployment gate, not multi-user account authentication.
 - Request bodies are limited before parsing, including chunked requests without Content-Length. Rate identity storage is bounded; forwarded identity headers are trusted only with explicit proxy configuration. CORS wraps early error responses and permits the actual DELETE method.
 - Package builds require an explicit nonempty build script, including safe rejection of malformed script containers; an absent script can no longer pass via `--if-present`.
-- AppForge now follows light/dark/system preferences, improves text contrast and focus indicators, invalidates stale build artifacts on edits, and includes private access headers on capability/project reads. Internal dialog navigation retains the original focus target.
+- AppForge cloud merge and project navigation preserve browser projects beyond 30 and retain equal-version local checkpoints. AppForge now follows light/dark/system preferences, improves text contrast and focus indicators, invalidates stale build artifacts on edits, and includes private access headers on capability/project reads. Internal dialog navigation retains the original focus target.
+- Mobile AppForge retains visible New project and operation feedback controls; nested workspace overflow is checked at Android widths.
 - Settings exposes the browser's install prompt when available and explains the unsupported state. Installation is not simulated.
 
 ## Local verification
