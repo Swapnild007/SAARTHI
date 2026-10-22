@@ -21,6 +21,9 @@ server.stderr.on('data',()=>{});
   assert.match(await page.locator('[role=status]').innerText(),/Preferences saved/);
   assert(!await page.evaluate(()=>JSON.stringify({...localStorage}).includes('test-session-secret')),'key persisted');
   await page.locator('[name=provider]').selectOption('server');await page.locator('[name=theme]').selectOption('light');await page.getByRole('button',{name:'Forget credentials'}).click();await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  const historyDownload=page.waitForEvent('download');await page.locator('#exportHistory').click();assert.equal((await historyDownload).suggestedFilename(),'saarthi-conversations.json');
+  await page.locator('#manageTools').click();await page.locator('#discoverTools').click();await page.getByText('MCP tool discovery is not authorized.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Close dialog'}).click();await page.getByRole('button',{name:'Open Settings',exact:true}).click();
   await page.locator('#workspaceDialog').evaluate(el=>el.scrollTop=0);
   await page.screenshot({path:'docs/evidence/android-settings.png'});
   await page.getByRole('button',{name:'Close dialog'}).click();
@@ -36,6 +39,8 @@ server.stderr.on('data',()=>{});
   await page.getByText('Document indexed locally.',{exact:false}).waitFor();
   await page.locator('#knowledgeSearch').fill('escalation');assert.match(await page.locator('#knowledgeResults').innerText(),/ninety percent/);
   await page.screenshot({path:'docs/evidence/android-knowledge.png'});
+  page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Delete policy.txt',exact:true}).click();assert.equal(await page.locator('.document-list article').count(),1);
+  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Delete policy.txt',exact:true}).click();await page.getByText('Document deleted.',{exact:true}).waitFor();assert.equal(await page.locator('.document-list article').count(),0);
   await page.getByRole('button',{name:'Close dialog'}).click();
   await page.locator('.workspace-nav a').click();await page.frameLocator('.appforge-workspace').locator('#prompt').waitFor();
   // Browser fixture checks generated-code editing and isolation; vendor inference is tested separately.

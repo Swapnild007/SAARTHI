@@ -60,3 +60,9 @@ def test_package_build_cannot_succeed_without_build_script():
 def test_release_branch_never_autodeploys():
     config=json.loads(Path('vercel.json').read_text())
     assert config['git']['deploymentEnabled']['feat/saarthi-1-release'] is False
+
+
+@pytest.mark.parametrize("scripts", [None, [], "npm run build", 42])
+def test_package_build_rejects_invalid_script_container(scripts):
+    with pytest.raises(BuildInputError,match='scripts must be an object'):
+        validate_build_files({'package.json':json.dumps({'scripts':scripts})})

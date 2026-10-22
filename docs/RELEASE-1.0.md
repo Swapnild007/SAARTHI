@@ -4,6 +4,8 @@ Issue: [#19](https://github.com/Swapnild007/SAARTHI/issues/19). Branch: `feat/sa
 
 **Verdict: NOT production-ready.** Local core journeys and transport tests pass, but live provider inference, hosted MCP, managed execution, physical Android installation/keyboard behavior, and hosted release checks remain open. Do not merge or publicly release on the strength of fixture tests.
 
+Current release-hardening results, corrected Vercel 403 diagnosis, accessibility checks and blockers: [RELEASE-HARDENING.md](RELEASE-HARDENING.md). The original audit below is retained as historical evidence.
+
 ## Baseline audit
 
 Default branch inspected at `dd495d0`. No README, JS package manifest, service worker or PWA manifest existed. Backend entrypoints were root `app.py` → `backend/app.py`; FastAPI served static HTML/CSS/JS. Reviewed both requirement files, Vercel/Render configuration, all agent/profile/knowledge modules, attachment/data engines, routes, storage/schema files, RAG and MCP modules, test inventory, workflows and branch history. There was no AGENTS.md.

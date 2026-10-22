@@ -1,0 +1,296 @@
+{
+  "checked_at": "2026-10-22T16:48:57.572005+00:00",
+  "url": "https://saarthi-git-feat-saarthi-1-release-swapneeldalvi3-1192.vercel.app",
+  "target": "Existing preview, before hardening changes; no new deployment requested",
+  "requests": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "ok": true,
+        "service": "saarthi-api",
+        "architecture": "cloud",
+        "engine": "saarthi-runtime-v1",
+        "provider_configured": false,
+        "persistence": {
+          "configured": false,
+          "provider": "unconfigured"
+        },
+        "rag": {
+          "configured": false,
+          "provider": "not_configured",
+          "mode": "unavailable",
+          "missing_configuration": [
+            "local knowledge database is not writable"
+          ],
+          "self_hosted_server_required": false
+        },
+        "mcp": {
+          "configured": false,
+          "server_count": 0,
+          "servers": [],
+          "transport": "MCP Streamable HTTP",
+          "self_hosted_servers_required": false,
+          "note": "Configure remote endpoints and secret environment variables on the hosted backend."
+        }
+      }
+    },
+    {
+      "path": "/api/mcp/status",
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "ok": true,
+        "configured": false,
+        "server_count": 0,
+        "servers": [],
+        "transport": "MCP Streamable HTTP",
+        "self_hosted_servers_required": false,
+        "note": "Configure remote endpoints and secret environment variables on the hosted backend."
+      }
+    },
+    {
+      "path": "/api/appforge/health",
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "ok": true,
+        "feature": "appforge-alpha",
+        "execution": "browser-preview-with-optional-isolated-build",
+        "isolated_builds_configured": false,
+        "project_backup_configured": false,
+        "persistent_projects": "browser-local-with-optional-supabase-backup",
+        "production_deployments": false
+      }
+    },
+    {
+      "path": "/api/command",
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "ok": true,
+        "run_id": "run_ea7bac1b8d3b",
+        "assistant": {
+          "id": "saarthi",
+          "name": "Saarthi",
+          "role": "personal AI assistant",
+          "boundary": "general personal assistance; broad requests are allowed, with specialist handoff for clearly specialized work",
+          "capabilities": {
+            "name": "Saarthi",
+            "focus": "general intelligence and orchestration",
+            "capabilities": [
+              "conversation",
+              "decision_support",
+              "learning",
+              "personal_organization",
+              "orchestration",
+              "routing",
+              "multi_agent_coordination",
+              "context_preservation",
+              "verification",
+              "recovery",
+              "risk_aware_delegation"
+            ],
+            "workflows": [
+              "understand",
+              "infer_context",
+              "route",
+              "prepare_handoff",
+              "execute",
+              "verify",
+              "synthesize",
+              "recover",
+              "deliver"
+            ],
+            "outputs": [
+              "answer",
+              "decision_frame",
+              "plan",
+              "handoff",
+              "orchestration_trace",
+              "verified_result",
+              "partial_result"
+            ]
+          },
+          "industry": null
+        },
+        "intent": {
+          "name": "calculate",
+          "confidence": 0.95,
+          "reason": "autonomous capability routing"
+        },
+        "plan": [
+          {
+            "id": "profile",
+            "label": "Profile supplied data",
+            "status": "ready"
+          },
+          {
+            "id": "validate",
+            "label": "Validate data quality",
+            "status": "ready"
+          },
+          {
+            "id": "analyze",
+            "label": "Calculate and analyze",
+            "status": "ready"
+          },
+          {
+            "id": "visualize",
+            "label": "Create requested visualization",
+            "status": "ready"
+          },
+          {
+            "id": "respond",
+            "label": "Explain findings",
+            "status": "ready"
+          }
+        ],
+        "orchestration": {
+          "mode": "orchestrated",
+          "entry": "Saarthi",
+          "active_capability": "Data Analyst",
+          "internal_specialist": "data_analyst",
+          "industry": null,
+          "workflow": [
+            "profile",
+            "validate",
+            "clean",
+            "calculate",
+            "analyze",
+            "forecast",
+            "visualize",
+            "explain",
+            "verify"
+          ],
+          "decision_frameworks": [],
+          "constraints": [],
+          "artifacts": [],
+          "industry_coverage": {},
+          "agent_playbook": {
+            "role": "quantitative_decision_support",
+            "sequence": [
+              "profile",
+              "validate",
+              "analyze",
+              "visualize",
+              "explain",
+              "recommend"
+            ],
+            "quality_gates": [
+              "data_quality",
+              "calculation_integrity",
+              "method_fit",
+              "interpretation"
+            ]
+          },
+          "stages": [
+            "understand",
+            "contextualize",
+            "reason",
+            "execute",
+            "verify",
+            "deliver"
+          ],
+          "handoff": "internal"
+        },
+        "reply": "The result is 60.0.",
+        "provider": "system.calculate",
+        "route": null,
+        "failover": [],
+        "usage": null,
+        "execution": "completed",
+        "tool_results": {
+          "data.profile": {
+            "dataset_count": 0,
+            "datasets": []
+          },
+          "system.calculate": {
+            "expression": "(12 + 8) * 3",
+            "value": 60.0
+          }
+        },
+        "verification": {
+          "verified": true,
+          "claims": "deterministic calculate tool result returned before model execution"
+        },
+        "work_product": {
+          "version": "1.0",
+          "objective": "calculate (12 + 8) * 3",
+          "industry": "General",
+          "capability": "Data Analyst",
+          "deliverable_type": "calculation",
+          "journey": null,
+          "coverage": [],
+          "artifact_bundle": [],
+          "assumptions": [],
+          "actions_taken": [
+            "Internally routed to Data Analyst.",
+            "Applied the configured industry workflow/capability mapping.",
+            "Executed 2 server-side execution step(s)."
+          ],
+          "evidence": [
+            {
+              "source": "data.profile",
+              "type": "runtime_result",
+              "available": true,
+              "summary": "data.profile completed"
+            },
+            {
+              "source": "system.calculate",
+              "type": "runtime_result",
+              "available": true,
+              "summary": "system.calculate completed"
+            }
+          ],
+          "deliverable": "The result is 60.0.",
+          "verification": {
+            "status": "runtime_checked",
+            "verified": true,
+            "scope": "The response was produced, but model-generated claims have not been independently fact-checked.",
+            "checks": [
+              {
+                "name": "objective_present",
+                "status": "passed",
+                "detail": "A non-empty objective was supplied."
+              },
+              {
+                "name": "response_present",
+                "status": "passed",
+                "detail": "A non-empty response was produced."
+              },
+              {
+                "name": "execution_completed",
+                "status": "passed",
+                "detail": "Execution state: completed."
+              },
+              {
+                "name": "tool_results_available",
+                "status": "passed",
+                "detail": "2 execution result(s) are available."
+              }
+            ],
+            "tool_count": 2,
+            "provider": "unknown",
+            "limitations": [
+              "No independent factual verification of model-generated prose was performed."
+            ],
+            "runtime_claim": "deterministic calculate tool result returned before model execution"
+          },
+          "next_actions": []
+        },
+        "conversation_id": null
+      }
+    },
+    {
+      "path": "/api/appforge/export",
+      "status": 200,
+      "content_type": "application/zip",
+      "zip_files": [
+        "index.html",
+        "styles.css"
+      ]
+    }
+  ]
+}

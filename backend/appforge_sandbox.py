@@ -74,7 +74,7 @@ def validate_build_files(files: dict[str, str]) -> dict[str, str]:
         if not isinstance(manifest, dict):
             raise BuildInputError("package.json must be a JSON object.")
         scripts = manifest.get("scripts", {})
-        if scripts is not None and not isinstance(scripts, dict):
+        if not isinstance(scripts, dict):
             raise BuildInputError("package.json scripts must be an object.")
         if not isinstance(scripts.get("build"), str) or not scripts["build"].strip():
             raise BuildInputError("Package projects require an explicit build script.")
