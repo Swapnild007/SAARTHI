@@ -26,7 +26,7 @@ def test_public_url_allows_standard_public_http_ports(monkeypatch):
 def test_production_api_hardening_is_configured():
     source = (ROOT / "backend" / "app.py").read_text(encoding="utf-8")
     assert 'allow_origins=ALLOWED_ORIGINS' in source
-    assert 'allow_methods=["GET", "POST", "OPTIONS"]' in source
+    assert 'allow_methods=["GET", "POST", "OPTIONS", "DELETE"]' in source
     assert 'X-Content-Type-Options' in source
     assert 'X-Frame-Options' in source
     assert 'Strict-Transport-Security' in source

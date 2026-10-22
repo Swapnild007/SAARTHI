@@ -9,7 +9,7 @@ def test_appforge_project_sync_falls_back_when_cloud_store_is_unconfigured(monke
 
     monkeypatch.setattr(app.state, "cloud_store", Store(), raising=False)
     session_id = "11111111-1111-4111-8111-111111111111"
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-SAARTHI-Access":"test-access"})
 
     listed = client.get("/api/appforge/projects", params={"session_id": session_id})
     assert listed.status_code == 200
@@ -52,10 +52,11 @@ def test_appforge_project_sync_uses_managed_store_when_configured(monkeypatch):
         def delete_appforge_project(self, session_id, project_id):
             return project_id == "6e3a1c9d-7bb3-4b80-a72e-cbd0d8cc8c4a"
 
+    monkeypatch.setenv("SAARTHI_ACCESS_TOKEN", "test-access")
     store = Store()
     monkeypatch.setattr(app.state, "cloud_store", store, raising=False)
     session_id = "11111111-1111-4111-8111-111111111111"
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-SAARTHI-Access":"test-access"})
 
     saved = client.post(
         "/api/appforge/projects",

@@ -1093,6 +1093,10 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
           new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('Cloud response timed out')),3000))
         ]);
       }catch(error){
+        // navigator.onLine is only a hint; Chromium can report online while transport is offline.
+        if(error instanceof TypeError && /fetch|network/i.test(String(error.message))){
+          return window.SaarthiOffline.run(value);
+        }
         lastError=error;
       }
     }

@@ -1,0 +1,8 @@
+{
+  "browser": "153.0.8010.0",
+  "manifestValid": true,
+  "serviceWorkerControlled": true,
+  "installabilityErrors": [],
+  "installation": "Blocked: cdpSession.send: Protocol error (PWA.install): 'PWA.install' wasn't found",
+  "physicalAndroid": "Not available"
+}

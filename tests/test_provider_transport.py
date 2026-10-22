@@ -30,7 +30,8 @@ def test_real_http_provider_fallback_streaming_and_appforge(monkeypatch):
     monkeypatch.setenv('SAARTHI_LLM_ROUTES_JSON',json.dumps([{'name':'limited','url':root+'/rate-limit','key':'fixture-only','model':'test'},{'name':'available','url':root+'/v1','key':'fixture-only','model':'test'}]))
     monkeypatch.setattr(engine,'cloud',OpenAICompatibleProvider())
     try:
-        client=TestClient(app)
+        monkeypatch.setenv("SAARTHI_ACCESS_TOKEN", "test-access")
+        client=TestClient(app,headers={"X-SAARTHI-Access":"test-access"})
         result=client.post('/api/command',json={'message':'Hello'}).json()
         assert result['reply']=='Transport works'
         assert result['route']=='available'

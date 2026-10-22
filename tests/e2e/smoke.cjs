@@ -45,15 +45,26 @@ server.stderr.on('data',()=>{});
   const preview=appforge.frameLocator('#preview');await preview.locator('#counter').click();assert.equal(await preview.locator('#counter').innerText(),'1');
   assert.equal(await appforge.locator('#preview').getAttribute('sandbox'),'allow-scripts');
   await appforge.getByRole('button',{name:'Code',exact:true}).click();await appforge.locator('#filePicker').selectOption('app.js');assert.match(await appforge.locator('#codeEditor').inputValue(),/onclick/);
+  await appforge.locator('#codeEditor').fill('document.getElementById("counter").onclick=e=>e.target.textContent="edited";');
+  await appforge.locator('#applyCode').click();await appforge.getByRole('button',{name:'Preview',exact:true}).click();
+  await preview.locator('#counter').click();assert.equal(await preview.locator('#counter').innerText(),'edited');
+  await appforge.locator('#restoreVersion').click();await preview.locator('#counter').click();assert.equal(await preview.locator('#counter').innerText(),'1');
+  const downloadPromise=page.waitForEvent('download');await appforge.locator('#downloadProject').click();const download=await downloadPromise;
+  assert.match(download.suggestedFilename(),/\.zip$/);const zipPath=await download.path();
+  require('node:child_process').execFileSync(process.env.PYTHON||'python',['-c','import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); assert set(z.namelist())=={"index.html","styles.css","app.js"}; assert b"onclick" in z.read("app.js")',zipPath]);
+  assert(await appforge.locator('#cloudBuild').isDisabled(),'unconfigured build must be disabled');
   await page.screenshot({path:'docs/evidence/android-appforge.png'});
   await page.getByRole('button',{name:'Close dialog'}).click();
   await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
   await page.reload();await page.waitForFunction(()=>navigator.serviceWorker.controller);
   await context.setOffline(true);await page.reload();await page.waitForFunction(()=>!!window.SaarthiWorkspace);
   await page.evaluate(()=>{document.getElementById('sudarshanSplash')?.remove();document.body.classList.remove('splash-active');});
+  // Deliberately stale browser connectivity hint reproduces the Chromium CI failure.
+  await page.evaluate(()=>Object.defineProperty(navigator,'onLine',{get:()=>true,configurable:true}));
   await page.locator('#saarthiCommand').fill('calculate 15% of 200');await page.locator('#sendCommand').click();await page.waitForFunction(()=>document.getElementById('assistantResponseBody').textContent.includes('30'));
   assert.match(await page.locator('#assistantResponseBody').innerText(),/30/);
   await context.setOffline(false);
+  await page.evaluate(()=>delete navigator.onLine);
   await page.setViewportSize({width:393,height:450});
   const composer=await page.locator('#conversationComposer').boundingBox();assert(composer.y>=0&&composer.y+composer.height<=450,'composer outside reduced keyboard viewport');
   for(const width of [360,412,768,1440]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'overflow '+width);}

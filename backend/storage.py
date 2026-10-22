@@ -75,7 +75,9 @@ class CloudStore:
         except (ValueError, AttributeError):
             cid = str(uuid.uuid5(uuid.NAMESPACE_URL, "saarthi-conversation:" + conversation_id))
 
-        existing = self._request("conversations", query=f"id=eq.{cid}&select=id&limit=1")
+        existing = self._request("conversations", query=f"id=eq.{cid}&select=id,user_id&limit=1")
+        if existing and existing[0].get("user_id") != user_id:
+            raise ValueError("Conversation does not belong to this session")
         if not existing:
             self._request("conversations", method="POST", payload={
                 "id": cid,
@@ -83,7 +85,7 @@ class CloudStore:
                 "title": (title or user_content[:120]).strip()[:200],
             })
         else:
-            self._request("conversations", method="PATCH", query=f"id=eq.{cid}", payload={
+            self._request("conversations", method="PATCH", query=f"id=eq.{cid}&user_id=eq.{user_id}", payload={
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             })
 
@@ -103,6 +105,10 @@ class CloudStore:
 
     def messages(self, session_id: str, conversation_id: str, limit: int = 100) -> list[dict[str, Any]]:
         user_id = self.user_id(session_id)
+        try:
+            conversation_id = str(uuid.UUID(conversation_id))
+        except (ValueError, AttributeError):
+            return []
         conv = self._request("conversations", query=f"id=eq.{conversation_id}&user_id=eq.{user_id}&select=id&limit=1")
         if not conv:
             return []

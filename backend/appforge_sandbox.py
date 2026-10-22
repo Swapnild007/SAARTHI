@@ -76,6 +76,8 @@ def validate_build_files(files: dict[str, str]) -> dict[str, str]:
         scripts = manifest.get("scripts", {})
         if scripts is not None and not isinstance(scripts, dict):
             raise BuildInputError("package.json scripts must be an object.")
+        if not isinstance(scripts.get("build"), str) or not scripts["build"].strip():
+            raise BuildInputError("Package projects require an explicit build script.")
         # Prevent dependency lifecycle hooks from running during installation.
         # The project's build script runs only after the sandbox is network-isolated.
     return normalized
@@ -138,7 +140,7 @@ async def run_isolated_build(files: dict[str, str]) -> dict[str, Any]:
                 await box.update(network_policy=NetworkPolicy.deny_all())
                 build = await box.run_process(
                     "npm",
-                    ["run", "build", "--if-present"],
+                    ["run", "build"],
                     cwd="workspace",
                     capture_output=True,
                     kill_after=timedelta(seconds=20),

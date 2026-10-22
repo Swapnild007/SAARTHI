@@ -44,14 +44,7 @@ ALLOWED_ORIGINS = (
     ]
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type", "Authorization", "X-SAARTHI-Access", "X-AppForge-Build-Key"],
-    max_age=600,
-)
+
 
 # Defense-in-depth controls. Production-grade distributed rate limiting should
 # also be enforced at the edge/API gateway because serverless instances are ephemeral.
@@ -71,6 +64,14 @@ async def validation_error(request, exc):
 async def security_middleware(request: Request, call_next):
     if request.url.path.startswith("/api/"):
         expected = os.getenv("SAARTHI_ACCESS_TOKEN", "")
+        # A configured shared credential/store must never become public by omission.
+        private_resources = (
+            bool(getattr(getattr(request.app.state, "cloud_store", None), "configured", False))
+            or bool(getattr(engine.cloud, "configured", False))
+            or os.getenv("SAARTHI_MCP_SERVERS_JSON", "[]").strip() not in {"", "[]"}
+        )
+        if not expected and private_resources and request.url.path != "/api/health" and request.method != "OPTIONS":
+            return JSONResponse(status_code=503, content={"detail": "Private deployment access must be configured before enabling shared services."}, headers={"Cache-Control": "no-store"})
         if expected and request.url.path != "/api/health" and request.method != "OPTIONS":
             supplied = request.headers.get("x-saarthi-access", "")
             if not hmac.compare_digest(supplied, expected):
@@ -79,10 +80,16 @@ async def security_middleware(request: Request, call_next):
         if length.isdigit() and int(length) > 3_000_000:
             return JSONResponse(status_code=413, content={"detail": "Request exceeds 3 MB limit."})
         now = time.monotonic()
-        forwarded = request.headers.get("x-forwarded-for", "")
+        forwarded = request.headers.get("x-forwarded-for", "") if os.getenv("SAARTHI_TRUST_PROXY_HEADERS") == "true" else ""
         client_id = forwarded.split(",", 1)[0].strip() or (
             request.client.host if request.client else "unknown"
         )
+        if len(_rate_buckets) >= 4096 and client_id not in _rate_buckets:
+            for identity in list(_rate_buckets):
+                if not _rate_buckets[identity] or _rate_buckets[identity][-1] <= now-60:
+                    del _rate_buckets[identity]
+            if len(_rate_buckets) >= 4096:
+                client_id = "overflow"
         bucket = _rate_buckets[client_id]
         cutoff = now - 60.0
         while bucket and bucket[0] <= cutoff:
@@ -132,6 +139,17 @@ async def security_middleware(request: Request, call_next):
             "form-action 'self'",
         )
     return response
+
+from .http_limits import RequestBodyLimit
+app.add_middleware(RequestBodyLimit)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
+    allow_headers=["Accept", "Content-Type", "Authorization", "X-SAARTHI-Access", "X-AppForge-Build-Key"],
+    max_age=600,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 

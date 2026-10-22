@@ -1,5 +1,11 @@
 (() => {
   "use strict";
+  const applyTheme=()=>{
+    let prefs={};try{prefs=JSON.parse(localStorage.getItem('saarthi.preferences.v1')||'{}');}catch{}
+    document.documentElement.classList.toggle('dark-theme',prefs.theme==='dark'||(prefs.theme==='system'&&matchMedia('(prefers-color-scheme: dark)').matches));
+    document.documentElement.classList.toggle('reduce-motion',prefs.reducedMotion===true);
+  };
+  applyTheme();addEventListener('storage',event=>{if(event.key==='saarthi.preferences.v1')applyTheme();});matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
   const $ = (id) => document.getElementById(id);
   const STORE_KEY = "saarthi.appforge.projects.v1";
   const ACTIVE_KEY = "saarthi.appforge.active.v1";
@@ -61,7 +67,7 @@
     const button = $("cloudBuild");
     if (!button) return;
     try {
-      const response = await fetch("/api/appforge/health");
+      const response = await fetch("/api/appforge/health", {headers: window.parent.SaarthiWorkspace?.headers()});
       const status = response.ok ? await response.json() : {};
       cloudBuildConfigured = status.isolated_builds_configured === true;
       button.disabled = !cloudBuildConfigured;
@@ -80,7 +86,7 @@
   }
   async function loadCloudProjects() {
     try {
-      const response = await fetch("/api/appforge/projects?session_id=" + encodeURIComponent(sessionId));
+      const response = await fetch("/api/appforge/projects?session_id=" + encodeURIComponent(sessionId), {headers: window.parent.SaarthiWorkspace?.headers()});
       if (!response.ok) { $("saveStatus").textContent = "Cloud backup unavailable · local copy safe"; return; }
       const result = await response.json();
       if (!result || !result.ok || !Array.isArray(result.projects)) return;
@@ -400,6 +406,7 @@
     checkpoint();
     active.files = active.files && typeof active.files === "object" ? active.files : {};
     active.files[selectedFile] = source;
+    active.buildHtml = null;
     if (selectedFile === "index.html") {
       active.html = source;
       active.buildHtml = null;

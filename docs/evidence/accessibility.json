@@ -1,0 +1,42 @@
+[
+  {
+    "screen": "home-light",
+    "violations": []
+  },
+  {
+    "screen": "settings-light",
+    "violations": []
+  },
+  {
+    "screen": "settings-dark",
+    "violations": []
+  },
+  {
+    "screen": "home-dark",
+    "violations": []
+  },
+  {
+    "screen": "appforge-dark",
+    "violations": []
+  },
+  {
+    "screen": "tools",
+    "violations": []
+  },
+  {
+    "screen": "knowledge",
+    "violations": []
+  },
+  {
+    "screen": "chat",
+    "violations": []
+  },
+  {
+    "screen": "history",
+    "violations": []
+  },
+  {
+    "screen": "appforge-embedded",
+    "violations": []
+  }
+]

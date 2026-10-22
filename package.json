@@ -1,1 +1,17 @@
-{"name":"saarthi","version":"1.0.0-dev","private":true,"scripts":{"build":"node scripts/validate-release.cjs","test":"python -m pytest -q backend tests","test:e2e":"node tests/e2e/smoke.cjs","test:offline":"node tests/e2e/offline.cjs"},"devDependencies":{"playwright":"1.62.1"}}
+{
+  "name": "saarthi",
+  "version": "1.0.0-dev",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/validate-release.cjs",
+    "test": "python -m pytest -q backend tests",
+    "test:e2e": "node tests/e2e/smoke.cjs",
+    "test:offline": "node tests/e2e/offline.cjs",
+    "test:a11y": "node tests/e2e/accessibility.cjs",
+    "test:pwa": "node tests/e2e/pwa.cjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "playwright": "1.62.1"
+  }
+}

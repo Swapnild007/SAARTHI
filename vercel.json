@@ -9,5 +9,10 @@
     "backend/app.py": {
       "maxDuration": 60
     }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "feat/saarthi-1-release": false
+    }
   }
 }
