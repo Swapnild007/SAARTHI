@@ -119,7 +119,7 @@ const SaarthiApp = (() => {
   const saveConversation=assistant=>{
     const thread=ensureThread(assistant,false);
     if(!thread)return;
-    thread.messages=(conversations[assistant]||[]).slice(-MAX_CONTEXT_MESSAGES);
+    thread.messages=(conversations[assistant]||[]).slice();
     const firstUser=thread.messages.find(m=>m.role==='user');
     if(firstUser&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(firstUser.content);
     thread.updatedAt=new Date().toISOString();
@@ -242,35 +242,11 @@ const SaarthiApp = (() => {
     '/settings':'settings','/voice':'voice'
   });
   const CANONICAL_API_BASE='https://saarthi-swapneeldalvi3-1192.vercel.app';
-  let API_BASE=CANONICAL_API_BASE;
-  let API_BASES=[CANONICAL_API_BASE];
-  const loadRuntimeConfig=async()=>{
-    try{
-      const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
-      if(response.ok){
-        const config=await response.json();
-        const configured=[
-          config.api_base_url,
-          ...(Array.isArray(config.fallback_api_base_urls)?config.fallback_api_base_urls:[])
-        ]
-          .map(value=>String(value||'').replace(/\/$/,''))
-          .filter(Boolean);
-        const sameOrigin=String(window.location.origin||'').replace(/\/$/,'');
-        const sameOriginConfigured=configured.includes(sameOrigin);
-        const approved=[CANONICAL_API_BASE,...configured.filter(value=>value===CANONICAL_API_BASE)];
-        API_BASES=[...new Set(approved.filter(Boolean))];
-        API_BASE=CANONICAL_API_BASE;
-      }
-    }catch{}
-  };
-  const ensureApiBase=async()=>{
-    if(!API_BASES.length)await loadRuntimeConfig();
-    if(!API_BASES.length){
-      API_BASE=CANONICAL_API_BASE;
-      API_BASES=[CANONICAL_API_BASE];
-    }
-    return API_BASE;
-  };
+  const HOST_API_BASE=location.hostname.endsWith('github.io')?CANONICAL_API_BASE:location.origin;
+  let API_BASE=HOST_API_BASE;
+  let API_BASES=[HOST_API_BASE];
+  const loadRuntimeConfig=async()=>{};
+  const ensureApiBase=async()=>API_BASE;
   const apiUrl=(path,base=API_BASE)=>base+(path.startsWith('/')?path:'/'+path);
   const checkRuntimeHealth=async(base)=>{
     const controller=new AbortController();
@@ -660,7 +636,8 @@ const SaarthiApp = (() => {
       });
       const wp=message.workProduct&&typeof message.workProduct==='object'?message.workProduct:null;
       const isVisualization=/<saarthi-(?:chart|diagram)>/i.test(String(message.content||''));
-      // Work-product metadata stays available to the runtime/history, but it is not shown after every reply.\n      // The conversation should feel like a human exchange; execution detail appears only when explicitly requested.\n      const workProductHtml='';
+      // Execution metadata remains in history; ordinary replies stay focused.
+      const workProductHtml='';
       return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
     }).join('');
     const lastAssistant=[...messages].reverse().find(m=>m.role==='assistant');
@@ -715,7 +692,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       message.showIntelligence=Boolean(showIntelligence);
     }
     messages.push(message);
-    conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
+    conversations[currentAssistant]=messages;
     if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
     thread.updatedAt=new Date().toISOString();
     saveConversation(currentAssistant);
@@ -731,13 +708,13 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     ));
     if(filtered.length!==messages.length){
       thread.messages=filtered;
-      conversations[currentAssistant]=filtered.slice(-MAX_CONTEXT_MESSAGES);
+      conversations[currentAssistant]=filtered;
       thread.updatedAt=new Date().toISOString();
       saveConversation(currentAssistant);
     }
   };
   const showResponse=(reply,result)=>{
-    const text=String(reply||'');
+    const text=String(reply||'')+(result?.sources?.length?'\n\nRetrieved context sources:\n'+result.sources.map((s,i)=>'['+(i+1)+'] '+s.title+' · chunk '+(Number(s.chunk_index||0)+1)).join('\n'):'');
     const orchestration=result?.orchestration||{};
     const workProduct=result?.work_product||null;
     const intent=String(result?.intent?.name||'');
@@ -855,7 +832,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const thread=list.find(t=>t.id===threadId);
     if(!thread)return;
     currentThreads[currentAssistant]=thread.id;
-    conversations[currentAssistant]=thread.messages.slice(-MAX_CONTEXT_MESSAGES);
+    conversations[currentAssistant]=thread.messages.slice();
     saveHistory();
     closePickers();
     renderConversation();
@@ -1042,13 +1019,17 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   const parseCommand=value=>{const token=value.trim().split(/\s+/)[0].toLowerCase();return COMMANDS[token]||'chat';};
 
   const apiCommand=async(value,mode)=>{
+    if(!navigator.onLine)return window.SaarthiOffline.run(value);
     await ensureApiBase();
     const context={
       client_time:new Date().toISOString(),
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
       locale:navigator.language||'en-IN',
       industry:null,
-      conversation:currentConversation().map(({role,content})=>({role,content})),
+      allow_mcp:window.SaarthiWorkspace?.permissions().mcp===true,
+      knowledge_evidence:window.SaarthiWorkspace?.retrieve(value)||[],
+      conversation_summary:currentConversation().slice(0,-MAX_CONTEXT_MESSAGES).filter(m=>m.role==='user').slice(-20).map(m=>m.content.slice(0,180)).join(' | ').slice(0,3000),
+      conversation:currentConversation().slice(-MAX_CONTEXT_MESSAGES).map(({role,content})=>({role,content})),
       attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
     let lastError=null;
@@ -1063,16 +1044,17 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
           assistant:'saarthi',
           conversation_id:thread?.id||null,
           session_id:getSessionId(),
+          provider_settings:window.SaarthiWorkspace?.providerSelection(),
           context
         });
         const target=new URL('/api/command',base);
         const crossOrigin=target.origin!==window.location.origin;
-        const endpoint=crossOrigin?'/api/command/plain':'/api/command';
+        const endpoint=crossOrigin?'/api/command/plain':'/api/command/stream';
         const controller=new AbortController();
         const response=await Promise.race([
           fetch(apiUrl(endpoint,base),{
             method:'POST',
-            headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
+            headers:{'Content-Type':crossOrigin?'text/plain':'application/json',...window.SaarthiWorkspace?.headers()},
             body:payload,
             signal:controller.signal
           }),
@@ -1086,6 +1068,25 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
           continue;
         }
         API_BASE=base;
+        if(!crossOrigin){
+          const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',partial='',final=null;
+          const pending=document.createElement('div');pending.className='conversation-message assistant';pending.setAttribute('aria-live','polite');responseBody?.append(pending);
+          try{
+            while(true){
+              const {value,done}=await reader.read();if(done)break;
+              buffer+=decoder.decode(value,{stream:true});const frames=buffer.split('\n\n');buffer=frames.pop();
+              for(const frame of frames){
+                if(!frame.startsWith('data: '))continue;
+                const event=JSON.parse(frame.slice(6));
+                if(event.type==='delta'){partial+=event.text;pending.textContent=partial;}
+                if(event.type==='result')final=event.result;
+                if(event.type==='error')throw new Error(event.message);
+              }
+            }
+            if(!final)throw new Error('Response stream ended before completion.');
+            return final;
+          }finally{pending.remove();reader.releaseLock();}
+        }
         return await Promise.race([
           response.json(),
           new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('Cloud response timed out')),3000))
@@ -1115,7 +1116,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     setStatus('Ready');setCoreState('ready','Saarthi has a response.');
     updateIntelligenceFlow('complete',result);
     addActivity('Run completed',result.run_id+' · '+intent+' · '+result.provider);
-    showResponse(result.reply,result);
+    showResponse(result.reply+(result.provider_error?'\n\n'+result.provider_error:'')+(result.failover?.length?'\n\nProvider fallback: '+result.failover.map(f=>f.route+' ('+f.error+')').join('; '):''),result);
     return result;
   };
 
@@ -1145,6 +1146,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       sendInFlight=false;
       setStatus('Ready');
       setCoreState('ready','Composer recovered. Please try again.');
+      if(status)status.textContent='Unable to render this conversation. Please reload; your message remains in history.';
       addActivity('Composer recovered',String(error?.message||'Unable to save message locally.'));
       return;
     }
@@ -1244,9 +1246,9 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   // Specialist capabilities are intentionally not user-selectable.
   // Saarthi owns routing; capability selection remains an internal server decision.
-  document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>selectMenu(button.dataset.menu)));
-  $('#settingsButton')?.addEventListener('click',()=>renderMenuRoot());
-  $('#mobileControlButton')?.addEventListener('click',()=>renderControlCenter());
+  document.querySelectorAll('[data-menu]').forEach(button=>button.addEventListener('click',()=>button.dataset.menu==='control'?window.SaarthiWorkspace?.open('settings'):command?.focus()));
+  $('#settingsButton')?.addEventListener('click',()=>window.SaarthiWorkspace?.open('settings'));
+  $('#mobileControlButton')?.addEventListener('click',()=>window.SaarthiWorkspace?.open('tools'));
   $('#sidebarNewConversation')?.addEventListener('click',startNewConversation);
   if(!document.querySelector('#historyTrigger')){
     const trigger=document.createElement('button');trigger.id='historyTrigger';trigger.className='history-trigger';trigger.type='button';trigger.setAttribute('aria-label','Conversation history');trigger.textContent='☷';
@@ -1254,7 +1256,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     trigger.addEventListener('click',openHistory);
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
-  document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
+  document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector,#historyTrigger'))closePickers();});
   // Explicit button activation is the primary mobile send path. Prevent the
   // browser's default form submit here, then keep native submit for Enter.
   // submitInFlight is set synchronously inside submit(), preventing duplicates.
@@ -1274,28 +1276,4 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
 
   window.SaarthiApp={menus:MENUS,assistants:ASSISTANTS,controls:CONTROLS,runs,ask,submit,voice,selectMenu,selectAssistant,getCurrentAssistant:()=>currentAssistant,getAttachments:()=>currentAttachments().map(({name,type,size,data})=>({name,type,size,data})),clearConversation:assistant=>{const id=assistant||currentAssistant;const list=ensureAssistantHistory(id);attachmentsByAssistant[id]=[];const tid=currentThreads[id];const index=list.findIndex(t=>t.id===tid);if(index>=0)list.splice(index,1);currentThreads[id]=null;conversations[id]=[];saveHistory();if(id===currentAssistant){document.body.classList.remove('chat-active');renderConversation();renderHistory();}},startNewConversation,voiceTurn:false};
   return window.SaarthiApp;
-})()
-
-
-// AppForge is an additive SAARTHI workspace. Keep the existing navigation intact.
-(() => {
-  const nav = document.querySelector(".sidebar .nav");
-  if (!nav || nav.querySelector("[data-appforge-nav]")) return;
-  const button = document.createElement("button");
-  button.type = "button";
-  button.dataset.appforgeNav = "true";
-  button.innerHTML = '<span class="ico">✦</span>AppForge';
-  button.setAttribute("aria-label", "Open AppForge application builder");
-  button.addEventListener("click", async () => {
-    let base = "https://saarthi-swapneeldalvi3-1192.vercel.app";
-    try {
-      const response = await fetch("./config/runtime.json", {cache: "no-store"});
-      if (response.ok) {
-        const runtime = await response.json();
-        if (typeof runtime.api_base_url === "string" && /^https:\/\//i.test(runtime.api_base_url)) base = runtime.api_base_url.replace(/\/+$/, "");
-      }
-    } catch (_) { /* The configured backend URL remains the fallback. */ }
-    window.open(base + "/appforge", "_blank", "noopener,noreferrer");
-  });
-  nav.appendChild(button);
 })();

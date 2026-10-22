@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import hmac
 import os
 import time
 from collections import defaultdict, deque
@@ -11,12 +12,14 @@ from typing import Any, Literal
 from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .engine import SaarthiEngine
+from .provider_settings import ProviderSelection, selection
 from .storage import CloudStore, store_status
 from .agent_capabilities import AGENT_CAPABILITIES, INDUSTRY_PACKS
 
@@ -46,7 +49,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type"],
+    allow_headers=["Accept", "Content-Type", "Authorization", "X-SAARTHI-Access", "X-AppForge-Build-Key"],
     max_age=600,
 )
 
@@ -56,9 +59,25 @@ _RATE_LIMIT = max(1, int(os.getenv("SAARTHI_RATE_LIMIT_PER_MINUTE", "60")))
 _rate_buckets: dict[str, deque[float]] = defaultdict(deque)
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    # Pydantic errors normally include raw input, which could contain an API key.
+    return JSONResponse(status_code=422, content={"detail": [
+        {"loc": error["loc"], "msg": error["msg"], "type": error["type"]} for error in exc.errors()
+    ]})
+
+
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
     if request.url.path.startswith("/api/"):
+        expected = os.getenv("SAARTHI_ACCESS_TOKEN", "")
+        if expected and request.url.path != "/api/health" and request.method != "OPTIONS":
+            supplied = request.headers.get("x-saarthi-access", "")
+            if not hmac.compare_digest(supplied, expected):
+                return JSONResponse(status_code=401, content={"detail": "Deployment access token required."})
+        length = request.headers.get("content-length", "0")
+        if length.isdigit() and int(length) > 3_000_000:
+            return JSONResponse(status_code=413, content={"detail": "Request exceeds 3 MB limit."})
         now = time.monotonic()
         forwarded = request.headers.get("x-forwarded-for", "")
         client_id = forwarded.split(",", 1)[0].strip() or (
@@ -69,7 +88,6 @@ async def security_middleware(request: Request, call_next):
         while bucket and bucket[0] <= cutoff:
             bucket.popleft()
         if len(bucket) >= _RATE_LIMIT:
-            from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please retry shortly."},
@@ -79,7 +97,7 @@ async def security_middleware(request: Request, call_next):
 
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN" if request.url.path.startswith("/appforge") else "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault(
         "Permissions-Policy",
@@ -103,7 +121,7 @@ async def security_middleware(request: Request, call_next):
             "img-src 'self' data: blob:; "
             "media-src 'self' blob:; "
             "connect-src 'self' https://saarthi-swapneeldalvi3-1192.vercel.app https://swapnild007.github.io https://api.open-meteo.com https://api.bigdatacloud.net https://ipwho.is; "
-            "object-src 'none'; "
+            "frame-src 'self'; object-src 'none'; "
             "base-uri 'self'; "
             "frame-ancestors 'none'; "
             "form-action 'self'",
@@ -144,6 +162,7 @@ class CommandRequest(BaseModel):
     assistant: Assistant = "saarthi"
     conversation_id: str | None = None
     session_id: str | None = None
+    provider_settings: ProviderSelection | None = None
     context: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -151,6 +170,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=12000)
     assistant: Assistant = "saarthi"
     conversation_id: str | None = None
+    provider_settings: ProviderSelection | None = None
     context: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -425,6 +445,14 @@ def usage():
 
 
 def _execute_command(request: CommandRequest) -> dict[str, Any]:
+    token = selection.set(request.provider_settings)
+    try:
+        return _execute_selected_command(request)
+    finally:
+        selection.reset(token)
+
+
+def _execute_selected_command(request: CommandRequest) -> dict[str, Any]:
     result = engine.run(
         message=request.message,
         mode=request.mode,
@@ -496,5 +524,112 @@ async def chat(request: ChatRequest):
         assistant=request.assistant,
         conversation_id=request.conversation_id,
         context=request.context,
+        provider_settings=request.provider_settings,
     )
     return await _execute_command_bounded(command_request)
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest():
+    return FileResponse(PROJECT_ROOT / "manifest.webmanifest", media_type="application/manifest+json")
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(PROJECT_ROOT / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+@app.get("/api/providers")
+def providers():
+    from .provider_settings import PROVIDERS
+    return {"providers": [{"id": key, "name": item[0]} for key, item in PROVIDERS.items()],
+            "server_configured": engine.cloud.configured}
+
+@app.post("/api/providers/validate")
+async def validate_provider(payload: ProviderSelection):
+    import httpx
+    from .provider_settings import PROVIDERS
+    if payload.provider == "server":
+        return {"ok": engine.cloud.configured, "detail": "Server configuration checked; inference not tested."}
+    if not payload.api_key.get_secret_value() or not payload.model:
+        return JSONResponse(status_code=400, content={"detail": "Model and API key required."})
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+            response = await client.get(PROVIDERS[payload.provider][1] + "/models", headers={
+                "Authorization": "Bearer " + payload.api_key.get_secret_value()})
+        if response.status_code != 200:
+            return JSONResponse(status_code=400, content={"detail": f"Provider returned HTTP {response.status_code}."})
+        ids = {item.get("id") for item in response.json().get("data", []) if isinstance(item, dict)}
+        return {"ok": payload.model in ids, "detail": "Key accepted; model listed." if payload.model in ids else "Key accepted; model ID not listed. Check your provider console."}
+    except Exception:
+        return JSONResponse(status_code=502, content={"detail": "Provider validation unavailable or timed out."})
+
+
+class ExtractionRequest(BaseModel):
+    name: str = Field(max_length=180)
+    type: str = Field(default="text/plain", max_length=100)
+    data: str = Field(max_length=700000)
+
+@app.post("/api/knowledge/extract")
+async def knowledge_extract(payload: ExtractionRequest):
+    from .attachments import inspect_attachment
+    parsed = await asyncio.to_thread(inspect_attachment, payload.model_dump())
+    if parsed.get("error"):
+        return JSONResponse(status_code=400, content={"detail": str(parsed["error"])[:180]})
+    return {"text": str(parsed.get("text") or "")[:100000], "name": payload.name}
+
+
+class MCPInvocation(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    confirmed: bool = False
+
+@app.post("/api/mcp/invoke")
+async def mcp_invoke(payload: MCPInvocation, request: Request):
+    from .rag import admin_token_valid
+    from .mcp_runtime import call_tool
+    token = request.headers.get("authorization", "").removeprefix("Bearer ")
+    if not admin_token_valid(token):
+        return JSONResponse(status_code=401, content={"detail": "MCP invocation is not authorized."})
+    try:
+        return {"ok": True, **await asyncio.to_thread(call_tool, payload.name, payload.arguments, confirmed=payload.confirmed)}
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    except Exception:
+        return JSONResponse(status_code=502, content={"detail": "Remote tool unavailable or failed."})
+
+
+@app.post("/api/command/stream")
+async def command_stream(payload: CommandRequest, request: Request):
+    from fastapi.responses import StreamingResponse
+    from .streaming import sink
+    loop = asyncio.get_running_loop()
+    queue = asyncio.Queue(maxsize=1024)
+    active = True
+    def emit(text):
+        def enqueue():
+            if active and not queue.full():
+                queue.put_nowait({"type": "delta", "text": text})
+        loop.call_soon_threadsafe(enqueue)
+    async def events():
+        nonlocal active
+        token = sink.set(emit)
+        task = asyncio.create_task(_execute_command_bounded(payload))
+        try:
+            while not task.done() or not queue.empty():
+                if await request.is_disconnected():
+                    break
+                try:
+                    item = await asyncio.wait_for(queue.get(), .2)
+                    yield "data: " + json.dumps(item) + "\n\n"
+                except asyncio.TimeoutError:
+                    continue
+            if not await request.is_disconnected():
+                result = await task
+                yield "data: " + json.dumps({"type": "result", "result": result}) + "\n\n"
+        except Exception:
+            yield "data: " + json.dumps({"type": "error", "message": "Request failed. Check Settings and try again."}) + "\n\n"
+        finally:
+            active = False
+            sink.reset(token)
+            if not task.done():
+                task.cancel()
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})

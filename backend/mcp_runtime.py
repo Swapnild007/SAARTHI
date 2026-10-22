@@ -3,7 +3,7 @@ import json, os, re, time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
 
 _PROTOCOL_VERSION = "2025-03-26"
 try:
@@ -97,10 +97,16 @@ def _post(server: dict[str, Any], payload: dict[str, Any], session_id: str | Non
         headers["Authorization"] = "Bearer " + server["token"]
     if session_id:
         headers["Mcp-Session-Id"] = session_id
+    from .research import _public_url
+    if not _public_url(server["url"]):
+        raise ValueError("MCP destination must resolve to a public address")
     request = Request(server["url"], data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
     try:
-        with urlopen(request, timeout=_TIMEOUT) as response:
-            result = _read_response(response)
+        class NoRedirect(HTTPRedirectHandler):
+            def redirect_request(self, *args, **kwargs):
+                return None
+        with build_opener(NoRedirect()).open(request, timeout=_TIMEOUT) as response:
+            result = {} if getattr(response, "status", 200) in (202, 204) else _read_response(response)
             return result, response.headers.get("Mcp-Session-Id") or session_id
     except HTTPError as exc:
         raise RuntimeError(f"MCP HTTP error {exc.code}") from None
@@ -155,13 +161,22 @@ def list_tools(force_refresh: bool = False) -> tuple[list[dict[str, Any]], list[
 def openai_tool_definitions() -> list[dict[str, Any]]:
     tools, _ = list_tools()
     return [{"type": "function", "function": item["function"]} for item in tools
-            if item.get("_approved") is True and item.get("_safe_to_call") is True]
+            if item.get("_approved") is True and item.get("_safe_to_call") is True and item.get("_read_only") is True]
 
-def call_tool(public_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+def call_tool(public_name: str, arguments: dict[str, Any], *, confirmed: bool = False) -> dict[str, Any]:
     tools, _ = list_tools()
     match = next((item for item in tools if item["function"]["name"] == public_name), None)
     if not match or match.get("_approved") is not True or match.get("_safe_to_call") is not True:
         raise ValueError("MCP tool is not approved for execution or is unavailable")
+    if match.get("_read_only") is not True and not confirmed:
+        raise ValueError("Sensitive MCP tool requires explicit user confirmation for this invocation")
+    from jsonschema import Draft202012Validator
+    schema = match["function"]["parameters"]
+    try:
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(arguments)
+    except Exception:
+        raise ValueError("MCP arguments do not match the tool schema") from None
     server = next((item for item in _servers() if item["name"] == match["_server"]), None)
     if not server:
         raise ValueError("MCP server is no longer configured")

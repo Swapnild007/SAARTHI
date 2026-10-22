@@ -4,8 +4,8 @@
 <meta name="description" content="SAARTHI is an AI workspace for research, analysis, planning, creative work and software engineering, coordinated through one assistant.">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="canonical" href="https://swapnild007.github.io/SAARTHI/">
-<link rel="icon" type="image/webp" href="https://swapnild007.github.io/SAARTHI/assets/sudarshan-chakra.webp">
-<link rel="apple-touch-icon" href="https://swapnild007.github.io/SAARTHI/assets/sudarshan-chakra.webp">
+<link rel="icon" type="image/png" href="/assets/icon-192.png">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SAARTHI">
 <meta property="og:title" content="SAARTHI — Think. Discern. Act.">
@@ -17,8 +17,6 @@
 <meta name="twitter:description" content="An AI workspace for research, analysis, planning, creation and software engineering.">
 <meta name="twitter:image" content="https://swapnild007.github.io/SAARTHI/assets/sudarshan-chakra.webp">
 <title>SAARTHI — Think. Discern. Act.</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
 <style id="saarthi-base"></style><style>.nav .appforge-nav-link{display:flex;align-items:center;gap:10px;width:100%;padding:11px 13px;border:0;border-radius:12px;background:transparent;color:inherit;text-decoration:none;font:inherit;text-align:left;cursor:pointer}.nav .appforge-nav-link:hover{background:rgba(22,125,120,.10)}.nav .appforge-nav-link .ico{display:inline-grid;place-items:center;width:20px;flex:0 0 20px}</style><style id="saarthi-opening">
 .sudarshan-splash{position:fixed;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;z-index:2147483647;overflow:hidden;background:#020a12;transition:opacity .9s ease,visibility .9s ease}
 .sudarshan-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
@@ -39,7 +37,7 @@
 .splash-brand-overlay small{display:block;font-family:Inter,sans-serif;font-size:9px;letter-spacing:.3em;margin-top:9px}
 @media(max-width:600px){.splash-video{object-fit:cover}.splash-video-layer{padding-bottom:38vh}.splash-brand-overlay strong{font-size:clamp(36px,10vw,58px)}}
 @media(prefers-reduced-motion:reduce){.splash-video{animation:none}} body.splash-active{overflow:hidden!important}
-</style><link rel="stylesheet" href="./styles/app.css?v=20261005-24"></head><body class="home-active"><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
+</style><link rel="stylesheet" href="./styles/app.css?v=20261005-24"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#faf6ee"><link rel="stylesheet" href="/styles/workspace.css"></head><body class="home-active"><div class="sudarshan-splash" id="sudarshanSplash" aria-label="SAARTHI opening">
 <video class="splash-video" id="saarthiSplashVideo" autoplay muted playsinline preload="auto" aria-hidden="true">
   <source src="./assets/saarthi-splash.mp4?v=20261001-2" type="video/mp4">
 </video>
@@ -138,112 +136,5 @@
 <div class="menu-picker" id="menuPicker" hidden aria-label="Saarthi menu"></div>
 <div class="assistant-picker" id="assistantPicker" hidden aria-label="Saarthi assistants"></div>
 <div class="control-picker" id="controlPicker" hidden aria-label="Saarthi controls"></div>
-</main></div><script>
-(function(){
-  if(window.__SAARTHI_DIRECT_SEND__) return;
-  window.__SAARTHI_DIRECT_SEND__=true;
-  const API='https://saarthi-swapneeldalvi3-1192.vercel.app';
-  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const inlineReplyMarkdown=value=>{
-    let text=esc(value);
-    const strong=[];
-    text=text.replace(/\*\*([^*\n]+?)\*\*/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
-    text=text.replace(/__([^_\n]+?)__/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
-    text=text.replace(/\x60([^\x60]+)\x60/g,'<code>$1</code>');
-    text=text.replace(/(^|\s)\*([^*\n]+?)\*(?=\s|$)/g,'$1<em>$2</em>');
-    text=text.replace(/(^|\s)_([^_\n]+?)_(?=\s|$)/g,'$1<em>$2</em>');
-    strong.forEach((html,i)=>{text=text.replace('SAARTHISTRONG'+i+'TOKEN',html);});
-    return text;
-  };
-  const formatReplyMarkdown=markdown=>{
-    const lines=String(markdown??'').replace(/\r/g,'').trim().split('\n');
-    const out=[];let inCode=false,code=[],listType=null,tableMode=false;
-    const closeList=()=>{if(listType){out.push('</'+listType+'>');listType=null;}};
-    const closeTable=()=>{if(tableMode){out.push('</tbody></table></div>');tableMode=false;}};
-    for(let i=0;i<lines.length;i++){
-      const raw=lines[i],line=raw.trim();
-      if(line.slice(0,3)===String.fromCharCode(96,96,96)){closeList();closeTable();if(inCode){out.push('<pre><code>'+esc(code.join('\n'))+'</code></pre>');code=[];inCode=false;}else inCode=true;continue;}
-      if(inCode){code.push(raw);continue;}
-      if(!line){closeList();closeTable();continue;}
-      if(/^\|.*\|$/.test(line)){
-        const cells=line.slice(1,-1).split('|').map(x=>x.trim());
-        if(cells.every(x=>/^:?-{3,}:?$/.test(x)))continue;
-        closeList();
-        if(!tableMode){tableMode=true;out.push('<div class="response-table-wrap" role="region" aria-label="Scrollable response table" tabindex="0"><table><thead><tr>'+cells.map(x=>'<th>'+inlineReplyMarkdown(x)+'</th>').join('')+'</tr></thead><tbody>');}
-        else out.push('<tr>'+cells.map(x=>'<td>'+inlineReplyMarkdown(x)+'</td>').join('')+'</tr>');
-        continue;
-      }
-      closeTable();
-      const heading=line.match(/^(#{1,4})\s+(.+)$/);
-      if(heading){closeList();const n=heading[1].length;out.push('<h'+n+'>'+inlineReplyMarkdown(heading[2])+'</h'+n+'>');continue;}
-      const bullet=line.match(/^[-*•]\s+(.+)$/);
-      if(bullet){if(listType!=='ul'){closeList();listType='ul';out.push('<ul>');}out.push('<li>'+inlineReplyMarkdown(bullet[1])+'</li>');continue;}
-      const numbered=line.match(/^\d+[.)]\s+(.+)$/);
-      if(numbered){if(listType!=='ol'){closeList();listType='ol';out.push('<ol>');}out.push('<li>'+inlineReplyMarkdown(numbered[1])+'</li>');continue;}
-      if(/^>\s?/.test(line)){closeList();out.push('<blockquote>'+inlineReplyMarkdown(line.replace(/^>\s?/,''))+'</blockquote>');continue;}
-      if(/^---+$/.test(line)){closeList();out.push('<hr>');continue;}
-      closeList();out.push('<p>'+inlineReplyMarkdown(line)+'</p>');
-    }
-    if(inCode)out.push('<pre><code>'+esc(code.join('\n'))+'</code></pre>');
-    closeList();closeTable();
-    return out.join('');
-  };
-
-  const send=async function(event){
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    const input=document.getElementById('saarthiCommand');
-    const button=document.getElementById('sendCommand');
-    const body=document.getElementById('assistantResponseBody');
-    const card=document.getElementById('assistantResponse');
-    const value=(input?.value||'').trim();
-    if(!value || !button) return;
-    const old=button.innerHTML;
-    button.disabled=true;
-    button.setAttribute('aria-busy','true');
-    button.innerHTML='…';
-    if(body){
-      body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">Thinking…</div></div>';
-    }
-    if(card) card.hidden=false;
-    try{
-      let sessionId=localStorage.getItem('saarthi_session_id');
-      if(!sessionId){ sessionId='web_'+crypto.randomUUID(); localStorage.setItem('saarthi_session_id',sessionId); }
-      const payload={
-        message:value, mode:'chat', assistant:'saarthi',
-        session_id:sessionId, conversation_id:localStorage.getItem('saarthi_conversation_id')||null,
-        context:{timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'}
-      };
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(new Error('SAARTHI response timed out after 29 seconds')),29000);
-      const response=await fetch(API+'/api/command/plain',{
-        method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
-        body:JSON.stringify(payload),signal:controller.signal,cache:'no-store'
-      });
-      clearTimeout(timer);
-      const raw=await response.text();
-      let data={}; try{data=JSON.parse(raw)}catch(_){}
-      if(!response.ok) throw new Error((data&&data.detail)||('Server returned '+response.status));
-      if(data.conversation_id) localStorage.setItem('saarthi_conversation_id',data.conversation_id);
-      if(body) body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">'+formatReplyMarkdown(data.reply||'Command completed.')+'</div></div>';
-      if(input) input.value='';
-    }catch(error){
-      if(body) body.innerHTML='<div class="conversation-message user"><div class="conversation-role">You</div><div class="conversation-content">'+esc(value)+'</div></div><div class="conversation-message assistant"><div class="conversation-role">Saarthi</div><div class="conversation-content">Unable to reach Saarthi: '+esc(error?.message||'Request failed')+'</div></div>';
-    }finally{
-      button.disabled=false;
-      button.removeAttribute('aria-busy');
-      button.innerHTML=old;
-    }
-  };
-  const bind=()=>{
-    const button=document.getElementById('sendCommand');
-    if(button && !button.__directSendBound){
-      button.__directSendBound=true;
-      button.addEventListener('click',send,true);
-    }
-  };
-  bind();
-  new MutationObserver(bind).observe(document.documentElement,{childList:true,subtree:true});
-})();
-</script><script src="./scripts/app.js?v=20261012-01" defer></script><script src="./scripts/boot.js?v=20261005-22" defer></script>
-</body></html>
+</main></div><script src="/scripts/utilities.js" defer></script><script src="./scripts/app.js?v=20261012-01" defer></script><script src="./scripts/boot.js?v=20261005-22" defer></script>
+<script src="/scripts/workspace.js" defer></script></body></html>

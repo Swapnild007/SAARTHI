@@ -4,3 +4,5 @@
 .file-tools .text-input{flex:1;min-width:0;padding:8px 10px;font-size:12px}
 .btn:disabled{opacity:.48;cursor:not-allowed;transform:none;box-shadow:none}
 @media(max-width:520px){.file-tools{padding:8px;gap:6px}.file-picker{max-width:68%}}
+
+@media(max-width:900px){.left-panel{order:0!important}.right-panel{order:1!important}.workspace{display:flex;flex-direction:column}.left-panel,.right-panel{width:100%;min-width:0;box-sizing:border-box}}

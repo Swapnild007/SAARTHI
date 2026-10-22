@@ -144,7 +144,7 @@
     try {
       const response = await fetch("/api/appforge/projects", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {"Content-Type": "application/json",...window.parent.SaarthiWorkspace?.headers()},
         body: JSON.stringify({session_id: sessionId, project: payload})
       });
       const result = await response.json().catch(() => ({}));
@@ -201,7 +201,7 @@
       filePicker.value = selectedFile;
     }
     const source = String(active.files[selectedFile] ?? "");
-    const previewSource = String(active.buildHtml || active.html || "");
+    const previewSource = String(active.buildHtml || bundleStaticFiles(active.files, active.html) || "");
     const hasPreview = previewSource.trim().length > 0;
     const completeHtml = /<(?:!doctype\s+html|html)(?:\s|>)/i.test(previewSource) && /<\/html\s*>/i.test(previewSource);
     $("versionLabel").textContent = (hasPreview || fileNames.length > 1) ? "Draft · v" + (active.versions.length + 1) : "New draft";
@@ -227,11 +227,32 @@
     $("codeSize").textContent = source.length.toLocaleString() + " characters";
     persist(false);
   }
+  function bundleStaticFiles(files, html) {
+    if(files?.['package.json'] && !active.buildHtml){
+      return '<!doctype html><html><body><h2>Managed build required</h2><p>This project has package dependencies. Configure the isolated build service to create a preview. Source editing and export remain available.</p></body></html>';
+    }
+    let source=String(html || files?.['index.html'] || '');
+    const doc=new DOMParser().parseFromString(source,'text/html');
+    for(const link of doc.querySelectorAll('link[rel="stylesheet"][href]')){
+      const path=link.getAttribute('href').replace(/^\.\//,'');
+      if(typeof files?.[path]==='string'){const style=doc.createElement('style');style.textContent=files[path];link.replaceWith(style);}
+    }
+    for(const script of doc.querySelectorAll('script[src]')){
+      const path=script.getAttribute('src').replace(/^\.\//,'');
+      if(typeof files?.[path]==='string'){script.removeAttribute('src');script.textContent=files[path];}
+    }
+    return source.trim()?'<!doctype html>'+doc.documentElement.outerHTML:'';
+  }
+  window.addEventListener('message',event=>{
+    if(event.source!==preview.contentWindow||event.data?.type!=='appforge-preview-error')return;
+    $('buildStatus').textContent='Preview runtime error: '+String(event.data.message||'Unknown error').slice(0,240);
+  });
   function withPreviewPolicy(source) {
     const policy = "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'";
+    const monitor='<script>addEventListener("error",function(e){parent.postMessage({type:"appforge-preview-error",message:String(e.message).slice(0,240)},"*")});addEventListener("unhandledrejection",function(){parent.postMessage({type:"appforge-preview-error",message:"Unhandled promise rejection in preview"},"*")});<'+ '/script>';
     const meta = '<meta http-equiv="Content-Security-Policy" content="' + policy + '">';
-    if (/<head[^>]*>/i.test(source)) return source.replace(/<head([^>]*)>/i, "<head$1>" + meta);
-    return "<!doctype html><html><head>" + meta + "</head><body>" + source + "</body></html>";
+    if (/<head[^>]*>/i.test(source)) return source.replace(/<head([^>]*)>/i, "<head$1>" + meta + monitor);
+    return "<!doctype html><html><head>" + meta + monitor + "</head><body>" + source + "</body></html>";
   }
   async function generate(isRefine) {
     if (busy) return;
@@ -245,15 +266,15 @@
     $("buildStatus").textContent = "Preparing a new version…";
     try {
       const response = await fetch("/api/appforge/generate", {
-        method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({prompt: active.prompt || text, project_name: active.name, current_html: isRefine ? active.html || null : null, change_request: isRefine ? text : null})
+        method: "POST", headers: {"Content-Type": "application/json",...window.parent.SaarthiWorkspace?.headers()},
+        body: JSON.stringify({prompt: active.prompt || text, project_name: active.name, provider_settings:window.parent.SaarthiWorkspace?.providerSelection(),current_files:isRefine?active.files:{},current_html: isRefine ? active.html || null : null, change_request: isRefine ? text : null})
       });
       if (!response.ok) throw new Error("Cloud generation unavailable (" + response.status + ")");
       const result = await response.json();
       if (!result || !result.ok || typeof result.html !== "string") throw new Error("The generator returned an invalid response.");
       checkpoint();
       active.html = result.html;
-      active.files = {...(active.files || {}), "index.html": result.html};
+      active.files = result.files || {...(active.files || {}), "index.html": result.html};
       active.buildHtml = null;
       selectedFile = "index.html";
       active.provider = result.mode === "ai-generated" ? "Generated by SAARTHI" : "Starter preview";
@@ -290,7 +311,7 @@
     try {
       const response = await fetch("/api/appforge/build", {
         method: "POST",
-        headers: {"Content-Type": "application/json", "X-AppForge-Build-Key": key},
+        headers: {"Content-Type": "application/json", "X-AppForge-Build-Key": key,...window.parent.SaarthiWorkspace?.headers()},
         body: JSON.stringify({files})
       });
       const result = await response.json().catch(() => ({}));
@@ -409,7 +430,7 @@
       if (paths.length > 1 || Object.prototype.hasOwnProperty.call(files, "package.json") || !Object.prototype.hasOwnProperty.call(files, "index.html")) {
         const response = await fetch("/api/appforge/export", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: {"Content-Type": "application/json",...window.parent.SaarthiWorkspace?.headers()},
           body: JSON.stringify({project_name: active.name, files})
         });
         if (!response.ok) {
