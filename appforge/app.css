@@ -13,3 +13,4 @@ html.dark-theme{color-scheme:dark;--bg:#152324;--panel:#213735;--ink:#eaf6f0;--m
 html.dark-theme .eyebrow{color:#9be9d7}html.dark-theme #prompt{background:#172b28;color:var(--ink)}
 .project-title{width:100%}.project-title>div{min-width:0;flex:1}.project-title strong{max-width:100%}.project-picker{max-width:45%;min-width:80px;flex-shrink:1}.project-picker,.file-picker,.text-input{min-height:44px}.preview-meta{gap:8px}.preview-meta>span{min-width:0;overflow-wrap:anywhere}
 @media(max-width:720px){.topbar{height:auto;min-height:64px;flex-wrap:wrap;gap:8px;padding:12px}.top-actions{flex:1 1 220px;justify-content:flex-end;flex-wrap:wrap}.top-actions #newProject{display:inline-flex}.top-actions .status{display:flex;flex-basis:100%;order:3;margin:0;overflow-wrap:anywhere}.status>span{min-width:0}}
+html.dark-theme .btn-primary:hover{background:#106a65;color:#fff}
