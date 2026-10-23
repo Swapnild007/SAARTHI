@@ -83,6 +83,19 @@ class SaarthiDevicePlugin : Plugin() {
                         type = "*/*"
                         putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/plain", "text/markdown", "text/csv", "application/json", "application/pdf"))
                     }, "documentResult")
+                    "saveDocument" -> {
+                        val name = call.getString("name") ?: "saarthi-export.json"
+                        val mime = call.getString("mime") ?: "application/json"
+                        val data = call.getString("data") ?: ""
+                        require(name.length in 1..100 && !name.contains(Regex("[/\\\\\r\n]")))
+                        require(mime in setOf("application/json", "application/zip", "text/html"))
+                        require(data.length <= 1333340)
+                        startActivityForResult(call, Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = mime
+                            putExtra(Intent.EXTRA_TITLE, name)
+                        }, "saveResult")
+                    }
                     "listen" -> {
                         val language = language(call)
                         startActivityForResult(call, Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -144,6 +157,21 @@ class SaarthiDevicePlugin : Plugin() {
             call.resolve(JSObject().put("ok", true).put("name", title).put("type", context.contentResolver.getType(uri))
                 .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP)))
         } catch (_: Exception) { result(call, false, "FAILED", "Could not read the selected document.") }
+    }
+    @ActivityCallback
+    private fun saveResult(call: PluginCall?, response: ActivityResult) {
+        if (call == null) return
+        val uri = response.data?.data
+        if (response.resultCode != Activity.RESULT_OK || uri == null) { result(call, false, "CANCELLED", "Export cancelled."); return }
+        operations.execute {
+            try {
+                val bytes = Base64.decode(call.getString("data") ?: "", Base64.DEFAULT)
+                require(bytes.size <= 1000000)
+                val output = context.contentResolver.openOutputStream(uri, "wt") ?: throw IllegalStateException()
+                output.use { it.write(bytes) }
+                result(call, true, "SAVED", "Export saved to your selected document.")
+            } catch (_: Exception) { result(call, false, "FAILED", "Export could not be saved.") }
+        }
     }
     override fun handleOnPause() { tts?.stop() }
     override fun handleOnDestroy() { tts?.stop(); tts?.shutdown(); tts = null; operations.shutdown() }

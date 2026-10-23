@@ -40,10 +40,18 @@
         if(permission.display!=='granted')return {ok:false,action,code:'PERMISSION_DENIED',message:'Notification permission was denied.'};
         await notifications.schedule({notifications:[{id:Math.floor(Math.random()*2147483646)+1,title:'SAARTHI',body:String(args.text||'SAARTHI is ready.').slice(0,500)}]});
         data={submitted:true};
-      }else data=await plugin('SaarthiDevice').execute({action,...args});
+      }else data=await plugin('SaarthiDevice').execute({...args,action});
       if(data?.ok===false)return {...data,action};
       return {ok:true,action,data};
     }catch(error){return {ok:false,action,code:String(error.code||'FAILED'),message:'Device action could not finish. Check permissions and available device services.'};}
   }
-  window.SaarthiDevice={native,apiOrigin:origin,apiUrl,execute,plugin};
+  async function saveBlob(blob,name){
+    if(blob.size>1000000)throw Error('Export is larger than the native 1 MB limit. Export from the web app.');
+    const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
+    for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+    const mime=name.endsWith('.zip')?'application/zip':name.endsWith('.html')?'text/html':'application/json';
+    const result=await execute('saveDocument',{name,mime,data:btoa(binary)});
+    if(!result.ok)throw Error(result.message);return result;
+  }
+  window.SaarthiDevice={native,apiOrigin:origin,apiUrl,execute,plugin,saveBlob};
 })();

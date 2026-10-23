@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const {webcrypto}=require('node:crypto');
 function environment(native=false,origin=''){
   const storage=new Map(),events=[],requests=[];
-  const c={URL,Request,crypto:webcrypto,Date,JSON,console,location:{href:'https://localhost/',origin:'https://localhost'},
+  const c={URL,Request,Blob,btoa:value=>Buffer.from(value,'binary').toString('base64'),crypto:webcrypto,Date,JSON,console,location:{href:'https://localhost/',origin:'https://localhost'},
     navigator:{locks:{request:async(name,options,callback)=>callback({name})}},
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
     setInterval:()=>0,addEventListener:()=>{},dispatchEvent:e=>events.push(e),CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},
@@ -35,6 +35,17 @@ test('native bridge works with Android generated proxies without a core JS bundl
   const {c}=environment(true);delete c.Capacitor.registerPlugin;
   c.Capacitor.Plugins={SaarthiDevice:{execute:async()=>({ok:true,message:'Opened'})}};
   const result=await c.SaarthiDevice.execute('launch',{app:'maps'});assert.equal(result.ok,true);assert.equal(result.data.message,'Opened');
+});
+test('native export preserves bytes and reports a cancelled document selection',async()=>{
+  const {c}=environment(true);let received;
+  c.Capacitor.registerPlugin=()=>({execute:async args=>{received=args;return {ok:false,code:'CANCELLED',message:'Export cancelled.'};}});
+  const source=new Blob(['मराठी export'],{type:'application/json'});
+  await assert.rejects(c.SaarthiDevice.saveBlob(source,'notes.json'),/cancelled/);
+  assert.equal(received.action,'saveDocument');assert.equal(received.mime,'application/json');assert.equal(Buffer.from(received.data,'base64').toString(),'मराठी export');
+});
+test('oversized native export never invokes a device operation',async()=>{
+  const {c}=environment(true);c.Capacitor.registerPlugin=()=>{throw Error('Must not invoke');};
+  await assert.rejects(c.SaarthiDevice.saveBlob(new Blob(['x'.repeat(1000001)]),'large.zip'),/1 MB/);
 });
 test('reminder persisted before dispatch, reload and duplicate ticks do not redeliver',async()=>{
   const {c,events,storage}=environment();

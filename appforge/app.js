@@ -456,12 +456,15 @@
         blob = new Blob([files["index.html"] || active.html], {type: "text/html;charset=utf-8"});
         extension = ".html";
       }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = baseName + extension;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      if(window.SaarthiDevice?.native)await window.SaarthiDevice.saveBlob(blob,baseName+extension);
+      else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = baseName + extension;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
       setStatus(extension === ".zip" ? "Project source exported as ZIP." : "HTML exported.");
     } catch (error) {
       setStatus(error.message);

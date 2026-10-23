@@ -56,7 +56,7 @@
     form.insertBefore(section,form.querySelector('button[type=submit]'));
     section.querySelector('#deviceSettings').onclick=device;section.querySelector('#automationSettings').onclick=()=>automation();section.querySelector('#memorySettings').onclick=memory;
   }
-  function download(name,data){const u=URL.createObjectURL(new Blob([data],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+  function download(name,data){const blob=new Blob([data],{type:'application/json'});if(window.SaarthiDevice?.native){window.SaarthiDevice.saveBlob(blob,name).then(()=>announce('Export saved.')).catch(error=>announce(error.message));return;}const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   function documents(){try{const docs=JSON.parse(localStorage.getItem(LIBRARY)||'[]');return Array.isArray(docs)?docs:[];}catch{return [];}}
   function retrieve(query){
     const terms=[...new Set(query.normalize('NFKC').toLowerCase().match(/[\p{L}\p{M}\p{N}]{3,}/gu)||[])];
