@@ -31,6 +31,11 @@ test('failed native operation cannot become a successful structured result',asyn
   const {c}=environment(true);c.Capacitor.registerPlugin=()=>({execute:async()=>({ok:false,code:'PERMISSION_DENIED',message:'Denied'})});
   const result=await c.SaarthiDevice.execute('launch',{app:'whatsapp'});assert.equal(result.ok,false);assert.equal(result.action,'launch');assert.equal(result.code,'PERMISSION_DENIED');
 });
+test('native bridge works with Android generated proxies without a core JS bundle',async()=>{
+  const {c}=environment(true);delete c.Capacitor.registerPlugin;
+  c.Capacitor.Plugins={SaarthiDevice:{execute:async()=>({ok:true,message:'Opened'})}};
+  const result=await c.SaarthiDevice.execute('launch',{app:'maps'});assert.equal(result.ok,true);assert.equal(result.data.message,'Opened');
+});
 test('reminder persisted before dispatch, reload and duplicate ticks do not redeliver',async()=>{
   const {c,events,storage}=environment();
   const task=await c.SaarthiAutomation.create({text:'Read a report',at:Date.now()+10000});

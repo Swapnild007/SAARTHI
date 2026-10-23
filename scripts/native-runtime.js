@@ -18,7 +18,9 @@
     };
   }
   const plugins={};
-  const plugin=name=>plugins[name] ||= cap.registerPlugin(name);
+  // Plain-script Capacitor apps receive generated Plugins proxies from Android.
+  // registerPlugin is available only when @capacitor/core has been bundled.
+  const plugin=name=>plugins[name] ||= (cap.registerPlugin?cap.registerPlugin(name):cap.Plugins?.[name]);
   async function execute(action,args={}){
     try{
       if(!native)return {ok:false,action,code:'UNSUPPORTED',message:'This operation requires the SAARTHI Android app.'};
