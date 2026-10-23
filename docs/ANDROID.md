@@ -12,7 +12,7 @@ npm run android:build
 ```
 
 APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
-CI uploads the APK and JVM reports in the `saarthi-android-debug` artifact. A second job boots Android API 35 and runs three instrumentation tests: encrypted preference roundtrip/delete, reminder persistence/delivery/deduplication/cancel, and packaged assistant initialization/native network invocation. See current workflow results before treating these as verified.
+CI uploads the APK and JVM reports in the `saarthi-android-debug` artifact. A second job boots Android API 35 and runs three instrumentation tests: encrypted preference roundtrip/delete, reminder persistence/delivery/deduplication/cancel, and packaged assistant initialization/native network invocation. These three tests returned `OK (3 tests)` on application commit `dbde615`; physical-device speech/camera/location/intents and natural background timing remain unverified.
 
 Default builds deliberately contain no implicit cloud destination. They support local utilities and retained local work. To enable cloud requests against an approved deployment:
 

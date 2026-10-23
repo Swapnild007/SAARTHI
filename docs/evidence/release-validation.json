@@ -1,5 +1,5 @@
 {
-  "implementation_commit": "978d19eb039b138e50270bba767521186f0df965",
+  "implementation_commit": "dbde6150a74bdca0c87aa9f380570b044b35bfcc",
   "python_tests": 225,
   "node_tests": 11,
   "native_jvm_tests": 3,
@@ -9,15 +9,18 @@
   "npm_known_vulnerabilities": 0,
   "python_audited_dependencies": 43,
   "python_known_vulnerabilities": 0,
-  "apk_bytes": 13217309,
-  "apk_sha256": "7bb7f5bb55ad529f8cd1342b4d5bf8777deb20418094cf1e574ae8e100dd90e8",
-  "apk_artifact": "https://github.com/Swapnild007/SAARTHI/actions/runs/39877382341/artifacts/12467894493",
+  "apk_bytes": 13217444,
+  "apk_sha256": "2a5e3386df873904e87518e7d0e59dc729b722abc4530f938b97c9b014daa210",
+  "apk_artifact": "https://github.com/Swapnild007/SAARTHI/actions/runs/39878323589/artifacts/12469407542",
   "apk_backend_origin_configured": false,
   "pwa_installed_launched_in_ephemeral_chromium": true,
   "real_provider_verified": false,
   "managed_appforge_execution_verified": false,
   "hosted_mcp_verified": false,
   "physical_android_verified": false,
-  "emulator_instrumentation_status": "IMPLEMENTED BUT UNVERIFIED",
-  "release_status": "BLOCKED"
+  "emulator_instrumentation_status": "VERIFIED",
+  "release_status": "BLOCKED",
+  "emulator_instrumentation_tests": 3,
+  "emulator_api_level": 35,
+  "emulator_instrumentation_artifact": "https://github.com/Swapnild007/SAARTHI/actions/runs/39878323589/artifacts/12469163570"
 }
