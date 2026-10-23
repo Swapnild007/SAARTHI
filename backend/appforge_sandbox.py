@@ -174,21 +174,24 @@ async def run_isolated_build(files: dict[str, str]) -> dict[str, Any]:
                         }
 
             preview_html = None
-            for path in (
-                "workspace/dist/index.html",
-                "workspace/build/index.html",
-                "workspace/index.html",
-                "workspace/src/index.html",
-            ):
+            candidate = None
+            preview_note = "Build produced no supported static preview entry."
+            entries = ("workspace/dist/index.html", "workspace/build/index.html") if has_manifest else ("workspace/index.html", "workspace/src/index.html")
+            for path in entries:
                 try:
                     candidate = await box.fs.read_text(path)
                 except Exception:
                     continue
-                if candidate and len(candidate.encode("utf-8")) <= MAX_PREVIEW_BYTES:
-                    preview_html = candidate
+                if candidate:
+                    from .build_preview import self_contained_preview, PreviewUnavailable
+                    try:
+                        preview_html = await self_contained_preview(candidate, path, box.fs.read_text)
+                        preview_note = "Static build assets inlined; runtime interaction still requires browser verification."
+                    except PreviewUnavailable as exc:
+                        preview_note = str(exc)
                     break
 
-            if has_manifest and preview_html is None:
+            if has_manifest and not candidate:
                 return {
                     "ok": False,
                     "status": "build-output-missing",
@@ -201,6 +204,7 @@ async def run_isolated_build(files: dict[str, str]) -> dict[str, Any]:
                 "files": len(normalized),
                 "bytes": sum(len(value.encode("utf-8")) for value in normalized.values()),
                 "preview_html": preview_html,
+                "preview_note": preview_note,
                 "logs": "\n".join(part for part in log_parts if part)[-6000:],
                 "isolation": "ephemeral-microvm-network-restricted",
             }

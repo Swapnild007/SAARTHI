@@ -39,3 +39,43 @@ jobs:
             android/app/build/reports/tests/
             android/app/build/reports/lint-results-debug.html
           if-no-files-found: warn
+  emulator-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Enable KVM for the ephemeral emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - run: npm ci && npm run android:prepare
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            cd android && ./gradlew installDebug installDebugAndroidTest --console=plain
+            adb shell pm grant com.saarthi.assistant android.permission.POST_NOTIFICATIONS
+            adb shell am instrument -w com.saarthi.assistant.test/androidx.test.runner.AndroidJUnitRunner > /tmp/native-instrumentation.txt
+            cat /tmp/native-instrumentation.txt
+            test "$(rg -c -F 'OK (2 tests)' /tmp/native-instrumentation.txt)" = 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: saarthi-native-instrumentation
+          path: /tmp/native-instrumentation.txt
+          if-no-files-found: warn

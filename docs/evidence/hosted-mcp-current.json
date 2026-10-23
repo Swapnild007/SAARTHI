@@ -1,0 +1,12 @@
+{
+  "endpoint": "https://mcp.deepwiki.com/mcp",
+  "tools_discovered": 0,
+  "errors": [
+    {
+      "server": "deepwiki",
+      "error": "MCP destination must resolve to a public address"
+    }
+  ],
+  "invocation_attempted": false,
+  "status": "BLOCKED"
+}

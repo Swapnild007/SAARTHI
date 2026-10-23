@@ -332,13 +332,13 @@
       if (typeof result.preview_html === "string") {
         active.buildHtml = result.preview_html;
         preview.srcdoc = withPreviewPolicy(result.preview_html);
-      } else if (active.html) {
+      } else {
         active.buildHtml = null;
-        preview.srcdoc = withPreviewPolicy(active.html);
+        preview.srcdoc = withPreviewPolicy('<!doctype html><html><body><p>Build completed. This output requires a hosted preview; an inline preview is unavailable.</p></body></html>');
       }
       $("providerLabel").textContent = "Isolated cloud build · network restricted";
       $("buildStatus").textContent = "Build passed · " + result.files + " file(s) checked in isolated microVM";
-      setStatus("Isolated build passed. No code ran in the SAARTHI API process.");
+      setStatus("Isolated build passed. " + (result.preview_note || "Preview requires browser verification."));
       persist();
       saveProjectToCloud(active);
     } catch (error) {

@@ -24,6 +24,18 @@ server.stderr.on('data',()=>{});
   assert.equal(await page.locator('#saarthiCommand').inputValue(),'');
   await page.locator('#voiceCommand').click();await page.evaluate(()=>{const r=[{transcript:'calculate 7 * 8'}];r.isFinal=true;recognitionFixture.onresult({resultIndex:0,results:[r]});});
   await page.waitForFunction(()=>document.getElementById('assistantResponseBody').textContent.includes('56'));
+  const retrieval=await page.evaluate(()=>{
+    const fixtures=[{id:'leave',title:'Leave policy',text:'Annual leave requires supervisor approval five working days before absence.'},{id:'astro',title:'Astro Lens',text:'Astronomy transit analysis uses TESS light curves and validated metadata.'},{id:'hindi',title:'Hindi note',text:'पुस्तकालय में परियोजना की जानकारी सुरक्षित रहती है।'},{id:'marathi',title:'Marathi note',text:'संशोधन करण्यापूर्वी पुरावे आणि निरीक्षणे तपासा.'}];
+    localStorage.setItem('saarthi.knowledge.v1',JSON.stringify(fixtures));
+    return fixtures.length;
+  });assert.equal(retrieval,4);
+  await page.getByRole('button',{name:'Open Settings',exact:true}).click();await page.locator('[name=knowledge]').check();await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  const evaluation=await page.evaluate(()=>{
+    const cases=[['annual leave approval','leave'],['TESS transit metadata','astro'],['परियोजना जानकारी','hindi'],['संशोधन पुरावे निरीक्षणे','marathi']];
+    return cases.map(([query,id])=>{const hits=SaarthiWorkspace.retrieve(query);return {query,expected:id,passed:hits[0]?.source==='local:'+id,source:hits[0]?.source};});
+  });assert(evaluation.every(r=>r.passed),'multilingual lexical retrieval fixture');
+  fs.writeFileSync('docs/evidence/retrieval-evaluation.json',JSON.stringify({fixture:true,method:'lexical',semanticEmbeddingsVerified:false,providerGroundingVerified:false,top1Recall:evaluation.filter(r=>r.passed).length/evaluation.length,cases:evaluation},null,2)+'\n');
+  await page.locator('[name=knowledge]').uncheck();await page.getByRole('button',{name:'Save preferences',exact:true}).click();await page.getByRole('button',{name:'Close dialog'}).click();
   await page.getByRole('button',{name:'Open Settings',exact:true}).click();await page.locator('#memorySettings').click();
   await page.locator('[name=note]').fill('My project astronomy is Astro Lens.');await page.getByRole('button',{name:'Save memory',exact:true}).click();
   assert.equal(await page.evaluate(()=>SaarthiWorkspace.retrieve('astronomy').length),0,'memory needs explicit sharing');
