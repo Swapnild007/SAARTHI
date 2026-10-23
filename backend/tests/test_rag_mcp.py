@@ -1,5 +1,20 @@
 from backend.rag import chunk_text
 from backend import mcp_runtime
+from backend import rag
+import pytest
+
+@pytest.mark.parametrize('query', ['परियोजना जानकारी', 'संशोधन पुरावे निरीक्षणे'])
+def test_devanagari_tokens_keep_combining_marks(query):
+    assert rag.lexical_terms(query) == query.split()
+
+def test_local_knowledge_retrieval_keeps_multilingual_source_identity(monkeypatch,tmp_path):
+    monkeypatch.setenv('SAARTHI_LOCAL_KNOWLEDGE_DB',str(tmp_path/'knowledge.sqlite'))
+    monkeypatch.setattr(rag,'_managed_configured',lambda config:False)
+    rag.ingest_text('संशोधन करण्यापूर्वी पुरावे आणि निरीक्षणे तपासा.',title='मराठी',source='fixture:marathi')
+    rag.ingest_text('Annual leave requires approval.',title='Leave',source='fixture:leave')
+    hits=rag.search('संशोधन पुरावे निरीक्षणे')
+    assert hits[0]['source']=='fixture:marathi'
+    assert hits[0]['similarity']==1
 
 def test_chunk_text_empty_and_bounded():
     assert chunk_text("") == []

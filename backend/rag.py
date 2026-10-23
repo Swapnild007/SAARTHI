@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hashlib, json, os, re, hmac, sqlite3
+import hashlib, json, os, re, hmac, sqlite3, unicodedata
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -7,6 +7,12 @@ from urllib.request import Request, urlopen
 
 MAX_CHUNK_CHARS = 1800
 CHUNK_OVERLAP = 240
+
+def lexical_terms(query: str) -> list[str]:
+    # Python \w excludes combining marks, splitting Devanagari words mid-token.
+    normalized = unicodedata.normalize("NFKC", query).casefold()
+    separated = "".join(c if unicodedata.category(c)[0] in {"L", "M", "N"} or c in "'-" else " " for c in normalized)
+    return list(dict.fromkeys(word for word in separated.split() if len(word) >= 2))
 
 def chunk_text(text: str, *, max_chars: int = MAX_CHUNK_CHARS, overlap: int = CHUNK_OVERLAP) -> list[str]:
     value = re.sub(r"\r\n?", "\n", str(text or "")).strip()
@@ -148,7 +154,7 @@ def ingest_text(text: str, *, title: str, source: str = "", collection: str = "d
 def search(query: str, *, limit: int = 5, collection: str = "default") -> list[dict[str, Any]]:
     c = _config()
     if not _managed_configured(c):
-        terms = list(dict.fromkeys(re.findall(r"[\w'-]{2,}", query.casefold())))
+        terms = lexical_terms(query)
         if not terms:
             return []
         with _local_connection() as connection:
@@ -158,7 +164,7 @@ def search(query: str, *, limit: int = 5, collection: str = "default") -> list[d
             ).fetchall()
         ranked = []
         for row in rows:
-            haystack = (row["title"] + " " + row["content"]).casefold()
+            haystack = unicodedata.normalize("NFKC", row["title"] + " " + row["content"]).casefold()
             hits = sum(1 for term in terms if term in haystack)
             if hits:
                 ranked.append((hits / len(terms), row))

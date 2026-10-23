@@ -3,8 +3,13 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    paths: ['android/**', 'scripts/**', 'styles/**', 'appforge/**', 'config/runtime.json', 'index.html', 'package*.json', 'capacitor.config.json', '.github/workflows/android.yml']
   push:
     branches: [feat/saarthi-1-release]
+    paths: ['android/**', 'scripts/**', 'styles/**', 'appforge/**', 'config/runtime.json', 'index.html', 'package*.json', 'capacitor.config.json', '.github/workflows/android.yml']
+concurrency:
+  group: android-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -72,7 +77,7 @@ jobs:
             adb shell pm grant com.saarthi.assistant android.permission.POST_NOTIFICATIONS
             adb shell am instrument -w com.saarthi.assistant.test/androidx.test.runner.AndroidJUnitRunner > /tmp/native-instrumentation.txt
             cat /tmp/native-instrumentation.txt
-            test "$(rg -c -F 'OK (2 tests)' /tmp/native-instrumentation.txt)" = 1
+            test "$(rg -c -F 'OK (3 tests)' /tmp/native-instrumentation.txt)" = 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
