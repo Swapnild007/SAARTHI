@@ -40,6 +40,13 @@ class NativePersistenceTest {
                 Thread.sleep(100)
             }
             assertTrue("Native network plugin did not return a successful structured result", returned)
+            evaluate("SaarthiApp.ask('calculate 7 * 8'); SaarthiApp.submit(); true")
+            var calculated = false
+            for (attempt in 1..40) {
+                if (evaluate("document.getElementById('assistantResponseBody').textContent.includes('56')") == "true") { calculated = true; break }
+                Thread.sleep(100)
+            }
+            assertTrue("Bundled offline calculator must work even when Android reports online and no backend is configured", calculated)
         }
     }
     @Test fun preferenceCiphertextSurvivesReadAndCanBeDeleted() {

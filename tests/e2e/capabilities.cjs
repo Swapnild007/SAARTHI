@@ -24,6 +24,11 @@ server.stderr.on('data',()=>{});
   assert.equal(await page.locator('#saarthiCommand').inputValue(),'');
   await page.locator('#voiceCommand').click();await page.evaluate(()=>{const r=[{transcript:'calculate 7 * 8'}];r.isFinal=true;recognitionFixture.onresult({resultIndex:0,results:[r]});});
   await page.waitForFunction(()=>document.getElementById('assistantResponseBody').textContent.includes('56'));
+  // A packaged APK without a backend must still calculate while the device is online.
+  await page.evaluate(()=>{SaarthiDevice.native=true;SaarthiDevice.apiOrigin='';});
+  await page.locator('#saarthiCommand').fill('calculate 11 * 12');await page.locator('#sendCommand').click();
+  await page.waitForFunction(()=>document.getElementById('assistantResponseBody').textContent.includes('132'));
+  await page.evaluate(()=>{SaarthiDevice.native=false;});
   const retrieval=await page.evaluate(()=>{
     const fixtures=[{id:'leave',title:'Leave policy',text:'Annual leave requires supervisor approval five working days before absence.'},{id:'astro',title:'Astro Lens',text:'Astronomy transit analysis uses TESS light curves and validated metadata.'},{id:'hindi',title:'Hindi note',text:'पुस्तकालय में परियोजना की जानकारी सुरक्षित रहती है।'},{id:'marathi',title:'Marathi note',text:'संशोधन करण्यापूर्वी पुरावे आणि निरीक्षणे तपासा.'}];
     localStorage.setItem('saarthi.knowledge.v1',JSON.stringify(fixtures));

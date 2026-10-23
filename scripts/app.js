@@ -1017,6 +1017,11 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
 
   const apiCommand=async(value,mode)=>{
     if(!navigator.onLine)return window.SaarthiOffline.run(value);
+    if(window.SaarthiDevice?.native&&!window.SaarthiDevice.apiOrigin){
+      const local=window.SaarthiOffline.run(value);
+      if(local.execution==='offline-unavailable')local.reply='Cloud chat is not configured for this Android build. Your message is saved locally. History, knowledge search, calculator, time and date remain available.';
+      return local;
+    }
     await ensureApiBase();
     const context={
       client_time:new Date().toISOString(),
