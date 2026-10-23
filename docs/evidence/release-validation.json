@@ -10,8 +10,8 @@
   "python_audited_dependencies": 43,
   "python_known_vulnerabilities": 0,
   "apk_bytes": 13217444,
-  "apk_sha256": "2a5e3386df873904e87518e7d0e59dc729b722abc4530f938b97c9b014daa210",
-  "apk_artifact": "https://github.com/Swapnild007/SAARTHI/actions/runs/39878323589/artifacts/12469407542",
+  "apk_sha256": "8d872aff8d43309bf562ec64c55b05d0cba0ff2a2a7c9fecabc6ccdc403c99f3",
+  "apk_artifact": "https://github.com/Swapnild007/SAARTHI/actions/runs/39878950499/artifacts/12469477707",
   "apk_backend_origin_configured": false,
   "pwa_installed_launched_in_ephemeral_chromium": true,
   "real_provider_verified": false,
@@ -22,5 +22,10 @@
   "release_status": "BLOCKED",
   "emulator_instrumentation_tests": 3,
   "emulator_api_level": 35,
-  "emulator_instrumentation_artifact": "https://github.com/Swapnild007/SAARTHI/actions/runs/39878323589/artifacts/12469163570"
+  "emulator_instrumentation_artifact": "https://github.com/Swapnild007/SAARTHI/actions/runs/39878950499/artifacts/12469717312",
+  "android_workflow_commit": "b62406915909dcdc7e4e53f331fc8add7f07f26c",
+  "web_workflow_commit": "a43b4b43c663a2fe3f4c12b35b3e1a766cf8e7bb",
+  "browser": "Google Chrome 155.0.8059.39",
+  "android_workflow_status": "VERIFIED",
+  "web_workflow_status": "VERIFIED"
 }
