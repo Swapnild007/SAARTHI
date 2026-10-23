@@ -84,8 +84,10 @@ object ReminderStore {
 }
 
 class ReminderWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    override fun doWork(): Result = try {
-        val id = inputData.getString("id") ?: return Result.failure()
-        if (ReminderStore.deliver(applicationContext, id)) Result.success() else Result.retry()
-    } catch (_: Exception) { if (runAttemptCount < 3) Result.retry() else Result.failure() }
+    override fun doWork(): Result {
+        return try {
+            val id = inputData.getString("id") ?: return Result.failure()
+            if (ReminderStore.deliver(applicationContext, id)) Result.success() else Result.retry()
+        } catch (_: Exception) { if (runAttemptCount < 3) Result.retry() else Result.failure() }
+    }
 }
