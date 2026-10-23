@@ -1,0 +1,33 @@
+{
+  "fixture": true,
+  "method": "lexical",
+  "semanticEmbeddingsVerified": false,
+  "providerGroundingVerified": false,
+  "top1Recall": 1,
+  "cases": [
+    {
+      "query": "annual leave approval",
+      "expected": "leave",
+      "passed": true,
+      "source": "local:leave"
+    },
+    {
+      "query": "TESS transit metadata",
+      "expected": "astro",
+      "passed": true,
+      "source": "local:astro"
+    },
+    {
+      "query": "परियोजना जानकारी",
+      "expected": "hindi",
+      "passed": true,
+      "source": "local:hindi"
+    },
+    {
+      "query": "संशोधन पुरावे निरीक्षणे",
+      "expected": "marathi",
+      "passed": true,
+      "source": "local:marathi"
+    }
+  ]
+}

@@ -44,23 +44,7 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q backend tests
-      - name: Smoke test production runtime
-        env:
-          SAARTHI_RUNTIME_URL: https://saarthi-swapneeldalvi3-1192.vercel.app
+      - name: Validate static production assets and offline utilities
         run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --max-time 30 "$SAARTHI_RUNTIME_URL/api/health" > /tmp/saarthi-health.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          data=json.loads(Path("/tmp/saarthi-health.json").read_text())
-          assert data.get("ok") is True, data
-          PY
-          curl --fail --silent --show-error --max-time 60             -H 'Content-Type: text/plain'             --data '{"message":"Hello Saarthi","mode":"chat","assistant":"saarthi","context":{}}'             "$SAARTHI_RUNTIME_URL/api/command/plain" > /tmp/saarthi-command.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          data=json.loads(Path("/tmp/saarthi-command.json").read_text())
-          assert data.get("ok") is True, data
-          assert isinstance(data.get("reply"), str) and data["reply"].strip(), data
-          PY
+          node scripts/validate-release.cjs
+          node tests/e2e/offline.cjs

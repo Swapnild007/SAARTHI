@@ -1,0 +1,25 @@
+{
+  "endpoint": "https://mcp.deepwiki.com/mcp",
+  "status": {
+    "configured": true,
+    "server_count": 1,
+    "servers": [
+      {
+        "name": "deepwiki",
+        "authenticated": false,
+        "allowlisted_tool_count": 1
+      }
+    ],
+    "transport": "MCP Streamable HTTP",
+    "self_hosted_servers_required": false,
+    "note": "Configure remote endpoints and secret environment variables on the hosted backend."
+  },
+  "tool_count": 0,
+  "errors": [
+    {
+      "server": "deepwiki",
+      "error": "MCP destination must resolve to a public address"
+    }
+  ],
+  "permissions_and_execution": "Blocked: discovery did not complete; no invocation attempted"
+}

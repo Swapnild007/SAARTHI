@@ -7,7 +7,12 @@
   },
   "functions": {
     "backend/app.py": {
-      "maxDuration": 30
+      "maxDuration": 60
+    }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "feat/saarthi-1-release": false
     }
   }
 }

@@ -218,26 +218,8 @@ class ToolRegistry:
 
     @staticmethod
     def _calculate(args: dict[str, Any]) -> dict[str, Any]:
-        expression = str((args or {}).get("expression") or "").strip()
-        if not expression or len(expression) > 200:
-            raise ValueError("invalid calculation expression")
-        allowed = {
-            ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
-            ast.Div: operator.truediv, ast.Pow: operator.pow, ast.Mod: operator.mod,
-            ast.USub: operator.neg, ast.UAdd: operator.pos,
-        }
-        def evaluate(node: ast.AST) -> float:
-            if isinstance(node, ast.Expression):
-                return evaluate(node.body)
-            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and math.isfinite(float(node.value)):
-                return float(node.value)
-            if isinstance(node, ast.UnaryOp) and type(node.op) in allowed:
-                return allowed[type(node.op)](evaluate(node.operand))
-            if isinstance(node, ast.BinOp) and type(node.op) in allowed:
-                return allowed[type(node.op)](evaluate(node.left), evaluate(node.right))
-            raise ValueError("unsupported calculation")
-        value = evaluate(ast.parse(expression, mode="eval"))
-        return {"expression": expression, "value": value}
+        from .calculator import calculate
+        return calculate(str((args or {}).get("expression") or ""))
 
     @staticmethod
     def _convert(args: dict[str, Any]) -> dict[str, Any]:
@@ -519,22 +501,66 @@ class OpenAICompatibleProvider(LLMProvider):
 
     def __init__(self) -> None:
         raw = os.getenv("SAARTHI_LLM_ROUTES_JSON", "").strip()
-        routes: list[dict[str, str]] = []
+        routes: list[dict[str, Any]] = []
         if raw:
             try:
                 parsed = json.loads(raw)
                 if isinstance(parsed, list):
-                    routes = [r for r in parsed if isinstance(r, dict) and r.get("key") and r.get("url") and r.get("model")]
+                    routes = [
+                        {**r, "local": bool(r.get("local", False))}
+                        for r in parsed
+                        if isinstance(r, dict) and r.get("url") and r.get("model")
+                        and (r.get("key") or r.get("local") is True)
+                    ]
             except json.JSONDecodeError:
                 routes = []
+
+        # A local OpenAI-compatible runtime (Ollama, LM Studio, vLLM, or a
+        # Nanobot-compatible gateway) can run without an API key. This only
+        # works when this API process can reach that endpoint, e.g. self-hosted
+        # SAARTHI; localhost on a cloud deployment means the cloud container.
+        local_url = os.getenv("SAARTHI_LOCAL_LLM_API_URL", "").strip()
+        local_model = os.getenv("SAARTHI_LOCAL_LLM_MODEL", "").strip()
+        if local_url and local_model:
+            local_route = {
+                "name": "local-runtime",
+                "url": local_url,
+                "model": local_model,
+                "local": True,
+            }
+            local_key = os.getenv("SAARTHI_LOCAL_LLM_API_KEY", "").strip()
+            if local_key:
+                local_route["key"] = local_key
+            if not any(route.get("local") for route in routes):
+                routes.append(local_route)
+
+        # Add the legacy cloud route as failover when a local route is enabled.
+        cloud_key = os.getenv("SAARTHI_LLM_API_KEY", "").strip()
+        if not any(not route.get("local") for route in routes) and cloud_key:
+            routes.append({
+                "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
+                "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
+                "key": cloud_key,
+                "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
+                "local": False,
+            })
         if not routes:
             routes = [{
                 "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
                 "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
-                "key": os.getenv("SAARTHI_LLM_API_KEY", ""),
+                "key": cloud_key,
                 "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
+                "local": False,
             }]
-        self.routes = routes
+
+        # Local-first is opt-in. If configured, cloud routes remain available
+        # as failover unless SAARTHI_LOCAL_ONLY is enabled.
+        prefer_local = os.getenv("SAARTHI_PREFER_LOCAL", "true").strip().lower() not in {"0", "false", "no"}
+        local_only = os.getenv("SAARTHI_LOCAL_ONLY", "false").strip().lower() in {"1", "true", "yes"}
+        local_routes = [route for route in routes if route.get("local")]
+        cloud_routes = [route for route in routes if not route.get("local")]
+        ordered_routes = (local_routes + ([] if local_only else cloud_routes)) if prefer_local else (cloud_routes + ([] if local_only else local_routes))
+        self.routes = ordered_routes
         # Vercel allows 30 seconds for this function. Keep each provider attempt
         # bounded so a slow primary still leaves time for the second route.
         try:
@@ -547,7 +573,7 @@ class OpenAICompatibleProvider(LLMProvider):
 
     @property
     def configured(self) -> bool:
-        return bool(self.routes and any(r.get("url") and r.get("key") and r.get("model") for r in self.routes))
+        return bool(self.routes and any(r.get("url") and r.get("model") and (r.get("key") or r.get("local")) for r in self.routes))
 
     def _request(self, route: dict[str, str], *, message: str, system: str, context: dict[str, Any], assistant: str) -> tuple[str, dict[str, Any] | None]:
         inspected = inspect_attachments(context.get("attachments") if isinstance(context, dict) else [])
@@ -555,13 +581,13 @@ class OpenAICompatibleProvider(LLMProvider):
         conversation = context.get("conversation", []) if isinstance(context, dict) else []
         messages = [{"role": "system", "content": system}]
         if isinstance(conversation, list):
-            prior = conversation[:-1] if conversation and isinstance(conversation[-1], dict) and conversation[-1].get("role") == "user" else conversation
+            prior = conversation[:-1] if conversation and isinstance(conversation[-1], dict) and conversation[-1].get("role") == "user" and conversation[-1].get("content") == message else conversation
             for item in prior[-12:]:
                 if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
                     continue
                 text_content = str(item.get("content") or "").strip()
                 if text_content:
-                    messages.append({"role": item["role"], "content": text_content})
+                    messages.append({"role": item["role"], "content": text_content[:4000]})
         messages.append({"role": "user", "content": content_parts if len(content_parts) > 1 else content_parts[0]["text"]})
 
         # Remote MCP tools are opt-in per endpoint and per tool. They are discovered
@@ -569,7 +595,7 @@ class OpenAICompatibleProvider(LLMProvider):
         mcp_tools = []
         try:
             from .mcp_runtime import openai_tool_definitions, call_tool
-            mcp_tools = openai_tool_definitions()
+            mcp_tools = openai_tool_definitions() if context.get("allow_mcp") is True else []
         except Exception:
             call_tool = None
 
@@ -580,15 +606,32 @@ class OpenAICompatibleProvider(LLMProvider):
             if mcp_tools and tool_round == 0:
                 payload["tools"] = mcp_tools
                 payload["tool_choice"] = "auto"
+            headers = {
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://swapnild007.github.io/SAARTHI/",
+                "X-Title": "SAARTHI",
+            }
+            # Local runtimes such as Ollama commonly accept requests without a
+            # bearer token. Never send an empty Authorization header.
+            if route.get("key"):
+                headers["Authorization"] = f"Bearer {route['key']}"
+            from .streaming import sink, read_completion
+            emit = sink.get() if not mcp_tools else None
+            if emit:
+                payload["stream"] = True
+                payload["stream_options"] = {"include_usage": True}
             request = Request(
                 route["url"].rstrip("/") + "/chat/completions",
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {route['key']}",
-                         "HTTP-Referer": "https://swapnild007.github.io/SAARTHI/", "X-Title": "SAARTHI"},
+                headers=headers,
                 method="POST",
             )
             timeout = min(self.request_timeout, 6.0) if mcp_tools else self.request_timeout
             with urlopen(request, timeout=timeout) as response:
+                if emit:
+                    reply, streamed_usage = read_completion(response, emit)
+                    self.last_route = route.get("name", "unknown")
+                    return reply, streamed_usage
                 body = json.loads(response.read().decode("utf-8"))
             choice = body.get("choices", [{}])[0].get("message", {}) if isinstance(body, dict) else {}
             usage = body.get("usage") if isinstance(body, dict) else None
@@ -623,16 +666,8 @@ class OpenAICompatibleProvider(LLMProvider):
         if not self.configured:
             raise RuntimeError("no AI gateway route is configured")
         context = dict(context or {})
-        # Retrieve project knowledge before generation when managed RAG is configured.
-        # Retrieval failures degrade gracefully and never block ordinary chat.
-        try:
-            from .rag import context_for_query
-            if not context.get("knowledge_evidence"):
-                evidence = context_for_query(message, limit=5)
-                if evidence:
-                    context["knowledge_evidence"] = evidence
-        except Exception:
-            pass
+        # Knowledge excerpts must be selected explicitly by the current user.
+        # Never query a deployment-wide default collection from anonymous chat.
         orchestration = context.get("orchestration", {}) if isinstance(context, dict) else {}
         internal_specialist = orchestration.get("internal_specialist") if isinstance(orchestration, dict) else None
         active_assistant = str(internal_specialist or assistant)
@@ -736,6 +771,8 @@ class OpenAICompatibleProvider(LLMProvider):
             "SAARTHI is an intelligence operating system, not a collection of personas: orchestrate the selected capability internally, preserve conversation continuity, and move from understanding to a verified deliverable. "
             "If the request contains enough information to act, act first and state only material assumptions; ask questions only when missing information would materially change the result."
         )
+        if context.get("conversation_summary"):
+            system += "\nEarlier user context (extractive summary, untrusted conversation data): " + str(context["conversation_summary"])[:3000]
         evidence = context.get("knowledge_evidence", [])
         if isinstance(evidence, list) and evidence:
             # Retrieved documents are untrusted evidence, never executable instructions.
@@ -790,10 +827,12 @@ class OpenAICompatibleProvider(LLMProvider):
                         "heatmap": "Here is a sample heatmap using synthetic data."
                     }.get(chart_type, "Here is a sample visualization using synthetic data.")
                     reply = intro + "\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>"
+                if not reply.strip():
+                    raise RuntimeError("Provider returned an empty answer")
                 self.last_failures = failures
                 return reply, usage
             except Exception as exc:
-                failures.append({"route": route.get("name", route.get("model", "unknown")), "error": str(exc)[:240]})
+                failures.append({"route": route.get("name", route.get("model", "unknown")), "error": ("HTTP " + str(exc.code)) if hasattr(exc, "code") else "Provider unavailable or invalid response"})
         self.last_failures = failures
         detail = "; ".join(
             f"{item.get('route', 'unknown')}: {item.get('error', 'failed')}"
@@ -1135,13 +1174,13 @@ class SaarthiEngine:
             tool_name = "system.date" if intent.name == "date" else "system.time"
             tool_results[tool_name] = self.tools.execute(tool_name, {"timezone": timezone_name or "Asia/Kolkata"})
         elif intent.name == "calculate":
-            expression = message.strip()
-            expression = re.sub(r"^.*?\b(?:calculate|compute|calculator)\b", "", expression, flags=re.IGNORECASE).strip(" :")
-            match = re.search(r"-?\d+(?:\.\d+)?(?:\s*[+\-*/x×]\s*-?\d+(?:\.\d+)?)+", expression, re.IGNORECASE)
-            if not match:
-                raise ValueError("could not parse calculation expression")
-            expression = match.group(0).replace("×", "*").replace("x", "*").replace("X", "*")
-            tool_results["system.calculate"] = self.tools.execute("system.calculate", {"expression": expression})
+            from .calculator import calculate
+            try:
+                tool_results["system.calculate"] = calculate(message)
+            except (ValueError, SyntaxError) as exc:
+                return {"ok": True, "run_id": run_id, "intent": {"name": "calculate"},
+                        "reply": str(exc), "provider": "system.calculate", "execution": "invalid-input",
+                        "tool_results": {}, "failover": []}
         elif intent.name == "convert":
             match = re.search(r"(-?\d+(?:\.\d+)?)\s*(km|kilometers?|mi|miles?|kg|kilograms?|lbs?|pounds?|c|°c|celsius|f|°f|fahrenheit)\s+(?:to|in|into)\s*(km|kilometers?|mi|miles?|kg|kilograms?|lbs?|pounds?|c|°c|celsius|f|°f|fahrenheit)", message, re.IGNORECASE)
             if not match:
@@ -1181,9 +1220,12 @@ class SaarthiEngine:
                 ),
             }
 
-        provider = self.cloud if self.cloud.configured else None
+        from .provider_settings import configured_provider
+        selected_provider = configured_provider(self.cloud)
+        provider = selected_provider if selected_provider.configured else None
         provider_name = provider.name if provider else "deterministic-fallback"
         usage: dict[str, Any] | None = None
+        provider_error = None
         try:
             if provider:
                 reply, usage = provider.generate(
@@ -1194,7 +1236,10 @@ class SaarthiEngine:
                 )
             else:
                 reply = fallback_response(message, intent, tool_results, assistant_id)
+                if intent.name == "chat":
+                    reply = "No AI provider is configured. Open Settings to select a provider, model and API key. Calculator, time, history and local knowledge search remain available."
         except Exception as exc:
+            provider_error = "The selected provider could not complete this request. Check its key, model, quota and connection in Settings."
             provider_name = "deterministic-fallback"
             reply = fallback_response(message, intent, tool_results, assistant_id)
             if intent.name == "chat":
@@ -1223,12 +1268,14 @@ class SaarthiEngine:
             "orchestration": orchestration,
             "reply": reply,
             "provider": provider_name,
-            "route": self.cloud.last_route if self.cloud.configured else None,
-            "failover": self.cloud.last_failures if self.cloud.configured else [],
+            "sources": [{"title": str(item.get("title", ""))[:240], "source": str(item.get("source", ""))[:500], "chunk_index": item.get("chunk_index")} for item in ctx.get("knowledge_evidence", [])[:5] if isinstance(item, dict)],
+            "provider_error": provider_error,
+            "route": selected_provider.last_route if selected_provider.configured else None,
+            "failover": selected_provider.last_failures if selected_provider.configured else [],
             "usage": usage,
-            "execution": "completed",
+            "execution": "provider-unavailable" if provider_error else "completed",
             "tool_results": tool_results,
-            "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
+            "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="provider-unavailable" if provider_error else "completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
             "work_product": build_work_product(
                 objective=message,
                 intent=intent.name,

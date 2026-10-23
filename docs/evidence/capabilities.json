@@ -1,0 +1,40 @@
+{
+  "fixture": true,
+  "physicalAndroidVerified": false,
+  "speechServiceVerified": false,
+  "scans": [
+    {
+      "screen": "voice-device-light",
+      "serious": 0
+    },
+    {
+      "screen": "memory-light",
+      "serious": 0
+    },
+    {
+      "screen": "automation-light",
+      "serious": 0
+    },
+    {
+      "screen": "device-dark",
+      "serious": 0
+    },
+    {
+      "screen": "automation-dark",
+      "serious": 0
+    },
+    {
+      "screen": "memory-dark",
+      "serious": 0
+    }
+  ],
+  "checks": [
+    "voice locale",
+    "mute persisted",
+    "late transcript cancellation",
+    "voice calculator routing",
+    "unsupported device result",
+    "memory consent and deletion",
+    "reminder persistence/deduplication/removal"
+  ]
+}

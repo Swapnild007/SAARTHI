@@ -1,0 +1,5 @@
+com.saarthi.assistant.NativePersistenceTest:...
+
+Time: 7.268
+
+OK (3 tests)
