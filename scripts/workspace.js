@@ -59,10 +59,10 @@
   function download(name,data){const u=URL.createObjectURL(new Blob([data],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   function documents(){try{const docs=JSON.parse(localStorage.getItem(LIBRARY)||'[]');return Array.isArray(docs)?docs:[];}catch{return [];}}
   function retrieve(query){
-    const terms=[...new Set(query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)||[])];
+    const terms=[...new Set(query.normalize('NFKC').toLowerCase().match(/[\p{L}\p{M}\p{N}]{3,}/gu)||[])];
     let notes=[];if(prefs.memory)try{notes=JSON.parse(localStorage.getItem('saarthi.memory.v1')||'[]');if(!Array.isArray(notes))notes=[];}catch{}
     const sources=[...(prefs.knowledge?documents():[]),...notes.map(n=>({id:n.id,title:'Saved '+n.kind+' memory',text:n.text}))];
-    return sources.flatMap(doc=>{const chunks=[];for(let i=0;i<doc.text.length;i+=1200){const content=doc.text.slice(i,i+1450);const score=terms.filter(t=>content.toLowerCase().includes(t)).length;if(score)chunks.push({title:doc.title,source:'local:'+doc.id,content,chunk_index:i/1200,score});}return chunks;}).sort((a,b)=>b.score-a.score).slice(0,4);
+    return sources.flatMap(doc=>{const chunks=[];for(let i=0;i<doc.text.length;i+=1200){const content=doc.text.slice(i,i+1450),normalized=content.normalize('NFKC').toLowerCase();const score=terms.filter(t=>normalized.includes(t)).length;if(score)chunks.push({title:doc.title,source:'local:'+doc.id,content,chunk_index:i/1200,score});}return chunks;}).sort((a,b)=>b.score-a.score).slice(0,4);
   }
   function knowledge(){
     const docs=documents();shell('Knowledge library','<p>Your personal documents stay in this browser. Retrieval uses lexical matching; it does not claim semantic embeddings. PDF extraction needs the backend. AI answers need a configured model.</p><label class="upload-label">Add TXT, Markdown, CSV, JSON or PDF<input id="knowledgeUpload" type="file" accept=".txt,.md,.csv,.json,.pdf"></label><label>Search local knowledge<input id="knowledgeSearch" type="search" placeholder="Search your documents"></label><div id="knowledgeResults"></div><div class="document-list">'+docs.map(d=>'<article><div><strong>'+esc(d.title)+'</strong><small>'+d.text.length.toLocaleString()+' characters · browser storage</small></div><button data-delete="'+esc(d.id)+'" aria-label="Delete '+esc(d.title)+'">Delete</button></article>').join('')+'</div>'+(docs.length?'':'<p class="empty-state">Add your first document to build personal context.</p>'));
