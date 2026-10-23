@@ -2,6 +2,10 @@
 
 Personal AI workspace: conversation, private browser history, document context, optional remote MCP tools, and AppForge creation. This branch prepares **1.0**; it is not a production-readiness claim. See [release evidence and outstanding gates](docs/RELEASE-1.0.md).
 
+## Native Android and release status
+
+See [completion gates](SAARTHI_COMPLETION_STATUS.md), [Android build and device checks](docs/ANDROID.md), and [current verification report](docs/RELEASE-VERIFICATION-2026-10-23.md). Voice/device, Automation and Personal memory are available from Settings. Browser reminders require SAARTHI to remain open; Android reminders use WorkManager and may be delayed.
+
 ## Run
 
 Python 3.12+ and Node 22+ for validation/browser tests:
