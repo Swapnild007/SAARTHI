@@ -73,7 +73,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            cd android && ./gradlew installDebug installDebugAndroidTest --console=plain
+            cd android && ./gradlew :app:installDebug :app:installDebugAndroidTest --console=plain
             adb shell pm grant com.saarthi.assistant android.permission.POST_NOTIFICATIONS
             adb shell am instrument -w com.saarthi.assistant.test/androidx.test.runner.AndroidJUnitRunner > /tmp/native-instrumentation.txt
             cat /tmp/native-instrumentation.txt
