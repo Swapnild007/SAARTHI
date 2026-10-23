@@ -1,0 +1,9 @@
+{
+  "appId": "com.saarthi.assistant",
+  "appName": "SAARTHI",
+  "webDir": "native-www",
+  "loggingBehavior": "none",
+  "server": {"androidScheme": "https"},
+  "android": {"allowMixedContent": false, "webContentsDebuggingEnabled": false},
+  "plugins": {"CapacitorHttp": {"enabled": false}}
+}

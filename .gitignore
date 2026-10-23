@@ -6,3 +6,10 @@ __pycache__/
 !.env.example
 node_modules/
 test-results/
+native-www/
+android/local.properties
+android/**/build/
+android/.gradle/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json

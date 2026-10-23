@@ -39,6 +39,7 @@ ALLOWED_ORIGINS = (
     else [
         "https://saarthi-swapneeldalvi3-1192.vercel.app",
         "https://swapnild007.github.io",
+        "https://localhost",  # Packaged Capacitor Android origin; private API gate still applies.
         "http://localhost:8000",
         "http://127.0.0.1:8000",
     ]

@@ -745,11 +745,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     responseCard?.scrollIntoView({behavior:'smooth',block:'nearest'});
   };
 
-  const speak=text=>{
-    if(!window.speechSynthesis||!text)return;window.speechSynthesis.cancel();
-    const utterance=new SpeechSynthesisUtterance(text.replace(/[#*_]/g,''));
-    utterance.lang='en-IN';utterance.rate=.98;utterance.pitch=.92;window.speechSynthesis.speak(utterance);
-  };
+  const speak=text=>{void window.SaarthiVoice?.speak(text);};
 
   const closePickers=()=>{['menuPicker','assistantPicker','controlPicker'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=true;});};
   const renderUsagePanel=async()=>{
@@ -1104,6 +1100,9 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   };
 
   const runCommand=async(value,mode)=>{
+    const device=await window.SaarthiWorkspace?.routeLocal(value);
+    if(device){showResponse(device.reply,device);return device;}
+
     if(/\b(create|build|generate|fix)\b.*\b(website|web app|application|saas|dashboard)\b/i.test(value)){
       window.SaarthiWorkspace?.openProject(value);
       const result={ok:true,run_id:'workspace-'+Date.now(),intent:{name:'appforge'},provider:'AppForge workspace',reply:'I opened AppForge with your requirements. A configured AI provider is needed to generate files; isolated cloud builds require separate setup.'};
@@ -1218,15 +1217,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     }
   };
 
-  const voice=()=>{
-    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SpeechRecognition){setStatus('Voice input is unavailable in this browser. Please type your message.');command?.focus();return;}
-    const recognition=new SpeechRecognition();recognition.lang='en-IN';recognition.interimResults=false;recognition.maxAlternatives=1;
-    window.SaarthiApp.voiceTurn=true;recognition.onstart=()=>setStatus('Listening…');
-    recognition.onresult=e=>{ask(e.results[0][0].transcript);setStatus('Command ready');submit();};
-    recognition.onerror=()=>{window.SaarthiApp.voiceTurn=false;setStatus('Voice input failed. Check microphone permission or type your message.');};
-    recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
-  };
+  const voice=()=>{void window.SaarthiVoice?.start();};
 
   setAutonomousContext('Saarthi will determine the capability, industry and workflow from your objective.','AUTO');
   updateIntelligenceFlow('idle');

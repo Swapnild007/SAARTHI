@@ -1,6 +1,6 @@
 'use strict';
-const CACHE = 'saarthi-shell-v2';
-const SHELL = ['/', '/styles/app.css', '/styles/workspace.css', '/scripts/app.js?v=20261012-01', '/scripts/boot.js?v=20261005-22', '/scripts/workspace.js', '/scripts/utilities.js', '/config/runtime.json', '/manifest.webmanifest', '/assets/devanagari.woff2', '/assets/icon-192.png', '/assets/icon-512.png', '/appforge', '/appforge/app.css', '/appforge/app.js'];
+const CACHE = 'saarthi-shell-v3';
+const SHELL = ['/', '/styles/app.css', '/styles/workspace.css', '/scripts/app.js?v=20261012-01', '/scripts/boot.js?v=20261005-22', '/scripts/workspace.js', '/scripts/utilities.js', '/scripts/native-config.js', '/scripts/native-runtime.js', '/scripts/voice.js', '/scripts/automation.js', '/config/runtime.json', '/manifest.webmanifest', '/assets/devanagari.woff2', '/assets/icon-192.png', '/assets/icon-512.png', '/appforge', '/appforge/app.css', '/appforge/app.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
 });

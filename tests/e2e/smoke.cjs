@@ -18,7 +18,7 @@ server.stderr.on('data',()=>{});
   await page.getByRole('button',{name:'Open Settings',exact:true}).click();
   await page.locator('[name=provider]').selectOption('groq');await page.locator('[name=model]').fill('test-model');await page.locator('[name=key]').fill('test-session-secret');
   await page.locator('[name=theme]').selectOption('dark');await page.getByRole('button',{name:'Save preferences',exact:true}).click();
-  assert.match(await page.locator('[role=status]').innerText(),/Preferences saved/);
+  assert.match(await page.locator('#workspaceDialog [role=status]').innerText(),/Preferences saved/);
   assert(!await page.evaluate(()=>JSON.stringify({...localStorage}).includes('test-session-secret')),'key persisted');
   await page.locator('[name=provider]').selectOption('server');await page.locator('[name=theme]').selectOption('light');await page.getByRole('button',{name:'Forget credentials'}).click();await page.getByRole('button',{name:'Save preferences',exact:true}).click();
   const historyDownload=page.waitForEvent('download');await page.locator('#exportHistory').click();assert.equal((await historyDownload).suggestedFilename(),'saarthi-conversations.json');

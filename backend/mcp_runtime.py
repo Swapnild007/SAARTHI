@@ -124,15 +124,33 @@ def _initialize(server: dict[str, Any]) -> str | None:
 
 def _tools_for_server(server: dict[str, Any]) -> list[dict[str, Any]]:
     session_id = _initialize(server)
-    response, _ = _post(server, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, session_id)
-    if response.get("error"):
-        raise RuntimeError("MCP tools/list failed")
-    values = response.get("result", {}).get("tools", [])
+    values, seen_cursors, cursor = [], set(), None
+    for page in range(8):
+        params = {"cursor": cursor} if cursor else {}
+        response, session_id = _post(server, {"jsonrpc": "2.0", "id": 2 + page, "method": "tools/list", "params": params}, session_id)
+        result = response.get("result")
+        if response.get("error") or not isinstance(result, dict) or not isinstance(result.get("tools"), list):
+            raise RuntimeError("MCP tools/list failed or returned an invalid catalog")
+        values.extend(result["tools"])
+        if len(values) > 1000:
+            raise RuntimeError("MCP tool catalog exceeds the supported limit")
+        cursor = result.get("nextCursor")
+        if cursor is None:
+            break
+        if not isinstance(cursor, str) or not cursor or len(cursor) > 2000 or cursor in seen_cursors:
+            raise RuntimeError("MCP tool catalog returned an invalid or repeated cursor")
+        seen_cursors.add(cursor)
+    else:
+        raise RuntimeError("MCP tool catalog exceeds the supported page limit")
     output = []
+    seen_names = set()
     for tool in values if isinstance(values, list) else []:
         if not isinstance(tool, dict):
             continue
         name = str(tool.get("name") or "")
+        if not name or name in seen_names:
+            raise RuntimeError("MCP tool catalog contains missing or duplicate names")
+        seen_names.add(name)
         annotations = tool.get("annotations") if isinstance(tool.get("annotations"), dict) else {}
         approved = name in server["allowed_tools"]
         read_only = annotations.get("readOnlyHint") is True
@@ -151,6 +169,11 @@ def _tools_for_server(server: dict[str, Any]) -> list[dict[str, Any]]:
                 return any(unsafe_schema(child, depth+1) for child in value)
             return False
         if len(json.dumps(schema)) > 20000 or unsafe_schema(schema):
+            continue
+        try:
+            from jsonschema import Draft202012Validator
+            Draft202012Validator.check_schema(schema)
+        except Exception:
             continue
         output.append({"type": "function", "function": {"name": public_name,
             "description": str(tool.get("description") or f"Remote MCP tool {name}")[:700],
@@ -191,8 +214,10 @@ def call_tool(public_name: str, arguments: dict[str, Any], *, confirmed: bool = 
     except Exception:
         raise ValueError("MCP arguments do not match the tool schema") from None
     server = next((item for item in _servers() if item["name"] == match["_server"]), None)
-    if not server:
-        raise ValueError("MCP server is no longer configured")
+    if not server or match["_remote_tool"] not in server["allowed_tools"]:
+        raise ValueError("MCP server or tool permission is no longer configured")
+    if match.get("_read_only") is not True and not server["allow_write"]:
+        raise ValueError("Sensitive MCP permission has been revoked")
     session_id = _initialize(server)
     response, _ = _post(server, {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
         "params": {"name": match["_remote_tool"], "arguments": arguments if isinstance(arguments, dict) else {}}}, session_id)
