@@ -244,6 +244,7 @@ const SaarthiApp = (() => {
   const CANONICAL_API_BASE='https://saarthi-swapneeldalvi3-1192.vercel.app';
   let API_BASE=CANONICAL_API_BASE;
   let API_BASES=[CANONICAL_API_BASE];
+  let runtimeConfigPromise=null;
   const loadRuntimeConfig=async()=>{
     try{
       const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
@@ -267,7 +268,8 @@ const SaarthiApp = (() => {
     }catch{}
   };
   const ensureApiBase=async()=>{
-    if(!API_BASES.length)await loadRuntimeConfig();
+    if(!runtimeConfigPromise)runtimeConfigPromise=loadRuntimeConfig();
+    await runtimeConfigPromise;
     if(!API_BASES.length){
       API_BASE=CANONICAL_API_BASE;
       API_BASES=[CANONICAL_API_BASE];
@@ -1243,7 +1245,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   requestAnimationFrame(enforceFreshHomeSurface);
   window.setTimeout(enforceFreshHomeSurface,250);
 
-  updateClock();setInterval(updateClock,1000);loadRuntimeConfig();ensureAttachmentControls();
+  updateClock();setInterval(updateClock,1000);runtimeConfigPromise=loadRuntimeConfig();ensureAttachmentControls();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   // Specialist capabilities are intentionally not user-selectable.
   // Saarthi owns routing; capability selection remains an internal server decision.
