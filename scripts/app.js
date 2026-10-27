@@ -1161,18 +1161,9 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       sendButton.textContent='…';
     }
 
-    submitWatchdog=window.setTimeout(()=>{
-      if(!sendInFlight)return;
-      resetComposerState(sendButton);
-      setStatus('Connection issue');
-      setCoreState('offline','The request exceeded the client safety deadline.');
-      updateIntelligenceFlow('idle');
-      // The user message is already persisted. Do not replace or remove it.
-      showResponse(
-        '### Connection issue\\n\\nSAARTHI could not complete this request within the safe response window. Your message is still in this conversation. You can send it again.',
-        {intent:{name:'runtime'},provider:'timeout'}
-      );
-    },28000);
+    // The single Promise.race deadline below owns timeout reporting.
+    // A second watchdog used to append a premature error and could cause
+    // duplicate assistant messages when the request subsequently settled.
 
     try{
       addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
