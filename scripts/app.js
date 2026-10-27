@@ -119,7 +119,7 @@ const SaarthiApp = (() => {
   const saveConversation=assistant=>{
     const thread=ensureThread(assistant,false);
     if(!thread)return;
-    thread.messages=(conversations[assistant]||[]).slice(-MAX_CONTEXT_MESSAGES);
+    thread.messages=(conversations[assistant]||[]).slice();
     const firstUser=thread.messages.find(m=>m.role==='user');
     if(firstUser&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(firstUser.content);
     thread.updatedAt=new Date().toISOString();
@@ -720,7 +720,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       message.showIntelligence=Boolean(showIntelligence);
     }
     messages.push(message);
-    conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
+    conversations[currentAssistant]=messages;
     if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
     thread.updatedAt=new Date().toISOString();
     saveConversation(currentAssistant);
@@ -736,7 +736,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     ));
     if(filtered.length!==messages.length){
       thread.messages=filtered;
-      conversations[currentAssistant]=filtered.slice(-MAX_CONTEXT_MESSAGES);
+      conversations[currentAssistant]=filtered;
       thread.updatedAt=new Date().toISOString();
       saveConversation(currentAssistant);
     }
@@ -860,7 +860,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const thread=list.find(t=>t.id===threadId);
     if(!thread)return;
     currentThreads[currentAssistant]=thread.id;
-    conversations[currentAssistant]=thread.messages.slice(-MAX_CONTEXT_MESSAGES);
+    conversations[currentAssistant]=thread.messages;
     saveHistory();
     closePickers();
     renderConversation();
@@ -1053,7 +1053,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
       locale:navigator.language||'en-IN',
       industry:null,
-      conversation:currentConversation().map(({role,content})=>({role,content})),
+      conversation:currentConversation().slice(-MAX_CONTEXT_MESSAGES).map(({role,content})=>({role,content})),
       attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
     let lastError=null;
