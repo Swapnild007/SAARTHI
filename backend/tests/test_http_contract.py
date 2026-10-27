@@ -142,7 +142,7 @@ def test_provider_request_timeout_is_bounded(monkeypatch):
     )
 
     assert reply == "ok"
-    assert captured["timeout"] == 10.0
+    assert captured["timeout"] == 7.0
 
 
 def test_provider_request_timeout_is_clamped(monkeypatch):
@@ -152,5 +152,5 @@ def test_provider_request_timeout_is_clamped(monkeypatch):
     monkeypatch.setenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "99")
     provider = OpenAICompatibleProvider()
 
-    assert provider.request_timeout == 12.0
+    assert provider.request_timeout == 7.0
 
