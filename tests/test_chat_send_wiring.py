@@ -27,14 +27,8 @@ class ChatSendWiringTests(unittest.TestCase):
         )
 
     def test_main_controller_handles_touch_and_form_submit(self):
-        self.assertRegex(
-            self.app,
-            r"sendButton\\?\\.addEventListener\\('click',event=>",
-        )
-        self.assertRegex(
-            self.app,
-            r"composerForm\\?\\.addEventListener\\('submit',event=>",
-        )
+        self.assertIn("sendButton?.addEventListener('click',event=>", self.app)
+        self.assertIn("composerForm?.addEventListener('submit',event=>", self.app)
         self.assertIn("submit();", self.app)
 
     def test_main_controller_has_recovery_path(self):
