@@ -541,7 +541,9 @@ class OpenAICompatibleProvider(LLMProvider):
             configured_timeout = float(os.getenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "10"))
         except (TypeError, ValueError):
             configured_timeout = 10.0
-        self.request_timeout = min(12.0, max(3.0, configured_timeout))
+        # Two routes, each potentially using two model calls when MCP tools are enabled.
+        # Reserve headroom for routing, serialization, and FastAPI's 28s deadline.
+        self.request_timeout = min(7.0, max(3.0, configured_timeout))
         self.last_route = routes[0].get("name", "unknown") if routes else "unavailable"
         self.last_failures: list[dict[str, str]] = []
 

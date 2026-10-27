@@ -119,7 +119,7 @@ const SaarthiApp = (() => {
   const saveConversation=assistant=>{
     const thread=ensureThread(assistant,false);
     if(!thread)return;
-    thread.messages=(conversations[assistant]||[]).slice(-MAX_CONTEXT_MESSAGES);
+    thread.messages=(conversations[assistant]||[]).slice();
     const firstUser=thread.messages.find(m=>m.role==='user');
     if(firstUser&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(firstUser.content);
     thread.updatedAt=new Date().toISOString();
@@ -244,6 +244,7 @@ const SaarthiApp = (() => {
   const CANONICAL_API_BASE='https://saarthi-swapneeldalvi3-1192.vercel.app';
   let API_BASE=CANONICAL_API_BASE;
   let API_BASES=[CANONICAL_API_BASE];
+  let runtimeConfigPromise=null;
   const loadRuntimeConfig=async()=>{
     try{
       const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
@@ -256,15 +257,19 @@ const SaarthiApp = (() => {
           .map(value=>String(value||'').replace(/\/$/,''))
           .filter(Boolean);
         const sameOrigin=String(window.location.origin||'').replace(/\/$/,'');
-        const sameOriginConfigured=configured.includes(sameOrigin);
-        const approved=[CANONICAL_API_BASE,...configured.filter(value=>value===CANONICAL_API_BASE)];
+        // Vercel branch previews must use their own backend, never production.
+        // GitHub Pages remains pinned to the canonical API to prevent untrusted endpoints.
+        const isVercelPreview=/\\.vercel\\.app$/i.test(window.location.hostname||'')
+          && sameOrigin!==CANONICAL_API_BASE;
+        const approved=isVercelPreview?[sameOrigin]:[CANONICAL_API_BASE];
         API_BASES=[...new Set(approved.filter(Boolean))];
-        API_BASE=CANONICAL_API_BASE;
+        API_BASE=API_BASES[0]||CANONICAL_API_BASE;
       }
     }catch{}
   };
   const ensureApiBase=async()=>{
-    if(!API_BASES.length)await loadRuntimeConfig();
+    if(!runtimeConfigPromise)runtimeConfigPromise=loadRuntimeConfig();
+    await runtimeConfigPromise;
     if(!API_BASES.length){
       API_BASE=CANONICAL_API_BASE;
       API_BASES=[CANONICAL_API_BASE];
@@ -715,7 +720,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       message.showIntelligence=Boolean(showIntelligence);
     }
     messages.push(message);
-    conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
+    conversations[currentAssistant]=messages;
     if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
     thread.updatedAt=new Date().toISOString();
     saveConversation(currentAssistant);
@@ -731,7 +736,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     ));
     if(filtered.length!==messages.length){
       thread.messages=filtered;
-      conversations[currentAssistant]=filtered.slice(-MAX_CONTEXT_MESSAGES);
+      conversations[currentAssistant]=filtered;
       thread.updatedAt=new Date().toISOString();
       saveConversation(currentAssistant);
     }
@@ -855,7 +860,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const thread=list.find(t=>t.id===threadId);
     if(!thread)return;
     currentThreads[currentAssistant]=thread.id;
-    conversations[currentAssistant]=thread.messages.slice(-MAX_CONTEXT_MESSAGES);
+    conversations[currentAssistant]=thread.messages;
     saveHistory();
     closePickers();
     renderConversation();
@@ -1048,7 +1053,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
       locale:navigator.language||'en-IN',
       industry:null,
-      conversation:currentConversation().map(({role,content})=>({role,content})),
+      conversation:currentConversation().slice(-MAX_CONTEXT_MESSAGES).map(({role,content})=>({role,content})),
       attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
     let lastError=null;
@@ -1156,18 +1161,9 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       sendButton.textContent='…';
     }
 
-    submitWatchdog=window.setTimeout(()=>{
-      if(!sendInFlight)return;
-      resetComposerState(sendButton);
-      setStatus('Connection issue');
-      setCoreState('offline','The request exceeded the client safety deadline.');
-      updateIntelligenceFlow('idle');
-      // The user message is already persisted. Do not replace or remove it.
-      showResponse(
-        '### Connection issue\\n\\nSAARTHI could not complete this request within the safe response window. Your message is still in this conversation. You can send it again.',
-        {intent:{name:'runtime'},provider:'timeout'}
-      );
-    },28000);
+    // The single Promise.race deadline below owns timeout reporting.
+    // A second watchdog used to append a premature error and could cause
+    // duplicate assistant messages when the request subsequently settled.
 
     try{
       addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
@@ -1240,7 +1236,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   requestAnimationFrame(enforceFreshHomeSurface);
   window.setTimeout(enforceFreshHomeSurface,250);
 
-  updateClock();setInterval(updateClock,1000);loadRuntimeConfig();ensureAttachmentControls();
+  updateClock();setInterval(updateClock,1000);runtimeConfigPromise=loadRuntimeConfig();ensureAttachmentControls();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   // Specialist capabilities are intentionally not user-selectable.
   // Saarthi owns routing; capability selection remains an internal server decision.
