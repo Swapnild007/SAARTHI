@@ -435,15 +435,16 @@ async def _execute_command_bounded(request: CommandRequest) -> dict[str, Any]:
         )
     except asyncio.TimeoutError:
         return {
-            "ok": True,
+            "ok": False,
             "run_id": f"timeout-{int(time.time() * 1000)}",
             "assistant": {"id": request.assistant, "name": "Saarthi"},
             "intent": {"name": request.mode, "confidence": 1.0, "reason": "runtime-timeout"},
             "plan": [],
             "orchestration": {},
             "reply": (
-                "The cloud model did not return a response before SAARTHI's 28-second deadline. "
-                "Please retry once; if it happens again, try a shorter prompt."
+                "SAARTHI could not complete this request within 28 seconds. "
+                "The delay may be in model routing, retrieval, tools, or the provider. "
+                "Please retry; if it continues, check runtime diagnostics."
             ),
             "provider": "runtime-timeout",
             "route": None,
@@ -451,7 +452,7 @@ async def _execute_command_bounded(request: CommandRequest) -> dict[str, Any]:
             "usage": None,
             "execution": "timed-out-safely",
             "tool_results": {},
-            "verification": {"verified": True, "claims": "request deadline enforced"},
+            "verification": {"verified": False, "claims": "request deadline enforced; no AI response verified"},
         }
 
 
