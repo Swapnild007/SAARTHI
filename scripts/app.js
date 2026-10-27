@@ -256,10 +256,13 @@ const SaarthiApp = (() => {
           .map(value=>String(value||'').replace(/\/$/,''))
           .filter(Boolean);
         const sameOrigin=String(window.location.origin||'').replace(/\/$/,'');
-        const sameOriginConfigured=configured.includes(sameOrigin);
-        const approved=[CANONICAL_API_BASE,...configured.filter(value=>value===CANONICAL_API_BASE)];
+        // Vercel branch previews must use their own backend, never production.
+        // GitHub Pages remains pinned to the canonical API to prevent untrusted endpoints.
+        const isVercelPreview=/\\.vercel\\.app$/i.test(window.location.hostname||'')
+          && sameOrigin!==CANONICAL_API_BASE;
+        const approved=isVercelPreview?[sameOrigin]:[CANONICAL_API_BASE];
         API_BASES=[...new Set(approved.filter(Boolean))];
-        API_BASE=CANONICAL_API_BASE;
+        API_BASE=API_BASES[0]||CANONICAL_API_BASE;
       }
     }catch{}
   };
