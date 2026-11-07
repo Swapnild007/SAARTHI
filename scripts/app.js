@@ -369,7 +369,7 @@ const SaarthiApp = (() => {
     text=text.replace(/\*\*([^*\n]+?)\*\*/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
     text=text.replace(/__([^_\n]+?)__/g,(_,v)=>{strong.push('<strong>'+v+'</strong>');return 'SAARTHISTRONG'+(strong.length-1)+'TOKEN';});
     text=text.replace(/`([^`]+)`/g,'<code>$1</code>');
-    text=text.replace(/(^|\s)\*([^*\n]+?)\*(?=\s|$)/g,'$1<em>$2</em>');
+    text=text.replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s.,;:!?)]|$)/g,'$1<em>$2</em>');
     text=text.replace(/(^|\s)_([^_\n]+?)_(?=\s|$)/g,'$1<em>$2</em>');
     strong.forEach((html,i)=>{text=text.replace('SAARTHISTRONG'+i+'TOKEN',html);});
     return text;
