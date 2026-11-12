@@ -1066,7 +1066,6 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   const parseCommand=value=>{const token=value.trim().split(/\s+/)[0].toLowerCase();return COMMANDS[token]||'chat';};
 
   const apiCommand=async(value,mode)=>{
-    await ensureApiBase();
     const context={
       client_time:new Date().toISOString(),
       timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
@@ -1090,6 +1089,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       if(!data.ok||!data.reply)throw new Error('Hermes returned no usable response.');
       return {ok:true,reply:data.reply,provider:'hermes-agent',run_id:'hermes-'+Date.now(),intent:{name:mode},orchestration:{},conversation_id:thread?.id||null};
     }
+    await ensureApiBase();
     let lastError=null;
     for(const base of API_BASES){
       try{
