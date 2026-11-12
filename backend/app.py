@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from .engine import SaarthiEngine
 from .storage import CloudStore, store_status
 from .agent_capabilities import AGENT_CAPABILITIES, INDUSTRY_PACKS
+from .hermes_bridge import router as hermes_router
 
 _docs_enabled = os.getenv("SAARTHI_ENABLE_DOCS", "").lower() in {"1", "true", "yes"}
 app = FastAPI(
@@ -41,12 +42,14 @@ ALLOWED_ORIGINS = (
     ]
 )
 
+app.include_router(hermes_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type"],
+    allow_headers=["Accept", "Content-Type", "Authorization"],
     max_age=600,
 )
 
