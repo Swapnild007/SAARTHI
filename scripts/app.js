@@ -41,6 +41,30 @@ const SaarthiApp = (() => {
   const MAX_ATTACHMENT_BYTES=1500*1024;
   const MAX_ATTACHMENT_TOTAL_BYTES=1500*1024;
   let sendInFlight=false;
+  // Hermes is explicitly opt-in. The owner enters the bridge credential at runtime;
+  // it is held in memory only, never embedded in the static site or localStorage.
+  let hermesSelected=false;
+  let hermesCredential='';
+  const installHermesSelector=()=>{
+    if(!composerForm||document.getElementById('hermesProviderSelect'))return;
+    const selector=document.createElement('select');
+    selector.id='hermesProviderSelect';
+    selector.setAttribute('aria-label','AI provider');
+    selector.style.cssText='max-width:170px;min-height:36px;border:1px solid #ccd9dc;border-radius:10px;background:#fff;color:#172027;padding:5px 8px;margin:6px';
+    selector.innerHTML='<option value="saarthi">SAARTHI default</option><option value="hermes">Hermes Agent</option>';
+    selector.addEventListener('change',()=>{
+      if(sendInFlight){selector.value=hermesSelected?'hermes':'saarthi';return;}
+      if(selector.value==='hermes'&&!hermesCredential){
+        const entered=window.prompt('Hermes bridge access key (kept only until page refresh):');
+        if(!entered){selector.value='saarthi';hermesSelected=false;return;}
+        hermesCredential=entered.trim();
+      }
+      hermesSelected=selector.value==='hermes';
+      setStatus(hermesSelected?'Hermes selected':'SAARTHI selected');
+    });
+    composerForm.prepend(selector);
+  };
+
   const attachmentsByAssistant=Object.create(null);
   const conversations=Object.create(null);
   const currentThreads=Object.create(null);
@@ -1051,6 +1075,21 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       conversation:currentConversation().map(({role,content})=>({role,content})),
       attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
     };
+    if(hermesSelected){
+      if(context.attachments.length)throw new Error('Hermes chat currently accepts text only. Remove attachments or use SAARTHI default.');
+      if(!hermesCredential)throw new Error('Hermes access key is required.');
+      const thread=ensureThread(currentAssistant,true);
+      const response=await fetch(apiUrl('/api/hermes/chat'),{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+hermesCredential},
+        body:JSON.stringify({message:value,conversation_id:thread?.id||null}),
+        signal:AbortSignal.timeout(26000)
+      });
+      if(!response.ok)throw new Error('Hermes gateway unavailable or access denied ('+response.status+').');
+      const data=await response.json();
+      if(!data.ok||!data.reply)throw new Error('Hermes returned no usable response.');
+      return {ok:true,reply:data.reply,provider:'hermes-agent',run_id:'hermes-'+Date.now(),intent:{name:mode},orchestration:{},conversation_id:thread?.id||null};
+    }
     let lastError=null;
     for(const base of API_BASES){
       try{
@@ -1219,6 +1258,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   setAutonomousContext('Saarthi will determine the capability, industry and workflow from your objective.','AUTO');
   updateIntelligenceFlow('idle');
   loadHistory();
+  installHermesSelector();
   // Always start on the clean home surface. Previous threads remain available
   // through Conversation history and are opened explicitly by the user.
   currentThreads.saarthi=null;
