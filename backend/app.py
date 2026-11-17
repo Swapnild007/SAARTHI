@@ -24,6 +24,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import ClientDisconnect
 from .execution import run_turn
+from .deployment import SpendLimits, build_commit, hosted, setting
+from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from . import hermes_bridge
 from .private_session import COOKIE, TTL, Scope
 from pydantic import BaseModel, Field
@@ -184,8 +186,17 @@ class LoginRequest(BaseModel):
 
 
 @app.post("/api/session/login")
-def login(request: Request, payload: LoginRequest):
+async def login(request: Request, payload: LoginRequest):
     scope = request.state.scope
+    if hosted():
+        await scoped_store(request)
+        try:
+            async with asyncio.timeout(2.5):
+                allowed = await store.claim_login(scope.owner)
+        except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError):
+            return api_error(503, "login_unavailable", "Sign-in is temporarily unavailable.")
+        if not allowed:
+            return api_error(429, "rate_limited", "Too many sign-in attempts. Wait one minute.")
     if not scope.verify_password(payload.password):
         return api_error(401, "authentication_failed", "Sign-in failed.")
     response = JSONResponse({"ok": True})
@@ -204,17 +215,29 @@ def logout():
 @app.get("/api/health")
 def health():
     scope = Scope.read()
+    provider_ready = engine.cloud.configured
+    spend_ready = SpendLimits.read() is not None
+    problems = []
+    if scope is None:
+        problems.append("private_scope_unconfigured")
+    if not store.configured:
+        problems.append("persistence_unconfigured")
+    if not provider_ready:
+        problems.append("provider_unconfigured")
+    if hosted() and not spend_ready:
+        problems.append("spend_controls_unconfigured")
     return {
-        "ok": scope is not None,
+        "ok": scope is not None and (not hosted() or not problems),
+        "configuration_issues": problems,
         "service": "saarthi-api",
-        "environment": scope.environment if scope else "unconfigured",
-        "commit": scope.commit if scope else None,
+        "environment": scope.environment if scope else (os.getenv("VERCEL_ENV") or "unconfigured"),
+        "commit": (scope.commit or build_commit()) if scope else build_commit(),
         "python": platform.python_version(),
         "provider_configured": engine.cloud.configured,
         "persistence": store_status(store),
         "rag": __rag_status(),
         "mcp": __mcp_status(),
-        "hermes": {"enabled": bool(hermes_bridge.configuration(scope))},
+        "hermes": {"enabled": bool(hermes_bridge.configuration(scope)) and (not hosted() or SpendLimits.read("HERMES") is not None)},
     }
 
 
@@ -350,13 +373,16 @@ def usage():
     if not provider.configured:
         return {"ok": False, "source": "unavailable", "reason": "provider_not_configured"}
 
-    base_url = provider.url.rstrip("/")
-    key = provider.key
+    route = provider.routes[0]
+    base_url = route["url"].rstrip("/")
+    if base_url != "https://openrouter.ai/api/v1":
+        return {"ok": False, "source": "unavailable", "reason": "usage_adapter_unsupported"}
+    key = route["key"]
     result: dict[str, Any] = {
         "ok": True,
         "source": "openrouter-key",
         "provider": "OpenRouter",
-        "analytics_configured": bool(os.getenv("SAARTHI_OPENROUTER_MANAGEMENT_KEY")),
+        "analytics_configured": bool(setting("OPENROUTER_MANAGEMENT_KEY")),
     }
 
     try:
@@ -370,7 +396,7 @@ def usage():
     except Exception as exc:
         result["key_error"] = "Usage provider could not be reached."
 
-    management_key = os.getenv("SAARTHI_OPENROUTER_MANAGEMENT_KEY", "")
+    management_key = setting("OPENROUTER_MANAGEMENT_KEY")
     if management_key:
         try:
             now = datetime.now(timezone.utc)
@@ -481,6 +507,18 @@ async def cancel_turn(request: Request, turn_id: UUID):
     return api_error(409, "turn_unavailable", "The turn is unavailable or already finished.")
 
 
+def reported_cost(usage: object) -> int | None:
+    if not isinstance(usage, dict) or not isinstance(usage.get("cost"), (int, float, str)):
+        return None
+    try:
+        value = Decimal(str(usage["cost"]))
+        if value.is_finite() and 0 <= value <= 10**6:
+            return int((value * 10**6).to_integral_value(rounding=ROUND_CEILING))
+    except (ValueError, InvalidOperation):
+        pass
+    return None
+
+
 async def _execute_command_bounded(request: Request, payload: CommandRequest):
     started = request.state.started_at
     scope = request.state.scope
@@ -499,20 +537,31 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
         [payload.message, payload.mode, payload.assistant, payload.engine, context["attachments"]],
         sort_keys=True, ensure_ascii=False
     ).encode()).hexdigest()
+    spend = None
+    if hosted():
+        if payload.engine == "hermes" and not hermes_bridge.configuration(scope):
+            return {**failure("hermes_disabled", "Hermes is disabled. Select standard SAARTHI chat."), **identity}
+        if payload.engine == "default" and not engine.cloud.configured:
+            return {**failure("provider_unconfigured", "No model provider is configured for this deployment."), **identity}
+        spend = SpendLimits.read("HERMES" if payload.engine == "hermes" else "LLM")
+        if spend is None:
+            return {**failure("budget_unconfigured", "Provider spending controls are unavailable."), **identity}
     try:
         async with asyncio.timeout(2.5):
-            reservation = await store.begin_turn(scope.owner, thread, turn, payload.message, fingerprint, scope.daily_turns)
+            arguments = (scope.owner, thread, turn, payload.message, fingerprint, scope.daily_turns)
+            reservation = await store.admit_turn(*arguments, spend) if spend else await store.begin_turn(*arguments)
     except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError):
         return {**failure("storage_unavailable", "Could not confirm the turn was saved. Retry this same turn."), **identity}
     decision = reservation.get("decision")
     if reservation.get("result"):
         return {**reservation["result"], **identity}
     if decision != "started":
-        code = {"busy": "turn_pending", "pending": "turn_pending", "conflict": "turn_conflict", "quota": "quota_exceeded"}.get(decision, "storage_unavailable")
+        code = {"busy": "turn_pending", "pending": "turn_pending", "conflict": "turn_conflict", "quota": "quota_exceeded", "budget": "budget_exceeded"}.get(decision, "storage_unavailable")
         return {**failure(code, {
             "turn_pending": "A turn is still running. Check history and try again shortly.",
             "turn_conflict": "This turn identifier already belongs to a different submission.",
             "quota_exceeded": "The daily request quota has been reached.",
+            "budget_exceeded": "The configured provider spending allowance has been reached.",
         }.get(code, "Conversation storage is unavailable.")), **identity}
 
     result = failure("runtime_failed", "The chat runtime could not complete. Start a new turn to try again.")
@@ -574,6 +623,13 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
         try:
             persistence_started = time.monotonic()
             async with asyncio.timeout(PERSISTENCE_RESERVE - 0.25):
+                reported = reported_cost(result.get("usage")) if spend else None
+                if reported is not None:
+                    try:
+                        async with asyncio.timeout(0.4):
+                            await store.report_cost(scope.owner, turn, reported)
+                    except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError):
+                        logger.warning("cost_report_unavailable", extra={"turn_id": turn})
                 recorded = await store.finish_turn(scope.owner, turn, state, result)
                 if not recorded:
                     terminal = await store.turn_result(scope.owner, turn)

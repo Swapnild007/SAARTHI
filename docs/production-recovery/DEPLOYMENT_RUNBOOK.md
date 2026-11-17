@@ -11,3 +11,34 @@
 9. Record candidate and rollback evidence in the readiness report. Production promotion and merge require explicit owner approval after review. Preserve the database during application rollback and restore the last approved private artifact.
 
 [Vercel Python runtime configuration](https://vercel.com/changelog/python-3-13-and-3-14-are-now-available)
+
+## Mission 2 staging setup
+
+Use a staging-only Vercel project or a branch-scoped Preview environment. Set `SAARTHI_ENV` and `SAARTHI_ORIGIN` to the actual scope and exact approved HTTPS origin. For Preview, replace the STAGING prefix below with PREVIEW. Install these values in Vercel Environment Variables. Use distinct values from any production integration. A preview ignores unscoped and production credential names.
+
+| Variable | Required value |
+| --- | --- |
+| `SAARTHI_STAGING_OWNER_ID`, `SAARTHI_STAGING_OWNER_PASSWORD`, `SAARTHI_STAGING_SESSION_KEY` | Dedicated owner, generated password of at least 24 characters and signing key of at least 32 characters |
+| `SAARTHI_STAGING_SUPABASE_PROJECT_REF`, `SAARTHI_STAGING_SUPABASE_URL`, `SAARTHI_STAGING_SUPABASE_SERVICE_ROLE_KEY` | Isolated project reference, exact `https://<ref>.supabase.co` and staging service-role secret. Apply `database/recovery.sql` and set `saarthi_scope.environment` in that project. |
+| `SAARTHI_STAGING_LLM_ROUTES_JSON` | One or two objects containing `name`, `url`, `key`, and `model`. For hosted admission use `https://openrouter.ai/api/v1` and dedicated capped OpenRouter keys. |
+| `SAARTHI_STAGING_LLM_HARD_CAP_CONFIRMED`, `SAARTHI_STAGING_LLM_TURN_RESERVE_MICRO_USD`, `SAARTHI_STAGING_DAILY_BUDGET_MICRO_USD`, `SAARTHI_STAGING_MONTHLY_BUDGET_MICRO_USD` | Set confirmation to `true` after reviewing the cap. Set integer micro-dollar ceilings. Reserve the maximum expected cost across both attempts, including attachments. Each provider key must expose a positive lifetime limit at or below its share of the daily ceiling. Keep key rotations within the same budget period accounted for and never reuse production keys. |
+
+In the isolated Vercel project, add a Firewall custom rate-limit rule matching `POST /api/session/login`, grouped by client IP, with 10 requests per minute and a deny action after the threshold. Verify the configured rule through a controlled rate-limit check on the isolated staging hostname and the Vercel Firewall event log. The durable application-side per-owner gate also applies across instances. Keep provider and database secrets in platform secret settings.
+
+Run the private workflow with the approved staging URL and `turns=16` for 32 transcript messages and a fresh-session reopen. Observe exact SHA, actual provider replies, ordered pagination, same-turn replay and cleanup. For a controlled upstream failure, use a separate staging build with an intentionally unavailable staging route and verify the typed failure and successful recovery after restoring the capped staging route. Preserve synthetic data across the backend restart and verify terminal-turn replay.
+
+For rollback, set `SAARTHI_APPROVED_ROLLBACK_URL`, `SAARTHI_ROLLBACK_SHA` and the `SAARTHI_ROLLBACK_PASSWORD` secret in the private GitHub environment. Use a distinct compatible staging build sharing the isolated database. Run the workflow with `verify_rollback=true` before changing traffic. Record the staging traffic switch separately, then verify the alias's returned health SHA and reopen a separate synthetic thread created before the switch. The workflow tests compatibility and never switches traffic itself.
+
+For optional Hermes use the scope-prefixed `HERMES_ENABLED`, `HERMES_VALIDATED_SCOPE`, `HERMES_URL`, `HERMES_API_KEY`, `HERMES_TOOLS_DISABLED_CONFIRMED`, `HERMES_HARD_CAP_CONFIRMED` and `HERMES_TURN_RESERVE_MICRO_USD`. The gateway operator must verify server-side tool restrictions and hard spend control. Run authenticated restore, timeout, outage and restart checks before rollout.
+
+### Physical Android Chrome acceptance
+
+1. Open the approved staging URL and sign in with its dedicated owner account. Tap the composer and test the keyboard Send action and the on-screen Send button.
+2. Send a long-response request. Scroll through the reply and back to the composer. Rotate portrait to landscape and back with both keyboard states.
+3. Select, send and remove a safe CSV. Allow microphone access and send one voice turn, then deny it and confirm the message and typed recovery.
+4. Reopen history after reload. Confirm the current and prior threads are present. Run a controlled timeout and verify subsequent Send works.
+5. Record Chrome and Android versions, app SHA, results, and screenshots with synthetic content and no secrets.
+
+[Vercel WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting) · [OpenRouter key limits](https://github.com/OpenRouterTeam/docs/blob/main/api_reference/limits.mdx)
+
+If GitHub does not register the branch-only workflow for manual dispatch, run `python scripts/candidate_smoke.py` from the exact branch SHA in a trusted runner with the same workflow environment variables injected by its secret manager.

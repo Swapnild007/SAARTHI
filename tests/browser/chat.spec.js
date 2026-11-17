@@ -123,3 +123,26 @@ test('cancellation recovers the composer and does not commit an assistant reply'
   await expect(replies(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('Android-profile touch, orientation and denied voice preserve the composer',async({page},testInfo)=>{
+  test.skip(testInfo.project.name!=='android-profile','Scenario requires the configured touch profile');
+  await page.addInitScript(()=>{
+    window.SpeechRecognition=class {
+      start(){this.onerror({error:'not-allowed'});}
+    };
+  });
+  const errors=await start(page);
+  await input(page).tap();
+  await expect(input(page)).toBeFocused();
+  await input(page).fill('touch portrait');
+  await send(page).tap();
+  await expect(replies(page)).toContainText('touch portrait');
+  await page.setViewportSize({width:840,height:393});
+  await expect(input(page)).toBeInViewport();
+  await page.locator('#voiceCommand').tap();
+  await expect(page.locator('#composerError')).toContainText('Microphone permission');
+  await input(page).fill('touch landscape');
+  await send(page).tap();
+  await expect(replies(page).last()).toContainText('touch landscape');
+  expect(errors).toEqual([]);
+});

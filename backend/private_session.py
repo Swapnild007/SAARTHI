@@ -10,6 +10,8 @@ import time
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from .deployment import hosted, setting
+
 COOKIE = "saarthi_owner"
 TTL = 3600
 
@@ -30,6 +32,8 @@ class Scope:
         if environment not in {"local", "preview", "staging", "production"}:
             return None
         platform = os.getenv("VERCEL_ENV")
+        if os.getenv("VERCEL") and not platform:
+            return None
         if platform and environment != platform and not (platform == "preview" and environment == "staging"):
             return None
         origin = os.getenv("SAARTHI_ORIGIN", "").rstrip("/")
@@ -38,7 +42,7 @@ class Scope:
             if not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
                 return None
             if environment == "local":
-                if platform or parsed.hostname not in {"localhost", "127.0.0.1", "::1"} or parsed.scheme not in {"http", "https"}:
+                if hosted() or parsed.hostname not in {"localhost", "127.0.0.1", "::1"} or parsed.scheme not in {"http", "https"}:
                     return None
             elif parsed.scheme != "https":
                 return None
@@ -48,9 +52,9 @@ class Scope:
         commit = os.getenv("VERCEL_GIT_COMMIT_SHA") or os.getenv("SAARTHI_COMMIT_SHA", "")
         if environment != "local" and not re.fullmatch(r"[a-f0-9]{40}", commit):
             return None
-        owner = os.getenv("SAARTHI_OWNER_ID", "")
-        password = os.getenv("SAARTHI_OWNER_PASSWORD", "")
-        signing_key = os.getenv("SAARTHI_SESSION_KEY", "")
+        owner = setting("OWNER_ID")
+        password = setting("OWNER_PASSWORD")
+        signing_key = setting("SESSION_KEY")
         if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", owner) or len(password) < 24 or len(signing_key) < 32:
             return None
         if not 1 <= turns <= 1000:

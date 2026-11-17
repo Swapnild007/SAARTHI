@@ -15,6 +15,15 @@ on:
         description: Expected live model provider
         required: true
 
+      turns:
+        description: Two upstream turns for smoke or 16+ for full transcript verification
+        required: false
+        default: '2'
+      verify_rollback:
+        description: Verify the approved rollback build against the same staging data
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -36,7 +45,13 @@ jobs:
           SAARTHI_EXPECTED_PROVIDER: ${{ inputs.expected_provider }}
           SAARTHI_CANDIDATE_PASSWORD: ${{ secrets.SAARTHI_CANDIDATE_PASSWORD }}
           SAARTHI_APPROVED_URL: ${{ vars.SAARTHI_APPROVED_URL }}
+          SAARTHI_SMOKE_TURNS: ${{ inputs.turns }}
+          SAARTHI_ROLLBACK_URL: ${{ inputs.verify_rollback && vars.SAARTHI_APPROVED_ROLLBACK_URL || '' }}
+          SAARTHI_APPROVED_ROLLBACK_URL: ${{ vars.SAARTHI_APPROVED_ROLLBACK_URL }}
+          SAARTHI_ROLLBACK_SHA: ${{ vars.SAARTHI_ROLLBACK_SHA }}
+          SAARTHI_ROLLBACK_PASSWORD: ${{ secrets.SAARTHI_ROLLBACK_PASSWORD }}
         run: |
           test -n "$SAARTHI_APPROVED_URL"
           test "$SAARTHI_CANDIDATE_URL" = "$SAARTHI_APPROVED_URL"
+          if [ "${{ inputs.verify_rollback }}" = true ]; then test -n "$SAARTHI_ROLLBACK_URL"; fi
           python scripts/candidate_smoke.py

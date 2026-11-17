@@ -93,3 +93,86 @@ revoke all on function public.saarthi_begin_turn(text,text,uuid,text,text,intege
   from public, anon, authenticated;
 grant execute on function public.saarthi_begin_turn(text,text,uuid,text,text,integer)
   to service_role;
+
+-- Spend admission is separate from the transcript so deletion cannot reset quotas.
+create table if not exists public.saarthi_spend (
+  owner text not null,
+  turn_id uuid not null,
+  day date not null,
+  reserved_micro_usd bigint not null check (reserved_micro_usd > 0),
+  reported_micro_usd bigint check (reported_micro_usd >= 0),
+  primary key (owner,turn_id)
+);
+create index if not exists saarthi_spend_window on public.saarthi_spend(owner,day);
+alter table public.saarthi_spend enable row level security;
+revoke all on public.saarthi_spend from public, anon, authenticated;
+grant select,insert,update on public.saarthi_spend to service_role;
+
+create or replace function public.saarthi_admit_turn(
+  p_owner text, p_conversation text, p_turn uuid, p_message text,
+  p_fingerprint text, p_daily_limit integer, p_reserve bigint, p_day_cap bigint, p_month_cap bigint
+) returns jsonb language plpgsql set search_path = pg_catalog, public as $$
+declare
+  current_day date := (now() at time zone 'UTC')::date;
+  daily_used numeric;
+  monthly_used numeric;
+  admission jsonb;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_owner, 0));
+  -- Existing turns must replay even when the budget has subsequently filled.
+  if exists(select 1 from public.saarthi_turns where owner=p_owner and turn_id=p_turn) then
+    return public.saarthi_begin_turn(p_owner,p_conversation,p_turn,p_message,p_fingerprint,p_daily_limit);
+  end if;
+  if exists(select 1 from public.saarthi_spend where owner=p_owner and turn_id=p_turn) then
+    return jsonb_build_object('decision','conflict');
+  end if;
+  if p_reserve is null or p_day_cap is null or p_month_cap is null
+     or not (0 < p_reserve and p_reserve <= p_day_cap and p_day_cap <= p_month_cap) then
+    return jsonb_build_object('decision','budget');
+  end if;
+  select coalesce(sum(greatest(reserved_micro_usd,reported_micro_usd)) filter(where day=current_day),0),
+         coalesce(sum(greatest(reserved_micro_usd,reported_micro_usd)),0)
+    into daily_used, monthly_used from public.saarthi_spend
+    where owner=p_owner and day>=date_trunc('month',current_day::timestamp)::date and day<=current_day;
+  if daily_used+p_reserve>p_day_cap or monthly_used+p_reserve>p_month_cap then
+    return jsonb_build_object('decision','budget');
+  end if;
+  admission := public.saarthi_begin_turn(p_owner,p_conversation,p_turn,p_message,p_fingerprint,p_daily_limit);
+  if admission->>'decision'='started' then
+    insert into public.saarthi_spend(owner,turn_id,day,reserved_micro_usd)
+      values(p_owner,p_turn,current_day,p_reserve);
+  end if;
+  return admission;
+end
+$$;
+revoke all on function public.saarthi_admit_turn(text,text,uuid,text,text,integer,bigint,bigint,bigint)
+  from public, anon, authenticated;
+grant execute on function public.saarthi_admit_turn(text,text,uuid,text,text,integer,bigint,bigint,bigint)
+  to service_role;
+
+create table if not exists public.saarthi_login_rate (
+  owner text primary key,
+  minute timestamptz not null,
+  attempts integer not null
+);
+alter table public.saarthi_login_rate enable row level security;
+revoke all on public.saarthi_login_rate from public, anon, authenticated;
+grant select,insert,update on public.saarthi_login_rate to service_role;
+
+create or replace function public.saarthi_claim_login(p_owner text)
+returns boolean language plpgsql set search_path = pg_catalog, public as $$
+declare
+  window_start timestamptz := date_trunc('minute',now());
+  claimed integer;
+begin
+  insert into public.saarthi_login_rate as rate(owner,minute,attempts)
+    values(p_owner,window_start,1)
+    on conflict(owner) do update set minute=excluded.minute,
+      attempts=case when rate.minute=excluded.minute then rate.attempts+1 else 1 end
+    where rate.minute<>excluded.minute or rate.attempts<10
+    returning attempts into claimed;
+  return claimed is not null;
+end
+$$;
+revoke all on function public.saarthi_claim_login(text) from public, anon, authenticated;
+grant execute on function public.saarthi_claim_login(text) to service_role;

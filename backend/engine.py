@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .deployment import SpendLimits, configured_routes, hosted, upstream_key_ceiling
+
 import ast
 import json
 import math
@@ -528,22 +530,7 @@ class OpenAICompatibleProvider(LLMProvider):
     name = "ai-gateway"
 
     def __init__(self) -> None:
-        raw = os.getenv("SAARTHI_LLM_ROUTES_JSON", "").strip()
-        routes: list[dict[str, str]] = []
-        if raw:
-            try:
-                parsed = json.loads(raw)
-                if isinstance(parsed, list):
-                    routes = [r for r in parsed if isinstance(r, dict) and r.get("key") and r.get("url") and r.get("model")]
-            except json.JSONDecodeError:
-                routes = []
-        if not routes:
-            routes = [{
-                "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
-                "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
-                "key": os.getenv("SAARTHI_LLM_API_KEY", ""),
-                "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
-            }]
+        routes = configured_routes()
         self.routes = routes
         # Vercel allows 30 seconds for this function. Keep each provider attempt
         # bounded so a slow primary still leaves time for the second route.
@@ -554,10 +541,23 @@ class OpenAICompatibleProvider(LLMProvider):
         self.request_timeout = min(7.0 if timings.get() is not None else 12.0, max(3.0, configured_timeout))
         self.last_route = routes[0].get("name", "unknown") if routes else "unavailable"
         self.last_failures: list[dict[str, str]] = []
+        self.response_source = "upstream"
 
     @property
     def configured(self) -> bool:
         return bool(self.routes and any(r.get("url") and r.get("key") and r.get("model") for r in self.routes))
+
+    def _check_hosted_key_budget(self, route: dict[str, str], opener) -> None:
+        limits = SpendLimits.read()
+        if not limits or route["url"].rstrip("/") != "https://openrouter.ai/api/v1":
+            raise ValueError("provider does not expose a supported lifetime key ceiling")
+        request = Request("https://openrouter.ai/api/v1/key", headers={
+            "Authorization": f"Bearer {route['key']}", "Accept": "application/json",
+        })
+        with opener(request, timeout=2.0) as response:
+            data = json.loads(response.read(32_768)).get("data")
+        if not upstream_key_ceiling(data, limits.daily // len(self.routes)):
+            raise ValueError("provider key budget is unavailable or exceeds its allowed share")
 
     def _request(self, route: dict[str, str], *, message: str, system: str, context: dict[str, Any], assistant: str) -> tuple[str, dict[str, Any] | None]:
         inspected = inspect_attachments(context.get("attachments") if isinstance(context, dict) else [])
@@ -607,8 +607,16 @@ class OpenAICompatibleProvider(LLMProvider):
                 payload["max_tokens"] = 3000
                 request.data = json.dumps(payload).encode()
                 open_request = build_opener(NoProviderRedirect()).open
+                if hosted():
+                    self._check_hosted_key_budget(route, open_request)
             with open_request(request, timeout=timeout) as response:
-                body = json.loads(response.read().decode("utf-8"))
+                if timings.get() is not None:
+                    raw = response.read(2_000_001)
+                    if len(raw) > 2_000_000:
+                        raise ValueError("provider response too large")
+                else:
+                    raw = response.read()
+                body = json.loads(raw.decode("utf-8"))
             choice = body.get("choices", [{}])[0].get("message", {}) if isinstance(body, dict) else {}
             usage = body.get("usage") if isinstance(body, dict) else None
             tool_calls = choice.get("tool_calls") if isinstance(choice, dict) else None
@@ -616,6 +624,10 @@ class OpenAICompatibleProvider(LLMProvider):
                 reply = choice.get("content") if isinstance(choice, dict) else ""
                 if isinstance(reply, list):
                     reply = "".join(str(part.get("text", "")) for part in reply if isinstance(part, dict))
+                if timings.get() is not None and (
+                    not isinstance(reply, str) or tool_calls or choice.get("function_call")
+                ):
+                    raise ValueError("provider returned an unsupported response")
                 self.last_route = route.get("name", route.get("model", "unknown"))
                 return str(reply or "").strip(), usage if isinstance(usage, dict) else None
 
@@ -776,6 +788,7 @@ class OpenAICompatibleProvider(LLMProvider):
                     "If evidence is irrelevant or insufficient, say so instead of inventing support."
                 )
         failures: list[dict[str, str]] = []
+        self.response_source = "upstream"
         for route in self.routes[:2]:
             try:
                 with stage(f"provider_attempt_{len(failures) + 1}"):
@@ -786,6 +799,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 sample_requested = bool(re.search(r"\b(sample|synthetic|example|demo)\b", message, re.IGNORECASE))
                 dashboard_requested = bool(re.search(r"\b(kpi|dashboard)\b", message, re.IGNORECASE))
                 if active_assistant == "data_analyst" and sample_requested and dashboard_requested and not context.get("attachments"):
+                    self.response_source = "local_visualization"
                     specs = _sample_kpi_dashboard()
                     kpi_table = (
                         "| KPI | Value | Target | Variance |\n"
@@ -803,6 +817,7 @@ class OpenAICompatibleProvider(LLMProvider):
                         + "".join("\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>" for spec in specs)
                     )
                 elif chart_type and sample_requested and not context.get("attachments"):
+                    self.response_source = "local_visualization"
                     spec = _sample_chart_spec(chart_type)
                     intro = {
                         "pie": "Here is a sample distribution using synthetic data.",
@@ -1261,6 +1276,7 @@ class SaarthiEngine:
             "route": self.cloud.last_route if self.cloud.configured else None,
             "failover": self.cloud.last_failures if self.cloud.configured else [],
             "usage": usage,
+            "response_source": self.cloud.response_source if provider_name == self.cloud.name else "deterministic",
             "execution": "degraded" if provider is None and timings.get() is not None else "completed",
             "tool_results": tool_results,
             "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},

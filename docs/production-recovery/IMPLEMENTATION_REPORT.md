@@ -30,3 +30,5 @@ Recovery started from `main` at `dd495d06fed0e3374659177e311794ee780559c6`. The 
 | Hermes | Server path and controlled response fixtures are implemented. The selector stays hidden in the unconfigured preview. Live gateway mode, outages across restarts and tool containment are independently gated. |
 
 Older messages that were discarded by the old 20-message transcript cap or never written by the inline composer are unavailable through browser backup. Histories still present on an older origin must be exported there before retiring that origin.
+
+Mission 2 added explicit hosted credential scopes, per-owner spend admission and reported-cost recording, durable sign-in limits, live smoke response provenance, and rollback compatibility checks. Hosted standard inference accepts only routes whose upstream key ceiling can be checked. The local OpenAI-compatible route remains available for development. The physical Android checklist and exact staging settings are in the deployment runbook.

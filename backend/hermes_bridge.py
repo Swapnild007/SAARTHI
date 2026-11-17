@@ -3,24 +3,26 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import os
 from urllib.parse import urlsplit
 
 import httpx
 
 from .private_session import Scope
+from .deployment import hosted, setting
 
 
 def configuration(scope: Scope | None) -> tuple[str, str] | None:
-    if scope is None or os.getenv("SAARTHI_HERMES_VALIDATED_SCOPE") != scope.environment:
+    if scope is None or setting("HERMES_VALIDATED_SCOPE") != scope.environment:
         return None
-    endpoint = os.getenv("SAARTHI_HERMES_URL", "").rstrip("/")
-    secret = os.getenv("SAARTHI_HERMES_API_KEY", "")
+    if hosted() and setting("HERMES_TOOLS_DISABLED_CONFIRMED") != "true":
+        return None
+    endpoint = setting("HERMES_URL").rstrip("/")
+    secret = setting("HERMES_API_KEY")
     try:
         parsed = urlsplit(endpoint)
         if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
                 or parsed.path or parsed.query or parsed.fragment
-                or not secret or os.getenv("SAARTHI_HERMES_ENABLED") != "true"):
+                or not secret or setting("HERMES_ENABLED") != "true"):
             return None
     except ValueError:
         return None
@@ -45,7 +47,11 @@ async def generate(scope: Scope, thread: str, message: str, history: list[dict])
             return failed("provider_rate_limited", "Hermes is rate limited. Try again later or select standard chat.")
         if not response.is_success:
             return failed("hermes_unavailable", "Hermes is unavailable. Standard SAARTHI chat remains available.")
-        reply = response.json()["choices"][0]["message"]["content"]
+        data = response.json()
+        message = data["choices"][0]["message"]
+        if message.get("tool_calls") or message.get("function_call"):
+            return failed("hermes_tool_response", "Hermes returned an unsupported tool response.")
+        reply = message["content"]
         if not isinstance(reply, str) or not reply.strip():
             raise ValueError
     except httpx.TimeoutException:
@@ -53,7 +59,7 @@ async def generate(scope: Scope, thread: str, message: str, history: list[dict])
     except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError):
         return failed("hermes_unavailable", "Hermes returned no usable reply. Try standard chat.")
     return {"ok": True, "provider": "hermes-agent", "reply": reply, "execution": "completed",
-            "verification": {"verified": False}}
+            "usage": data.get("usage"), "response_source": "upstream", "verification": {"verified": False}}
 
 
 def failed(code: str, reply: str) -> dict:

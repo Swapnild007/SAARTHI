@@ -8,3 +8,9 @@
 - The database keeps recovery conversations until authenticated deletion. Deletion cascades to turns. Local backups are explicit files with message text and remain under the owner's control. Browser-local removal and cloud deletion have separate effects. Any provider-side retention needs to be confirmed on the selected account.
 - Remote retrieval, tool execution and standalone saved facts are unavailable in this candidate. Hermes requires an isolated tool-restricted gateway and independent validation before the scoped feature flag is set.
 - Live access control at the deployed edge, hosted Supabase isolation, external provider retention, and independent production security sign-off remain open.
+
+## Mission 2 controls
+
+Hosted resource and owner credentials are scope-prefixed. The database endpoint must match the explicitly configured Supabase project reference, and its scope marker is checked before conversation reads and writes. Login also uses a durable, per-owner database limit. Hosted default provider calls first check the selected OpenRouter key's lifetime ceiling and remaining credit. Provider credentials and raw cap responses stay on the server.
+
+The admission transaction serializes per-owner usage, reserves the full configured turn cost against UTC daily and monthly ceilings, and keeps the reservation across replay, deletion and failure. Reported provider cost is recorded when present. Unknown charges, unsuccessful attempts and reporting failures never release the conservative reservation. Live billing closeout, trusted-edge deployment, secret separation, and retention verification remain staging work.

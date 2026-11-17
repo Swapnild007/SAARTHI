@@ -60,3 +60,39 @@ test('SQL migration preserves owned turns across reopen and enforces replay and 
     await rm(directory,{recursive:true,force:true});
   }
 });
+
+test('spending reservations survive replay and deletion and distinguish daily from monthly limits',async()=>{
+  const db=new PGlite();
+  try{
+    await db.exec('create role anon; create role authenticated; create role service_role bypassrls');
+    await db.exec(schema);
+    await db.exec('set role service_role');
+    const owner='cost-owner';
+    const turn=randomUUID();
+    const admit=(id,day=10,month=15)=>db.query(
+      'select saarthi_admit_turn($1,$2,$3,$4,$5,30,5,$6,$7) as result',
+      [owner,id,id,'message','fingerprint',day,month],
+    ).then(res=>res.rows[0].result.decision);
+    assert.equal(await admit(turn),'started');
+    assert.equal(await admit(turn),'pending');
+    await db.query('update saarthi_spend set reported_micro_usd=7 where turn_id=$1',[turn]);
+    assert.equal(await admit(randomUUID()),'budget');
+    await db.query('delete from saarthi_threads where owner=$1 and id=$2',[owner,turn]);
+    assert.equal(await admit(turn),'conflict');
+    const later=randomUUID();
+    assert.equal(await admit(later,15,15),'started');
+    // Backdate both reservations to exercise the same month's ceiling independently of today's.
+    await db.exec("update saarthi_spend set day=date_trunc('month',(now() at time zone 'UTC')::date)::date");
+    assert.equal(await admit(randomUUID(),15,15),'budget');
+    assert.equal(await admit(randomUUID(),15,20),'started');
+    const claim=()=>db.query('select saarthi_claim_login($1) as allowed',[owner]).then(r=>r.rows[0].allowed);
+    await db.exec('begin');
+    for(let i=0;i<10;i++)assert.equal(await claim(),true);
+    assert.equal(await claim(),false);
+    await db.exec('commit');
+    await db.exec('set role authenticated');
+    await assert.rejects(claim(),/permission denied/);
+  }finally{
+    await db.close();
+  }
+});

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+
+from .deployment import SpendLimits, storage_endpoint
 from urllib.request import Request, urlopen
 import json
 from urllib.parse import urlsplit
@@ -23,8 +24,7 @@ class CloudStore:
     """
 
     def __init__(self) -> None:
-        self.url = os.getenv("SAARTHI_SUPABASE_URL", "").rstrip("/")
-        self.key = os.getenv("SAARTHI_SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        self.url, self.key = storage_endpoint()
 
     @property
     def configured(self) -> bool:
@@ -165,6 +165,23 @@ class CloudStore:
             "p_owner": owner, "p_conversation": thread, "p_turn": turn,
             "p_message": message, "p_fingerprint": fingerprint, "p_daily_limit": limit,
         })
+
+    async def admit_turn(self, owner: str, thread: str, turn: str, message: str, fingerprint: str,
+                         limit: int, spend: SpendLimits) -> dict:
+        return await self.recovery_request("rpc/saarthi_admit_turn", method="POST", payload={
+            "p_owner": owner, "p_conversation": thread, "p_turn": turn,
+            "p_message": message, "p_fingerprint": fingerprint, "p_daily_limit": limit,
+            "p_reserve": spend.reserve, "p_day_cap": spend.daily, "p_month_cap": spend.monthly,
+        })
+
+    async def report_cost(self, owner: str, turn: str, micro_usd: int) -> None:
+        await self.recovery_request("saarthi_spend", method="PATCH", params={
+            "owner": f"eq.{owner}", "turn_id": f"eq.{turn}",
+        }, payload={"reported_micro_usd": micro_usd})
+
+    async def claim_login(self, owner: str) -> bool:
+        return await self.recovery_request("rpc/saarthi_claim_login", method="POST",
+                                           payload={"p_owner": owner}) is True
 
     async def finish_turn(self, owner: str, turn: str, state: str, result: dict) -> bool:
         rows = await self.recovery_request(
