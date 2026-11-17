@@ -52,7 +52,7 @@ test('timeout recovers, attachments and code reach the original UI',async({page}
   await send(page).click();
   await expect(page.locator('#composerError')).toContainText('deadline');
   await expect(send(page)).toBeEnabled();
-  const attachment=page.locator('input[type=file]').first();
+  const attachment=page.locator('#saarthiFileInput');
   await attachment.setInputFiles({name:'numbers.csv',mimeType:'text/csv',buffer:Buffer.from('name,count\nA,2')});
   await input(page).fill('fixture-file:include');
   await send(page).click();
@@ -79,4 +79,29 @@ test('in-flight reply stays on the thread that initiated it',async({page})=>{
   await page.locator('#mobileHistory').getByRole('button',{name:/original thread/}).click();
   await expect(replies(page)).toHaveText(/Reply to original thread/);
   expect(errors).toEqual([]);
+});
+
+test('a backup restores into an empty browser profile',async({page,browser},testInfo)=>{
+  const errors=await start(page);
+  await input(page).fill('back up this thread');
+  await send(page).click();
+  await expect(replies(page)).toHaveText(/Reply to back up this thread/);
+  await page.getByRole('button',{name:'Conversation history',exact:true}).click();
+  const download=page.waitForEvent('download');
+  await page.locator('#mobileHistory').getByRole('button',{name:'Export backup'}).click();
+  const file=testInfo.outputPath('conversations.json');
+  await (await download).saveAs(file);
+  const fresh=await browser.newContext({baseURL:'http://127.0.0.1:8765'});
+  try{
+    const restored=await fresh.newPage();
+    await restored.goto('/');
+    await expect(restored.locator('body')).not.toHaveClass(/splash-active/,{timeout:10000});
+    await restored.getByRole('button',{name:'Conversation history',exact:true}).click();
+    await restored.locator('#mobileHistory [data-history-file]').setInputFiles(file);
+    await restored.locator('#mobileHistory').getByRole('button',{name:/back up this thread/}).click();
+    await expect(replies(restored)).toHaveText(/Reply to back up this thread/);
+    expect(errors).toEqual([]);
+  }finally{
+    await fresh.close();
+  }
 });

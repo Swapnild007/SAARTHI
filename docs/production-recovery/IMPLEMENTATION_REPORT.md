@@ -1,0 +1,32 @@
+# Implementation report
+
+Recovery started from `main` at `dd495d06fed0e3374659177e311794ee780559c6`. The open chat and Hermes drafts were inspected at #22 `323e040`, #23 `c936735` and #24 `6c471bb`. The recovery reuses #22's single composer and truthful timeout direction, #23's mobile composer clearance and conversation styling, and #24's Hermes request contract. The three drafts were left untouched.
+
+| Area | Before | Recovery implementation |
+| --- | --- | --- |
+| Submission | Renderer threw before fetch. A second script intercepted Send on static hosting. | `index.html`, `scripts/app.js` retain one native form submission and guard. Voice enters through the same submission routine. The user message is saved before transport. Reply storage follows the originating thread even after navigation. |
+| Reliability | Multiple browser deadlines and a thread that could continue after a successful-looking timeout result. | `backend/app.py`, `backend/execution.py`, `backend/turn_worker.py` derive an end-to-end budget, terminate and reap the worker, record an explicit terminal state, and replay a reserved turn by ID. Ambiguous failures expose a same-turn retry. |
+| History | Context trimming discarded saved messages. Existing storage adapter was disconnected. | `database/recovery.sql`, `backend/storage.py` and the composer reserve the turn before execution. Up to 20 prior model messages come from the authenticated store. Local history remains untrimmed and supports backup export/import. Cloud restoration paginates conversations and individual turns. |
+| Hosting | The static controller and work-product page called a hardcoded production endpoint. Preview detection relied on URL patterns. | Same-origin API requests, explicit server environment, expected origin, Vercel environment checks, database scope marker, SHA and Python diagnostics. Static copies can export stored browser history. Switching origins is a separate rollout step. |
+| Identity | Browser session identifiers were accepted as ownership. | `backend/private_session.py` issues expiring signed owner cookies. Cloud queries use server configuration for owner scope. New tables use owner-scoped keys and service-role grants. |
+| Hermes | Draft bridge accepted a browser-held shared secret. | `backend/hermes_bridge.py` runs behind the same private turn API and derives Hermes session keys from environment, owner and thread. A scope-specific validation flag gates the selector. |
+| Release | CI probed production and accepted fallback responses. | PR regression uses isolated fixtures. A separate private smoke checks candidate SHA, environment and Python runtime, exact provider execution, multi-turn recall and cloud history readback. |
+
+## Feature inventory
+
+| Feature | Status and evidence |
+| --- | --- |
+| Main chat, history, error recovery | Implemented. Browser and API fixture coverage for first send, click/Enter, timeout, thread correlation, 20 sends and 40 messages after reopening. |
+| Cloud conversations | Reserved and completed through CloudStore. Read pagination, rename and deletion are API operations. Browser restore is available after sign-in. Live Supabase round trip remains a release gate. |
+| Planning, writing, coding and analysis | Existing engine and specialist contracts retained. Unit coverage includes deterministic analysis and routing. Live specialist output quality remains ungraded. |
+| Research | Research routing and response contracts retained. External web retrieval through the candidate command worker is disabled pending bounded staging verification. |
+| Attachments and charts | Existing readers and chart generation retained with request and attachment restrictions. Browser test sends and removes a CSV and checks code Markdown rendering. PDF, XLSX, and chart correctness have backend coverage. Full browser file-type and chart coverage remains open. |
+| Voice | Browser recognition and synthesis remain in the composer. Permission errors are surfaced. A physical microphone permission and recovery run remains open. |
+| Retrieval and remote MCP tools | Candidate reports disabled and refuses requests for these integrations. Deterministic date, time, conversion and calculation remain available. |
+| Standalone memory | Disabled. Durable conversation context and local backup are provided independently. |
+| Automation, tasks, reminders and workflows | Existing routing remains. Delivery, scheduling, and restart persistence have no live evidence. A notification permission control only requests browser permission. |
+| Settings, control surfaces and work-product page | Existing controls remain. Work-product requests now use the private same-origin API. Some controls retain informational status only. Separate backend health reports integration availability. |
+| Mobile navigation | Existing UI retained with PR #23 clearance and new composer status controls. Chromium mobile emulation and physical Android are tracked separately. |
+| Hermes | Server path and controlled response fixtures are implemented. The selector stays hidden in the unconfigured preview. Live gateway mode, outages across restarts and tool containment are independently gated. |
+
+Older messages that were discarded by the old 20-message transcript cap or never written by the inline composer are unavailable through browser backup. Histories still present on an older origin must be exported there before retiring that origin.

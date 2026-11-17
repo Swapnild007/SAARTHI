@@ -1,0 +1,10 @@
+# Security validation
+
+- Protected commands, cloud history and usage require a valid deployment-scoped owner session. The API ignores browser ownership claims. Sessions expire after one hour. Rotating the session key or owner password revokes previously issued tokens. Logout removes the browser cookie.
+- Cookie attributes include HttpOnly, SameSite Strict and Secure on HTTPS. State-changing requests reject mismatched Origin values. The configured origin must match the request. Protected routes reject absent configuration before chat can reach the provider.
+- The database marker is checked before conversation operations. Turn and history predicates use the server-derived owner. Cross-owner denial is verified at the API fixture and database SQL levels. Database service and Hermes credentials stay server-side.
+- Requests are size-bounded and validated with redacted errors. Attachments have batch and count limits, terminal model failures use generalized messages, and hosted workers reject provider redirects. Runtime logging records turn IDs, states and timing, without the submitted prompt or credentials.
+- Login and API rate limits are per process. The database daily quota survives restarts and reserves a slot ahead of provider work. Configure a trusted-edge login throttle and hard provider account budget before a private release. Per-call output is bounded for the default model path.
+- The database keeps recovery conversations until authenticated deletion. Deletion cascades to turns. Local backups are explicit files with message text and remain under the owner's control. Browser-local removal and cloud deletion have separate effects. Any provider-side retention needs to be confirmed on the selected account.
+- Remote retrieval, tool execution and standalone saved facts are unavailable in this candidate. Hermes requires an isolated tool-restricted gateway and independent validation before the scoped feature flag is set.
+- Live access control at the deployed edge, hosted Supabase isolation, external provider retention, and independent production security sign-off remain open.
