@@ -26,21 +26,14 @@ const SaarthiApp = (() => {
     cost: 0
   };
   const HISTORY_KEY='saarthi.history.v2';
-  const SESSION_KEY='saarthi.session.v1';
-  const getSessionId=()=>{
-    try{
-      let id=localStorage.getItem(SESSION_KEY);
-      if(!id){id=uid();localStorage.setItem(SESSION_KEY,id);}
-      return id;
-    }catch{
-      return uid();
-    }
-  };
   const MAX_CONTEXT_MESSAGES=20;
-  const MAX_THREADS_PER_ASSISTANT=100;
   const MAX_ATTACHMENT_BYTES=1500*1024;
   const MAX_ATTACHMENT_TOTAL_BYTES=1500*1024;
   let sendInFlight=false;
+  let activeController=null;
+  let retryTarget=null;
+  let historySnapshot=null;
+  let historyReadFailed=false;
   const attachmentsByAssistant=Object.create(null);
   const conversations=Object.create(null);
   const currentThreads=Object.create(null);
@@ -57,7 +50,7 @@ const SaarthiApp = (() => {
     if(st)st.textContent=status;
   };
 
-  const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+  const uid=()=>crypto.randomUUID();
   const assistantInfo=id=>ASSISTANTS.find(x=>x.id===id)||ASSISTANTS[0];
   const titleFromMessage=value=>{
     const clean=String(value||'').replace(/\s+/g,' ').trim();
@@ -66,18 +59,44 @@ const SaarthiApp = (() => {
   };
   const loadHistory=()=>{
     try{
-      const parsed=JSON.parse(localStorage.getItem(HISTORY_KEY)||'{}');
+      historySnapshot=localStorage.getItem(HISTORY_KEY);
+      const parsed=JSON.parse(historySnapshot||'{}');
+      for(const threads of Object.values(parsed?.assistants||{})){
+        if(!Array.isArray(threads))continue;
+        for(const thread of threads){
+          if(!Array.isArray(thread?.messages))continue;
+          for(const message of thread.messages){
+            if(message?.state==='pending')message.state='unconfirmed';
+          }
+        }
+      }
       historyState.assistants=parsed&&parsed.assistants&&typeof parsed.assistants==='object'?parsed.assistants:Object.create(null);
-    }catch{historyState.assistants=Object.create(null);}
+    }catch{
+      historyReadFailed=true;
+      showComposerError('Saved history could not be read. Export a copy before clearing browser storage.', 'historyStorageError');
+    }
     return historyState.assistants;
   };
   const saveHistory=()=>{
-    try{localStorage.setItem(HISTORY_KEY,JSON.stringify(historyState));}catch{}
+    try{
+      if(historyReadFailed)throw new Error('Unreadable history');
+      const latest=localStorage.getItem(HISTORY_KEY);
+      if(latest!==historySnapshot){
+        showComposerError('History changed in another tab. Export this tab before reloading to protect your changes.', 'historyStorageError');
+        return;
+      }
+      const updated=JSON.stringify(historyState);
+      localStorage.setItem(HISTORY_KEY,updated);
+      historySnapshot=updated;
+      showComposerError('', 'historyStorageError');
+    }catch{
+      showComposerError('Browser history could not be saved. Keep this tab open and export conversation history.', 'historyStorageError');
+    }
   };
   const ensureAssistantHistory=assistant=>{
     const id=assistantInfo(assistant).id;
     if(!Array.isArray(historyState.assistants[id]))historyState.assistants[id]=[];
-    historyState.assistants[id]=historyState.assistants[id].filter(t=>t&&t.id&&Array.isArray(t.messages)).slice(-MAX_THREADS_PER_ASSISTANT);
+    historyState.assistants[id]=historyState.assistants[id].filter(t=>t&&t.id&&Array.isArray(t.messages));
     return historyState.assistants[id];
   };
   const migrateLegacyConversation=assistant=>{
@@ -90,13 +109,13 @@ const SaarthiApp = (() => {
         const thread={id:uid(),title:titleFromMessage(first?.content),createdAt:first?.at||new Date().toISOString(),updatedAt:new Date().toISOString(),messages:legacy.slice()};
         list.push(thread);saveHistory();return list;
       }
-    }catch{}
+    }catch{showComposerError('Older conversation history could not be read.', 'historyStorageError');}
     return list;
   };
   const ensureThread=(assistant=currentAssistant,create=true)=>{
     const list=migrateLegacyConversation(assistant);
     let thread=list.find(t=>t.id===currentThreads[assistant]);
-    if(!thread&&list.length){thread=list[list.length-1];currentThreads[assistant]=thread.id;}
+    if(!thread&&!create&&list.length){thread=list[list.length-1];currentThreads[assistant]=thread.id;}
     if(!thread&&create){
       thread={id:uid(),title:'New conversation',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:[]};
       list.push(thread);currentThreads[assistant]=thread.id;saveHistory();
@@ -116,21 +135,6 @@ const SaarthiApp = (() => {
     conversations[id]=thread?thread.messages:[];
     return conversations[id];
   };
-  const saveConversation=assistant=>{
-    const thread=ensureThread(assistant,false);
-    if(!thread)return;
-    thread.messages=(conversations[assistant]||[]).slice(-MAX_CONTEXT_MESSAGES);
-    const firstUser=thread.messages.find(m=>m.role==='user');
-    if(firstUser&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(firstUser.content);
-    thread.updatedAt=new Date().toISOString();
-    const list=ensureAssistantHistory(assistant);
-    const index=list.findIndex(t=>t.id===thread.id);
-    if(index>=0)list.splice(index,1);
-    list.push(thread);
-    saveHistory();
-    renderHistory();
-  };
-  const currentConversation=()=>conversations[currentAssistant]||[];
 
   const MENUS = Object.freeze({
     assistants:{label:'Ways I can help',capabilities:['saarthi','coding','research','create','data_analyst','analyze','plan']},
@@ -241,52 +245,17 @@ const SaarthiApp = (() => {
     '/workflow':'workflow','/workflows':'workflows','/briefing':'briefing','/system':'system',
     '/settings':'settings','/voice':'voice'
   });
-  const CANONICAL_API_BASE='https://saarthi-swapneeldalvi3-1192.vercel.app';
-  let API_BASE=CANONICAL_API_BASE;
-  let API_BASES=[CANONICAL_API_BASE];
-  const loadRuntimeConfig=async()=>{
-    try{
-      const response=await fetch('./config/runtime.json?ts='+Date.now(),{cache:'no-store'});
-      if(response.ok){
-        const config=await response.json();
-        const configured=[
-          config.api_base_url,
-          ...(Array.isArray(config.fallback_api_base_urls)?config.fallback_api_base_urls:[])
-        ]
-          .map(value=>String(value||'').replace(/\/$/,''))
-          .filter(Boolean);
-        const sameOrigin=String(window.location.origin||'').replace(/\/$/,'');
-        const sameOriginConfigured=configured.includes(sameOrigin);
-        const approved=[CANONICAL_API_BASE,...configured.filter(value=>value===CANONICAL_API_BASE)];
-        API_BASES=[...new Set(approved.filter(Boolean))];
-        API_BASE=CANONICAL_API_BASE;
-      }
-    }catch{}
+  // Each deployment serves its own API. Static copies retain local history.
+  const apiUrl=path=>new URL(path,window.location.origin).href;
+  const showComposerError=(message, id='composerError')=>{
+    const alert=document.getElementById(id);
+    if(alert){alert.textContent=message;alert.hidden=!message;}
   };
-  const ensureApiBase=async()=>{
-    if(!API_BASES.length)await loadRuntimeConfig();
-    if(!API_BASES.length){
-      API_BASE=CANONICAL_API_BASE;
-      API_BASES=[CANONICAL_API_BASE];
-    }
-    return API_BASE;
-  };
-  const apiUrl=(path,base=API_BASE)=>base+(path.startsWith('/')?path:'/'+path);
-  const checkRuntimeHealth=async(base)=>{
-    const controller=new AbortController();
-    const timeout=window.setTimeout(()=>controller.abort(),5000);
-    try{
-      const response=await fetch(apiUrl('/api/health',base),{
-        method:'GET',
-        cache:'no-store',
-        signal:controller.signal
-      });
-      if(!response.ok)throw new Error('Runtime health '+response.status);
-      const data=await response.json();
-      if(data?.ok!==true)throw new Error('Runtime health check failed');
-      return data;
-    }finally{
-      window.clearTimeout(timeout);
+  const refreshConversation=()=>{
+    try{renderConversation();renderHistory();}
+    catch(error){
+      console.error('Conversation rendering failed',error);
+      showComposerError('A conversation message could not be displayed. Reopen it from history.');
     }
   };
 
@@ -658,10 +627,7 @@ const SaarthiApp = (() => {
         const token='SAARTHIVISUAL'+index+'TOKEN';
         html=html.replaceAll(token,visual||'');
       });
-      const wp=message.workProduct&&typeof message.workProduct==='object'?message.workProduct:null;
-      const isVisualization=/<saarthi-(?:chart|diagram)>/i.test(String(message.content||''));
-      // Work-product metadata stays available to the runtime/history, but it is not shown after every reply.\n      // The conversation should feel like a human exchange; execution detail appears only when explicitly requested.\n      const workProductHtml='';
-      return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+'</div><div class="conversation-content">'+html+workProductHtml+'</div></div>';
+      return '<div class="'+klass+'"><div class="conversation-role">'+escapeHtml(role)+({failed:' · Send failed',cancelled:' · Cancelled',unconfirmed:' · Status unconfirmed',interrupted:' · Interrupted'}[message.state]||'')+'</div><div class="conversation-content">'+html+'</div></div>';
     }).join('');
     const lastAssistant=[...messages].reverse().find(m=>m.role==='assistant');
     const expanded=Boolean(lastAssistant?.showIntelligence);
@@ -704,39 +670,24 @@ const SaarthiApp = (() => {
  return '<section class="work-product"><div class="work-product-head"><div><small>WORK PRODUCT</small><strong>Decision-ready delivery</strong></div><span class="work-product-status">'+status+'</span></div>'+primary+panel+'</section>';
 };
 
-const appendConversation=(role,content,workProduct=null,showIntelligence=false)=>{
+  const appendConversation=(role,content,workProduct=null,showIntelligence=false,target=null)=>{
     if(!content)return;
-    const thread=ensureThread(currentAssistant,true);
-    const messages=thread.messages||[];
+    const assistant=target?.assistant||currentAssistant;
+    const thread=target?.thread||ensureThread(assistant,true);
     const message={role,content:String(content),at:new Date().toISOString()};
     if(role==='assistant'&&workProduct&&typeof workProduct==='object')message.workProduct=workProduct;
-    if(role==='assistant'){
-      messages.forEach(existing=>{if(existing.role==='assistant')existing.showIntelligence=false;});
-      message.showIntelligence=Boolean(showIntelligence);
-    }
-    messages.push(message);
-    conversations[currentAssistant]=messages.slice(-MAX_CONTEXT_MESSAGES);
+    if(role==='assistant')message.showIntelligence=Boolean(showIntelligence);
+    thread.messages.push(message);
     if(role==='user'&&(!thread.title||thread.title==='New conversation'))thread.title=titleFromMessage(content);
-    thread.updatedAt=new Date().toISOString();
-    saveConversation(currentAssistant);
-    renderConversation();
-  };
-  const clearRecoveredRuntimeErrors=()=>{
-    const thread=ensureThread(currentAssistant,true);
-    const messages=Array.isArray(thread.messages)?thread.messages:[];
-    const filtered=messages.filter(message=>!(
-      message?.role==='assistant' &&
-      /^###\\s*Connection issue\\b/i.test(String(message.content||'')) &&
-      /could not reach the cloud runtime/i.test(String(message.content||''))
-    ));
-    if(filtered.length!==messages.length){
-      thread.messages=filtered;
-      conversations[currentAssistant]=filtered.slice(-MAX_CONTEXT_MESSAGES);
-      thread.updatedAt=new Date().toISOString();
-      saveConversation(currentAssistant);
+    thread.updatedAt=message.at;
+    if(assistant===currentAssistant&&currentThreads[assistant]===thread.id){
+      conversations[assistant]=thread.messages;
     }
+    saveHistory();
+    refreshConversation();
+    return message;
   };
-  const showResponse=(reply,result)=>{
+  const showResponse=(reply,result,target)=>{
     const text=String(reply||'');
     const orchestration=result?.orchestration||{};
     const workProduct=result?.work_product||null;
@@ -748,7 +699,8 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       (Array.isArray(orchestration.stages)&&orchestration.stages.length>=6) ||
       ['plan','research','analyze','data_analysis','coding','create'].some(x=>intent.toLowerCase().includes(x))
     );
-    appendConversation('assistant',text,workProduct,complex);
+    appendConversation('assistant',text,workProduct,complex,target);
+    if(target&&(target.assistant!==currentAssistant||target.thread.id!==currentThreads[currentAssistant]))return;
     document.body.classList.toggle('intelligence-expanded',complex);
     if(!complex){
       const flow=document.getElementById('intelligenceFlow');
@@ -824,7 +776,12 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     ).join('');
     const markup='<div class="history-head"><div><small>CONVERSATIONS</small><b>'+escapeHtml(assistantInfo(currentAssistant).name)+'</b></div><button type="button" class="history-new" aria-label="New conversation">＋</button></div><div class="history-search"><span>⌕</span><input type="search" placeholder="Search conversations…" aria-label="Search conversations"></div><div class="history-list">'+(rows||'<div class="history-empty">No conversations yet.</div>')+'</div>';
     const bind=box=>{
-      box.innerHTML=markup;
+      box.innerHTML=markup+'<div class="history-actions"><button type="button" data-export-history>Export backup</button> <button type="button" data-import-history>Import backup</button> <button type="button" data-restore-history>Restore from cloud</button><input type="file" accept=".json,application/json" data-history-file hidden></div>';
+      const file=box.querySelector('[data-history-file]');
+      box.querySelector('[data-export-history]').addEventListener('click',exportHistory);
+      box.querySelector('[data-import-history]').addEventListener('click',()=>file.click());
+      box.querySelector('[data-restore-history]').addEventListener('click',restoreCloudHistory);
+      file.addEventListener('change',()=>importHistory(file.files[0]));
       box.querySelector('.history-new')?.addEventListener('click',startNewConversation);
       box.querySelector('.history-search input')?.addEventListener('input',e=>{
         const q=e.target.value.trim().toLowerCase();
@@ -855,11 +812,12 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
     const thread=list.find(t=>t.id===threadId);
     if(!thread)return;
     currentThreads[currentAssistant]=thread.id;
-    conversations[currentAssistant]=thread.messages.slice(-MAX_CONTEXT_MESSAGES);
-    saveHistory();
+    conversations[currentAssistant]=thread.messages;
     closePickers();
     renderConversation();
     renderHistory();
+    const mobile=$('#mobileHistory');
+    if(mobile)mobile.hidden=true;
     window.scrollTo({top:0,behavior:'smooth'});
     command?.focus();
   };
@@ -893,7 +851,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
       const action=btn.dataset.controlAction;
       if(action==='history'){closePickers();openHistory();return;}
       if(action==='clear-current'){if(confirm('Clear the current conversation?'))window.SaarthiApp.clearConversation();renderControlCenter();return;}
-      if(action==='clear-history'){if(confirm('Clear all locally stored SAARTHI conversation history?')){localStorage.removeItem(HISTORY_KEY);historyState.assistants=Object.create(null);Object.keys(conversations).forEach(k=>{conversations[k]=[];currentThreads[k]=null;});document.body.classList.remove('chat-active');renderConversation();renderHistory();renderControlCenter();}return;}
+      if(action==='clear-history'){if(confirm('Clear all locally stored SAARTHI conversation history?')){localStorage.removeItem(HISTORY_KEY);historySnapshot=null;historyReadFailed=false;historyState.assistants=Object.create(null);Object.keys(conversations).forEach(k=>{conversations[k]=[];currentThreads[k]=null;});document.body.classList.remove('chat-active');renderConversation();renderHistory();renderControlCenter();}return;}
       if(action==='notifications'){if('Notification' in window){try{await Notification.requestPermission();}catch{}renderControlCenter();}}
     }));
     try{
@@ -1041,179 +999,216 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
 
   const parseCommand=value=>{const token=value.trim().split(/\s+/)[0].toLowerCase();return COMMANDS[token]||'chat';};
 
-  const apiCommand=async(value,mode)=>{
-    await ensureApiBase();
-    const context={
-      client_time:new Date().toISOString(),
-      timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
-      locale:navigator.language||'en-IN',
-      industry:null,
-      conversation:currentConversation().map(({role,content})=>({role,content})),
-      attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
-    };
-    let lastError=null;
-    for(const base of API_BASES){
-      try{
-        const thread=ensureThread(currentAssistant,true);
-        const payload=JSON.stringify({
+  const apiCommand=async(value,mode,target)=>{
+    const controller=new AbortController();
+    activeController=controller;
+    const timeout=window.setTimeout(()=>controller.abort('deadline'),32000);
+    try{
+      const response=await fetch(apiUrl('/api/command'),{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        signal:controller.signal,
+        redirect:'error',
+        body:JSON.stringify({
           message:value,
           mode,
-          // Saarthi is the single user-facing entry point. Internal capability
-          // routing is always decided by the server from the objective.
           assistant:'saarthi',
-          conversation_id:thread?.id||null,
-          session_id:getSessionId(),
-          context
-        });
-        const target=new URL('/api/command',base);
-        const crossOrigin=target.origin!==window.location.origin;
-        const endpoint=crossOrigin?'/api/command/plain':'/api/command';
-        const controller=new AbortController();
-        const response=await Promise.race([
-          fetch(apiUrl(endpoint,base),{
-            method:'POST',
-            headers:{'Content-Type':crossOrigin?'text/plain':'application/json'},
-            body:payload,
-            signal:controller.signal
-          }),
-          new Promise((_,reject)=>window.setTimeout(()=>{
-            controller.abort();
-            reject(new Error('Cloud request timed out after 28 seconds'));
-          },28000))
-        ]);
-        if(!response.ok){
-          lastError=new Error('API '+response.status+' from '+base);
-          continue;
-        }
-        API_BASE=base;
-        return await Promise.race([
-          response.json(),
-          new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('Cloud response timed out')),3000))
-        ]);
-      }catch(error){
-        lastError=error;
+          conversation_id:target.thread.id,
+          turn_id:target.turnId,
+          engine:target.engine,
+          context:target.context
+        })
+      });
+      if(response.status===404||response.status===405){
+        throw new Error('Chat is unavailable on this host. Export local history before moving to a configured SAARTHI deployment.');
       }
-    }
-    throw lastError||new Error('No cloud runtime configured');
-  };
-
-  const runCommand=async(value,mode)=>{
-    updateIntelligenceFlow('running');
-    setStatus('Routing…');setCoreState('routing','Request received.');await new Promise(r=>setTimeout(r,90));
-    setStatus('Understanding…');setCoreState('understanding','Separating intent from noise.');
-    const request=apiCommand(value,mode);await new Promise(r=>setTimeout(r,120));
-    setStatus('Planning…');setCoreState('planning','Building an execution path.');
-    const requestDeadline=new Promise((_,reject)=>window.setTimeout(
-      ()=>reject(new Error('SAARTHI stopped the request safely because the cloud runtime did not respond.')),32000
-    ));
-    const result=await Promise.race([request,requestDeadline]);
-    if(!result?.ok)throw new Error('SAARTHI runtime rejected the command');
-    clearRecoveredRuntimeErrors();
-    const intent=result?.intent?.name||mode;setStatus('Verifying…');setCoreState('verifying','Checking the execution result.');
-    await new Promise(r=>setTimeout(r,120));
-    runs.unshift({id:result.run_id,intent,provider:result.provider,at:new Date().toISOString(),message:value});runs.splice(20);
-    setStatus('Ready');setCoreState('ready','Saarthi has a response.');
-    updateIntelligenceFlow('complete',result);
-    addActivity('Run completed',result.run_id+' · '+intent+' · '+result.provider);
-    showResponse(result.reply,result);
-    return result;
-  };
-
-  let submitWatchdog=null;
-  const resetComposerState=(button)=>{
-    if(submitWatchdog){window.clearTimeout(submitWatchdog);submitWatchdog=null;}
-    if(command)command.disabled=false;
-    if(button){button.disabled=false;button.removeAttribute('aria-busy');button.textContent='➤';}
-    sendInFlight=false;
-  };
-
-  const submit=async()=>{
-    // The send action is intentionally independent of button styling/form quirks.
-    // Keep the guard inside the handler so every invocation has a deterministic recovery path.
-    const value=command?.value.trim();
-    if(!value||sendInFlight)return;
-    sendInFlight=true;
-    let completed=false;
-    const sendButton=$('#sendCommand');
-
-    // Put the user's message into the durable conversation immediately.
-    // The UI must never depend on the AI response arriving before showing it.
-    const mode=parseCommand(value);
-    try {
-      appendConversation('user',value);
-    } catch(error) {
-      sendInFlight=false;
-      setStatus('Ready');
-      setCoreState('ready','Composer recovered. Please try again.');
-      addActivity('Composer recovered',String(error?.message||'Unable to save message locally.'));
-      return;
-    }
-    if(command)command.value='';
-
-    if(sendButton){
-      sendButton.disabled=true;
-      sendButton.setAttribute('aria-busy','true');
-      sendButton.textContent='…';
-    }
-
-    submitWatchdog=window.setTimeout(()=>{
-      if(!sendInFlight)return;
-      resetComposerState(sendButton);
-      setStatus('Connection issue');
-      setCoreState('offline','The request exceeded the client safety deadline.');
-      updateIntelligenceFlow('idle');
-      // The user message is already persisted. Do not replace or remove it.
-      showResponse(
-        '### Connection issue\\n\\nSAARTHI could not complete this request within the safe response window. Your message is still in this conversation. You can send it again.',
-        {intent:{name:'runtime'},provider:'timeout'}
-      );
-    },28000);
-
-    try{
-      addActivity('Command received',currentAssistant+' · '+mode+' · '+value.replace(/^\/\w+\s*/,''));
-      const result=await Promise.race([
-        runCommand(value,mode),
-        new Promise((_,reject)=>window.setTimeout(
-          ()=>reject(new Error('SAARTHI request deadline reached')),
-          30000
-        ))
-      ]);
-      completed=true;
-      if(mode==='voice'||window.SaarthiApp.voiceTurn)speak(result.reply);
+      if(response.status===401){if(!$('#sessionDialog')?.open)$('#sessionDialog')?.showModal();throw new Error('Sign in, then check or retry this turn.');}
+      if(response.status===403)throw new Error('This deployment rejected the request origin.');
+      if(response.status===429)throw new Error('Request limit reached. Wait and try again.');
+      if(!response.ok)throw new Error('Chat request failed (HTTP '+response.status+'). Try again.');
+      const result=await response.json();
+      if(!result.ok){
+        const error=new Error(result.reply||'Chat could not complete.');
+        error.terminal=!['turn_pending','storage_unavailable'].includes(result.error_code);
+        throw error;
+      }
+      if(typeof result.reply!=='string'||!result.reply.trim())throw new Error('The server returned an empty reply. Try again.');
+      if(result.turn_id&&result.turn_id!==target.turnId)throw new Error('The response could not be matched to this turn.');
+      return result;
     }catch(error){
-      updateIntelligenceFlow('idle');
-      const detail=String(error?.message||'Cloud runtime unavailable.');
-      const isHealthFailure=/Runtime health|Failed to fetch|NetworkError|aborted|AbortError/i.test(detail);
-      setStatus(isHealthFailure?'Cloud unavailable':'Connection issue');
-      setCoreState('offline',isHealthFailure?'Cloud runtime is unreachable.':'Cloud runtime request failed.');
-      addActivity('Run failed',detail);
-
-      // Never discard the user's message on failure. Keep the exact text in
-      // history and make the recovery state an assistant message.
-      showResponse(
-        isHealthFailure
-          ? '### Cloud runtime unavailable\\n\\nSAARTHI could not reach the cloud runtime. Your message is safely stored in this conversation. Please try sending it again.'
-          : '### Connection issue\\n\\nSAARTHI could not complete this request. Your message is safely stored in this conversation. Please try again.',
-        {intent:{name:'runtime'},provider:'unavailable'}
-      );
+      if(controller.signal.aborted)throw new Error(controller.signal.reason==='cancel'?'Cancellation requested. Check the turn to confirm its server state.':'The connection timed out. Check this turn before sending it again.');
+      if(error instanceof TypeError)throw new Error('Could not reach this deployment. Check your connection and try again.');
+      throw error;
     }finally{
-      window.SaarthiApp.voiceTurn=false;
-      // Do not clear the input here. It was cleared only after being
-      // durably appended above, so the composer is never responsible for
-      // conversation persistence.
-      resetComposerState(sendButton);
-      if(completed)setTimeout(()=>setStatus('Saarthi is present'),1200);
+      window.clearTimeout(timeout);
+      activeController=null;
     }
+  };
+
+  const submit=async({spoken=false,retry=false}={})=>{
+    const value=command?.value.trim();
+    if((!retry&&!value)||(retry&&!retryTarget)||sendInFlight)return;
+    sendInFlight=true;
+    const button=$('#sendCommand');
+    const cancel=$('#cancelTurn');
+    const retryButton=$('#retryTurn');
+    showComposerError('');
+    if(retryButton)retryButton.hidden=true;
+    if(cancel)cancel.hidden=false;
+    if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
+    let target=retry?retryTarget:null;
+    try{
+      if(!target){
+        const mode=parseCommand(value);
+        target={
+          value,mode,spoken,engine:$('#chatEngine')?.value||'default',
+          assistant:currentAssistant,
+          thread:ensureThread(currentAssistant,true),
+          turnId:uid(),
+          context:{
+            client_time:new Date().toISOString(),
+            timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
+            locale:navigator.language||'en-IN',
+            attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
+          }
+        };
+        target.message=appendConversation('user',value,null,false,target);
+        Object.assign(target.message,{turnId:target.turnId,state:'pending'});
+        command.value='';
+      }
+      retryTarget=target;
+      target.message.state='pending';
+      saveHistory();
+      setStatus('Thinking…');
+      updateIntelligenceFlow('running');
+      const result=await apiCommand(target.value,target.mode,target);
+      target.message.state='completed';
+      showResponse(result.reply,result,target);
+      retryTarget=null;
+      const intent=result.intent?.name||target.mode;
+      runs.unshift({id:result.run_id,intent,provider:result.provider,at:new Date().toISOString(),message:target.value});runs.splice(20);
+      setStatus('Ready');
+      updateIntelligenceFlow('complete',result);
+      if(target.spoken||target.mode==='voice')speak(result.reply);
+    }catch(error){
+      if(target?.message?.state==='pending'){
+        target.message.state=error.terminal?'failed':'unconfirmed';
+        if(error.terminal)retryTarget=null;
+        saveHistory();refreshConversation();
+      }
+      setStatus('Request failed');
+      updateIntelligenceFlow('idle');
+      showComposerError(String(error?.message||'Chat could not complete. Try again.'));
+    }finally{
+      sendInFlight=false;
+      if(button){button.disabled=false;button.removeAttribute('aria-busy');}
+      if(retryButton)retryButton.hidden=!retryTarget;
+      if(cancel)cancel.hidden=true;
+    }
+  };
+
+  const exportHistory=()=>{
+    ASSISTANTS.forEach(item=>migrateLegacyConversation(item.id));
+    const blob=new Blob([JSON.stringify({version:2,...historyState},null,2)],{type:'application/json'});
+    const link=document.createElement('a');
+    link.href=URL.createObjectURL(blob);
+    link.download='saarthi-conversations.json';
+    link.click();
+    window.setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  };
+  const importHistory=async file=>{
+    if(!file||sendInFlight)return;
+    try{
+      if(file.size>10_000_000)throw new Error('Backup exceeds 10 MB.');
+      const data=JSON.parse(await file.text());
+      if(data.version!==2||!data.assistants||typeof data.assistants!=='object')throw new Error('Choose a SAARTHI conversation backup.');
+      const restored=Object.create(null);
+      for(const item of ASSISTANTS){
+        const threads=data.assistants[item.id]||[];
+        if(!Array.isArray(threads))throw new Error('Invalid conversation list.');
+        restored[item.id]=threads.map(thread=>{
+          if(!thread||!/^[a-zA-Z0-9_-]{1,100}$/.test(thread.id)||!Array.isArray(thread.messages))throw new Error('Invalid conversation record.');
+          const messages=thread.messages.map(message=>{
+            if(!message||!['user','assistant'].includes(message.role)||typeof message.content!=='string')throw new Error('Invalid message record.');
+            return {...message,state:message.state==='pending'?'unconfirmed':message.state};
+          });
+          return {...thread,messages};
+        });
+      }
+      for(const item of ASSISTANTS){
+        const local=ensureAssistantHistory(item.id);
+        for(const thread of restored[item.id]){
+          const existing=local.find(candidate=>candidate.id===thread.id);
+          if(!existing)local.push(thread);
+          else if(JSON.stringify(existing.messages)!==JSON.stringify(thread.messages))local.push({...thread,id:uid()});
+        }
+      }
+      saveHistory();renderHistory();
+    }catch(error){showComposerError(error.message);}
+  };
+  const restoreCloudHistory=async()=>{
+    if(sendInFlight)return;
+    const fetchHistory=async path=>{
+      const response=await fetch(apiUrl(path),{redirect:'error',signal:AbortSignal.timeout(10000)});
+      if(response.status===401){if(!$('#sessionDialog')?.open)$('#sessionDialog')?.showModal();throw new Error('Sign in, then select Restore from cloud again.');}
+      if(!response.ok)throw new Error('Cloud history is unavailable.');
+      return response.json();
+    };
+    try{
+      let offset=0;
+      const restored=[];
+      do{
+        const page=await fetchHistory('/api/conversations?offset='+offset);
+        for(const item of page.conversations){
+          let after=0;
+          const messages=[];
+          do{
+            const history=await fetchHistory('/api/conversations/'+encodeURIComponent(item.id)+'/messages?after='+after);
+            for(const turn of history.turns){
+              messages.push({role:'user',content:turn.message,at:turn.created_at,turnId:turn.turn_id,
+                state:turn.state==='pending'?'unconfirmed':turn.state});
+              if(turn.state==='completed'&&turn.result?.reply){
+                messages.push({role:'assistant',content:turn.result.reply,at:turn.created_at,workProduct:turn.result.work_product});
+              }
+            }
+            after=history.next_after;
+          }while(after!==null);
+          restored.push({id:item.id,title:item.title,updatedAt:item.updated_at,messages});
+        }
+        offset=page.next_offset;
+      }while(offset!==null);
+      if(sendInFlight)throw new Error('Finish the active turn before restoring history.');
+      const local=ensureAssistantHistory('saarthi');
+      for(const thread of restored){
+        const index=local.findIndex(candidate=>candidate.id===thread.id);
+        if(index===-1){local.push(thread);continue;}
+        const old=local[index];
+        if(old.messages.filter(message=>message.role==='user').every(message=>
+          thread.messages.some(server=>server.turnId&&server.turnId===message.turnId))){
+          local[index]=thread;
+          if(currentThreads.saarthi===thread.id)conversations.saarthi=thread.messages;
+        }else{
+          // Keep pre-recovery browser messages available when cloud data is newer.
+          const backupId=uid();
+          local[index]=thread;
+          local.push({...old,id:backupId,title:old.title+' (local copy)'});
+          if(currentThreads.saarthi===thread.id)currentThreads.saarthi=backupId;
+        }
+      }
+      saveHistory();refreshConversation();
+      setStatus('Cloud conversations restored');
+    }catch(error){showComposerError(error.message||'Cloud history could not be restored.');}
   };
 
   const voice=()=>{
     const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SpeechRecognition){addActivity('Voice unavailable','This browser does not expose speech recognition.');return;}
+    if(!SpeechRecognition){showComposerError('Voice recognition is unavailable in this browser. Type your message to continue.');return;}
     const recognition=new SpeechRecognition();recognition.lang='en-IN';recognition.interimResults=false;recognition.maxAlternatives=1;
-    window.SaarthiApp.voiceTurn=true;recognition.onstart=()=>setStatus('Listening…');
-    recognition.onresult=e=>{ask(e.results[0][0].transcript);setStatus('Command ready');submit();};
-    recognition.onerror=()=>{window.SaarthiApp.voiceTurn=false;setStatus('Saarthi is present');};
-    recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};recognition.start();
+    recognition.onstart=()=>setStatus('Listening…');
+    recognition.onresult=e=>{if(!sendInFlight){ask(e.results[0][0].transcript);submit({spoken:true});}};
+    recognition.onerror=event=>{setStatus('Ready');showComposerError(event.error==='not-allowed'?'Microphone permission was denied. Allow it in browser settings or type your message.':'Voice recognition failed. Try again or type your message.');};
+    recognition.onend=()=>{if(status&&status.textContent==='Listening…')setStatus('Saarthi is present');};
+    try{recognition.start();}catch{showComposerError('The microphone could not start. Try again or type your message.');}
   };
 
   setAutonomousContext('Saarthi will determine the capability, industry and workflow from your objective.','AUTO');
@@ -1240,7 +1235,7 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   requestAnimationFrame(enforceFreshHomeSurface);
   window.setTimeout(enforceFreshHomeSurface,250);
 
-  updateClock();setInterval(updateClock,1000);loadRuntimeConfig();ensureAttachmentControls();
+  updateClock();setInterval(updateClock,1000);ensureAttachmentControls();
   document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>ask(button.dataset.command)));
   // Specialist capabilities are intentionally not user-selectable.
   // Saarthi owns routing; capability selection remains an internal server decision.
@@ -1255,20 +1250,34 @@ const appendConversation=(role,content,workProduct=null,showIntelligence=false)=
   }
   $('#assistantSelector')?.addEventListener('click',()=>renderPicker('assistants'));
   document.addEventListener('click',event=>{if(!event.target.closest('.menu-picker,.assistant-picker,.control-picker,[data-menu],#settingsButton,#mobileControlButton,#assistantSelector'))closePickers();});
-  // Explicit button activation is the primary mobile send path. Prevent the
-  // browser's default form submit here, then keep native submit for Enter.
-  // submitInFlight is set synchronously inside submit(), preventing duplicates.
-  const sendButton=$('#sendCommand');
-  sendButton?.addEventListener('click',event=>{
-    event.preventDefault();
-    event.stopPropagation();
-    submit();
-  });
   composerForm?.addEventListener('submit',event=>{
     event.preventDefault();
-    event.stopPropagation();
     submit();
   });
+  $('#privateSignIn')?.addEventListener('click',()=>$('#sessionDialog')?.showModal());
+  $('#closeSessionDialog')?.addEventListener('click',()=>$('#sessionDialog')?.close());
+  $('#cancelTurn')?.addEventListener('click',()=>activeController?.abort('cancel'));
+  $('#retryTurn')?.addEventListener('click',()=>submit({retry:true}));
+  $('#sessionForm')?.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const password=$('#ownerPassword');
+    const submitButton=event.currentTarget.querySelector('[type=submit]');
+    if(submitButton.disabled)return;
+    submitButton.disabled=true;
+    showComposerError('','sessionError');
+    try{
+      const response=await fetch(apiUrl('/api/session/login'),{
+        method:'POST',headers:{'Content-Type':'application/json'},redirect:'error',
+        signal:AbortSignal.timeout(8000),body:JSON.stringify({password:password.value})
+      });
+      if(!response.ok)throw new Error(response.status===401?'Sign-in failed. Check the password.':'Private sign-in is unavailable on this deployment.');
+      $('#sessionDialog').close();
+      setStatus('Signed in');
+    }catch(error){showComposerError(error.message,'sessionError');}
+    finally{password.value='';submitButton.disabled=false;}
+  });
+  fetch(apiUrl('/api/health'),{redirect:'error',signal:AbortSignal.timeout(5000)}).then(response=>response.json())
+    .then(data=>{const selector=$('#chatEngine');if(selector&&data.hermes?.enabled)selector.hidden=false;}).catch(()=>{});
   $('#voiceCommand')?.addEventListener('click',event=>{event.preventDefault();voice();});
   window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();selectMenu('command');command?.focus();}});
 

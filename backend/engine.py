@@ -18,7 +18,10 @@ from .analysis_engine import analyze_text
 from .research import research
 from .work_product import build_work_product
 from .verification import verify_run
-from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+from .execution import stage, timings
 
 
 def _requested_chart_type(message: str) -> str | None:
@@ -508,6 +511,13 @@ def analyze_attachments_for_data(attachments: list[dict[str, Any]]) -> dict[str,
     return {"datasets": datasets, "dataset_count": len(datasets)}
 
 
+class NoProviderRedirect(HTTPRedirectHandler):
+    """Keep authorization headers on the configured provider origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class OpenAICompatibleProvider(LLMProvider):
     """OpenAI-compatible gateway with ordered routes and automatic failover.
 
@@ -541,7 +551,7 @@ class OpenAICompatibleProvider(LLMProvider):
             configured_timeout = float(os.getenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "10"))
         except (TypeError, ValueError):
             configured_timeout = 10.0
-        self.request_timeout = min(12.0, max(3.0, configured_timeout))
+        self.request_timeout = min(7.0 if timings.get() is not None else 12.0, max(3.0, configured_timeout))
         self.last_route = routes[0].get("name", "unknown") if routes else "unavailable"
         self.last_failures: list[dict[str, str]] = []
 
@@ -569,7 +579,8 @@ class OpenAICompatibleProvider(LLMProvider):
         mcp_tools = []
         try:
             from .mcp_runtime import openai_tool_definitions, call_tool
-            mcp_tools = openai_tool_definitions()
+            if timings.get() is None:
+                mcp_tools = openai_tool_definitions()
         except Exception:
             call_tool = None
 
@@ -588,7 +599,15 @@ class OpenAICompatibleProvider(LLMProvider):
                 method="POST",
             )
             timeout = min(self.request_timeout, 6.0) if mcp_tools else self.request_timeout
-            with urlopen(request, timeout=timeout) as response:
+            open_request = urlopen
+            if timings.get() is not None:
+                target = urlsplit(route["url"])
+                if target.scheme != "https" or not target.hostname or target.username or target.password or target.query or target.fragment:
+                    raise ValueError("provider endpoint is invalid")
+                payload["max_tokens"] = 3000
+                request.data = json.dumps(payload).encode()
+                open_request = build_opener(NoProviderRedirect()).open
+            with open_request(request, timeout=timeout) as response:
                 body = json.loads(response.read().decode("utf-8"))
             choice = body.get("choices", [{}])[0].get("message", {}) if isinstance(body, dict) else {}
             usage = body.get("usage") if isinstance(body, dict) else None
@@ -627,7 +646,7 @@ class OpenAICompatibleProvider(LLMProvider):
         # Retrieval failures degrade gracefully and never block ordinary chat.
         try:
             from .rag import context_for_query
-            if not context.get("knowledge_evidence"):
+            if timings.get() is None and not context.get("knowledge_evidence"):
                 evidence = context_for_query(message, limit=5)
                 if evidence:
                     context["knowledge_evidence"] = evidence
@@ -759,7 +778,10 @@ class OpenAICompatibleProvider(LLMProvider):
         failures: list[dict[str, str]] = []
         for route in self.routes[:2]:
             try:
-                reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
+                with stage(f"provider_attempt_{len(failures) + 1}"):
+                    reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
+                if not reply:
+                    raise ValueError("empty provider response")
                 chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
                 sample_requested = bool(re.search(r"\b(sample|synthetic|example|demo)\b", message, re.IGNORECASE))
                 dashboard_requested = bool(re.search(r"\b(kpi|dashboard)\b", message, re.IGNORECASE))
@@ -793,7 +815,8 @@ class OpenAICompatibleProvider(LLMProvider):
                 self.last_failures = failures
                 return reply, usage
             except Exception as exc:
-                failures.append({"route": route.get("name", route.get("model", "unknown")), "error": str(exc)[:240]})
+                code = "rate_limited" if isinstance(exc, HTTPError) and exc.code == 429 else "timeout" if isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError) else "unavailable"
+                failures.append({"route": route.get("name", "unknown"), "error": code})
         self.last_failures = failures
         detail = "; ".join(
             f"{item.get('route', 'unknown')}: {item.get('error', 'failed')}"
@@ -1013,16 +1036,18 @@ class SaarthiEngine:
         assistant_id = str(assistant or "saarthi").lower()
         if assistant_id not in ASSISTANT_PROFILES:
             assistant_id = "saarthi"
-        intent = classify(message, mode)
-        plan = build_plan(intent)
-        orchestration = build_orchestration(assistant_id, intent, message, ctx)
+        with stage("routing"):
+            intent = classify(message, mode)
+            plan = build_plan(intent)
+            orchestration = build_orchestration(assistant_id, intent, message, ctx)
         internal_specialist = str(orchestration.get("internal_specialist") or "").strip().lower()
         execution_assistant = internal_specialist if assistant_id == "saarthi" and internal_specialist in ASSISTANT_PROFILES else assistant_id
         if execution_assistant == "data_analyst":
             plan = [PlanStep("profile", "Profile supplied data"), PlanStep("validate", "Validate data quality"), PlanStep("analyze", "Calculate and analyze"), PlanStep("visualize", "Create requested visualization"), PlanStep("respond", "Explain findings")]
         tool_results: dict[str, Any] = {}
         if execution_assistant == "data_analyst":
-            inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
+            with stage("attachment_inspection"):
+                inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             tool_results["data.profile"] = analyze_attachments_for_data(inspected)
             datasets = tool_results["data.profile"].get("datasets", [])
             if datasets:
@@ -1050,7 +1075,8 @@ class SaarthiEngine:
                     tool_results["data.charts"] = recommend_visuals(dataset["columns"], dataset["rows"])
 
         if execution_assistant == "analyze":
-            inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
+            with stage("attachment_inspection"):
+                inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             texts = []
             for item in inspected:
                 if isinstance(item, dict) and item.get("text"):
@@ -1195,6 +1221,15 @@ class SaarthiEngine:
             else:
                 reply = fallback_response(message, intent, tool_results, assistant_id)
         except Exception as exc:
+            if timings.get() is not None:
+                errors = {entry["error"] for entry in self.cloud.last_failures}
+                code = {
+                    frozenset({"rate_limited"}): "provider_rate_limited",
+                    frozenset({"timeout"}): "provider_timeout",
+                }.get(frozenset(errors), "provider_unavailable")
+                return {"ok": False, "run_id": run_id, "provider": "unavailable", "error_code": code,
+                        "execution": code, "reply": "The model could not complete your request. Start a new turn to try again.",
+                        "verification": {"verified": False}}
             provider_name = "deterministic-fallback"
             reply = fallback_response(message, intent, tool_results, assistant_id)
             if intent.name == "chat":
@@ -1226,7 +1261,7 @@ class SaarthiEngine:
             "route": self.cloud.last_route if self.cloud.configured else None,
             "failover": self.cloud.last_failures if self.cloud.configured else [],
             "usage": usage,
-            "execution": "completed",
+            "execution": "degraded" if provider is None and timings.get() is not None else "completed",
             "tool_results": tool_results,
             "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
             "work_product": build_work_product(

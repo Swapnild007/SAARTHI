@@ -5,8 +5,11 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
+
+import httpx
 from urllib.request import Request, urlopen
 import json
+from urllib.parse import urlsplit
 
 
 class CloudStore:
@@ -130,6 +133,69 @@ class CloudStore:
             query=f"user_id=eq.{user_id}&select=id,memory_type,content,importance,created_at,updated_at&order=updated_at.desc&limit={max(1,min(limit,100))}",
         )
         return rows if isinstance(rows, list) else []
+
+
+    async def recovery_request(
+        self, path: str, *, method: str = "GET", payload: Any = None, params: dict | None = None,
+    ) -> Any:
+        if not self.configured:
+            raise RuntimeError("Conversation storage is unavailable")
+        parsed = urlsplit(self.url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
+            raise RuntimeError("Conversation storage URL is invalid")
+        async with httpx.AsyncClient(timeout=2.0, follow_redirects=False) as client:
+            response = await client.request(
+                method, f"{self.url}/rest/v1/{path}", json=payload, params=params,
+                headers={
+                    "apikey": self.key, "Authorization": f"Bearer {self.key}",
+                    "Prefer": "return=representation",
+                },
+            )
+            if not response.is_success:
+                raise RuntimeError("Conversation storage rejected the operation")
+            return response.json() if response.content else None
+
+    async def check_scope(self, environment: str) -> None:
+        rows = await self.recovery_request("saarthi_scope", params={"select": "environment"})
+        if rows != [{"environment": environment}]:
+            raise RuntimeError("Conversation storage belongs to another environment")
+
+    async def begin_turn(self, owner: str, thread: str, turn: str, message: str, fingerprint: str, limit: int) -> dict:
+        return await self.recovery_request("rpc/saarthi_begin_turn", method="POST", payload={
+            "p_owner": owner, "p_conversation": thread, "p_turn": turn,
+            "p_message": message, "p_fingerprint": fingerprint, "p_daily_limit": limit,
+        })
+
+    async def finish_turn(self, owner: str, turn: str, state: str, result: dict) -> bool:
+        rows = await self.recovery_request(
+            "saarthi_turns", method="PATCH",
+            params={"owner": f"eq.{owner}", "turn_id": f"eq.{turn}", "state": "eq.pending"},
+            payload={"state": state, "result": result},
+        )
+        return bool(rows)
+
+    async def recent_turns(self, owner: str, thread: str) -> list[dict]:
+        return await self.recovery_request("saarthi_turns", params={
+            "owner": f"eq.{owner}", "conversation_id": f"eq.{thread}", "state": "eq.completed",
+            "select": "message,result", "order": "seq.desc", "limit": 10,
+        })
+
+    async def recovery_threads(self, owner: str, offset: int, limit: int) -> list[dict]:
+        return await self.recovery_request("saarthi_threads", params={
+            "owner": f"eq.{owner}", "select": "id,title,updated_at", "order": "updated_at.desc,id",
+            "limit": limit, "offset": offset,
+        })
+
+    async def recovery_turns(self, owner: str, thread: str, after: int, limit: int) -> list[dict]:
+        return await self.recovery_request("saarthi_turns", params={
+            "owner": f"eq.{owner}", "conversation_id": f"eq.{thread}", "seq": f"gt.{after}",
+            "select": "turn_id,seq,message,state,result,created_at", "order": "seq.asc", "limit": limit,
+        })
+
+    async def update_thread(self, owner: str, thread: str, title: str | None) -> bool:
+        rows = await self.recovery_request("saarthi_threads", method="PATCH" if title else "DELETE",
+            params={"owner": f"eq.{owner}", "id": f"eq.{thread}"}, payload={"title": title} if title else None)
+        return bool(rows)
 
 
 def store_status(store: CloudStore) -> dict[str, Any]:
