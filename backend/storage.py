@@ -174,6 +174,12 @@ class CloudStore:
         )
         return bool(rows)
 
+    async def turn_result(self, owner: str, turn: str) -> dict | None:
+        rows = await self.recovery_request("saarthi_turns", params={
+            "owner": f"eq.{owner}", "turn_id": f"eq.{turn}", "select": "state,result", "limit": 1,
+        })
+        return rows[0] if rows else None
+
     async def recent_turns(self, owner: str, thread: str) -> list[dict]:
         return await self.recovery_request("saarthi_turns", params={
             "owner": f"eq.{owner}", "conversation_id": f"eq.{thread}", "state": "eq.completed",

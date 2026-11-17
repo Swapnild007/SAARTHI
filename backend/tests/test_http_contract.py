@@ -44,10 +44,14 @@ def deployment(monkeypatch):
                 if uid == owner and row["thread"] == thread and row["state"] == "completed"][:10]
 
     async def finish(owner, turn, state, result):
-        row = turns[owner, turn]
-        assert row["state"] == "pending"
+        row = turns.get((owner, turn))
+        if not row or row["state"] != "pending":
+            return False
         row.update(state=state, result=dict(result))
         return True
+
+    async def turn_result(owner, turn):
+        return turns.get((owner, turn))
 
     async def worker(payload, budget):
         calls.append(payload)
@@ -55,7 +59,7 @@ def deployment(monkeypatch):
         return {"ok": True, "reply": "Echo: " + payload["message"], "provider": "fixture",
                 "execution": "completed", "verification": {"verified": True}}
 
-    for name, func in {"check_scope": check_scope, "begin_turn": begin, "recent_turns": recent, "finish_turn": finish}.items():
+    for name, func in {"check_scope": check_scope, "begin_turn": begin, "recent_turns": recent, "finish_turn": finish, "turn_result": turn_result}.items():
         monkeypatch.setattr(app_module.store, name, func)
     monkeypatch.setattr(app_module, "run_turn", worker)
     return client, turns, calls
@@ -200,6 +204,8 @@ def test_different_owner_cannot_read_or_delete_thread(deployment, monkeypatch):
     login(client)
     assert client.get("/api/conversations/mine/messages").json()["turns"] == []
     assert client.delete("/api/conversations/mine").status_code == 404
+    turn = next(iter(deployment[1]))[1]
+    assert client.post(f"/api/turns/{turn}/cancel").status_code == 409
 
 
 def test_unconfigured_hermes_keeps_default_chat_working(deployment):
@@ -210,6 +216,15 @@ def test_unconfigured_hermes_keeps_default_chat_working(deployment):
     assert not calls
     assert client.post("/api/command", json={"message": "Hello"}).json()["ok"]
     assert len(calls) == 1
+
+
+def test_unverified_external_action_stays_disabled(deployment):
+    client, turns, calls = deployment
+    login(client)
+    result = client.post("/api/command", json={"message": "/remind tomorrow", "mode": "remind"}).json()
+    assert result["error_code"] == "action_unavailable"
+    assert result["verification"]["verified"] is False
+    assert not turns and not calls
 
 
 def test_provider_request_timeout_is_bounded(monkeypatch):

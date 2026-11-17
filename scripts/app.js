@@ -31,6 +31,7 @@ const SaarthiApp = (() => {
   const MAX_ATTACHMENT_TOTAL_BYTES=1500*1024;
   let sendInFlight=false;
   let activeController=null;
+  let pendingAttachmentRead=Promise.resolve();
   let retryTarget=null;
   let historySnapshot=null;
   let historyReadFailed=false;
@@ -417,19 +418,25 @@ const SaarthiApp = (() => {
     button.setAttribute('aria-label','Attach files or images');button.title='Attach files or images';button.textContent='＋';
     composer.insertBefore(button,composer.firstChild);
     button.addEventListener('click',()=>input.click());
-    input.addEventListener('change',async()=>{
+    input.addEventListener('change',()=>{
       const files=[...input.files||[]];
-      let total=currentAttachments().reduce((sum,item)=>sum+Number(item.size||0),0);
-      for(const file of files){
-        if(file.size>MAX_ATTACHMENT_BYTES){addActivity('Attachment rejected',file.name+' · maximum 2 MB');continue;}
-        if(total+file.size>MAX_ATTACHMENT_TOTAL_BYTES){addActivity('Attachment rejected',file.name+' · attachment batch limit reached');continue;}
-        try{
-          const data=await fileAsDataUrl(file);
-          currentAttachments().push({name:file.name,type:file.type||'application/octet-stream',size:file.size,data});
-          total+=file.size;
-        }catch{addActivity('Attachment failed',file.name+' could not be read.');}
-      }
-      input.value='';renderAttachmentTray();
+      input.value='';
+      const attachments=currentAttachments();
+      pendingAttachmentRead=pendingAttachmentRead.then(async()=>{
+        let total=attachments.reduce((sum,item)=>sum+Number(item.size||0),0);
+        for(const file of files){
+          if(file.size>MAX_ATTACHMENT_BYTES||total+file.size>MAX_ATTACHMENT_TOTAL_BYTES){
+            showComposerError(file.name+' exceeds the attachment limit of 1.5 MB per submission.');
+            continue;
+          }
+          try{
+            const data=await fileAsDataUrl(file);
+            attachments.push({name:file.name,type:file.type||'application/octet-stream',size:file.size,data});
+            total+=file.size;
+          }catch{showComposerError(file.name+' could not be read. Choose it again.');}
+        }
+        renderAttachmentTray();
+      });
     });
     renderAttachmentTray();
   };
@@ -837,7 +844,7 @@ const SaarthiApp = (() => {
         '<section class="control-card"><div class="control-card-head"><span class="control-icon">⚙</span><div><b>Tools</b><small>Runtime capabilities</small></div></div><div class="control-status-list" id="controlTools"><span>Tools</span><b>Checking…</b></div></section>'+
         '<section class="control-card"><div class="control-card-head"><span class="control-icon">↗</span><div><b>Connections</b><small>External services</small></div></div><div class="control-status-list"><span>SAARTHI API</span><b id="controlConnection">Checking…</b><span>External connectors</span><b>Not connected</b></div></section>'+
         '<section class="control-card"><div class="control-card-head"><span class="control-icon">◈</span><div><b>Security</b><small>Session safety</small></div></div><div class="control-status-list"><span>Transport</span><b>'+((location.protocol==='https:')?'HTTPS':'Browser connection')+'</b><span>Credentials</span><b>Not exposed</b><span>Execution</span><b>Server runtime</b></div></section>'+
-        '<section class="control-card"><div class="control-card-head"><span class="control-icon">•</span><div><b>Notifications</b><small>Proactive alerts</small></div></div><div class="control-status-list"><span>Browser permission</span><b id="notificationState">'+('Notification' in window?Notification.permission:'Unavailable')+'</b></div><div class="control-actions"><button data-control-action="notifications">Enable notifications</button></div></section>'+
+        '<section class="control-card"><div class="control-card-head"><span class="control-icon">•</span><div><b>Notifications</b><small>Scheduled alerts unavailable</small></div></div><div class="control-status-list"><span>Browser permission</span><b id="notificationState">'+('Notification' in window?Notification.permission:'Unavailable')+'</b></div><div class="control-actions"><button data-control-action="notifications">Request browser permission</button></div></section>'+
         '<section class="control-card"><div class="control-card-head"><span class="control-icon">○</span><div><b>Appearance</b><small>Adaptive workspace</small></div></div><label class="control-toggle"><span>Adaptive intelligence UI</span><input id="adaptiveUIToggle" type="checkbox" '+(adaptive?'checked':'')+'><i></i></label><label class="control-toggle"><span>Reduce motion</span><input id="reduceMotionToggle" type="checkbox" '+(savedMotion?'checked':'')+'><i></i></label></section>'+
         '<section class="control-card"><div class="control-card-head"><span class="control-icon">◇</span><div><b>Privacy</b><small>Browser-stored workspace data</small></div></div><div class="control-status-list"><span>Conversation history</span><b>Stored locally</b><span>Provider key</span><b>Server-side</b></div><div class="control-actions"><button data-control-action="clear-history">Clear local history</button></div></section>'+
       '</div>'+
@@ -1024,11 +1031,13 @@ const SaarthiApp = (() => {
       }
       if(response.status===401){if(!$('#sessionDialog')?.open)$('#sessionDialog')?.showModal();throw new Error('Sign in, then check or retry this turn.');}
       if(response.status===403)throw new Error('This deployment rejected the request origin.');
+      if(response.status===503)throw new Error('Private chat is unavailable. Ask the owner to check this deployment’s configuration and cloud storage.');
       if(response.status===429)throw new Error('Request limit reached. Wait and try again.');
       if(!response.ok)throw new Error('Chat request failed (HTTP '+response.status+'). Try again.');
       const result=await response.json();
       if(!result.ok){
         const error=new Error(result.reply||'Chat could not complete.');
+        error.execution=result.execution;
         error.terminal=!['turn_pending','storage_unavailable'].includes(result.error_code);
         throw error;
       }
@@ -1060,6 +1069,7 @@ const SaarthiApp = (() => {
     try{
       if(!target){
         const mode=parseCommand(value);
+        const attachments=currentAttachments();
         target={
           value,mode,spoken,engine:$('#chatEngine')?.value||'default',
           assistant:currentAssistant,
@@ -1068,10 +1078,11 @@ const SaarthiApp = (() => {
           context:{
             client_time:new Date().toISOString(),
             timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata',
-            locale:navigator.language||'en-IN',
-            attachments:currentAttachments().map(({name,type,size,data})=>({name,type,size,data}))
+            locale:navigator.language||'en-IN'
           }
         };
+        await pendingAttachmentRead;
+        target.context.attachments=attachments.map(({name,type,size,data})=>({name,type,size,data}));
         target.message=appendConversation('user',value,null,false,target);
         Object.assign(target.message,{turnId:target.turnId,state:'pending'});
         command.value='';
@@ -1087,12 +1098,12 @@ const SaarthiApp = (() => {
       retryTarget=null;
       const intent=result.intent?.name||target.mode;
       runs.unshift({id:result.run_id,intent,provider:result.provider,at:new Date().toISOString(),message:target.value});runs.splice(20);
-      setStatus('Ready');
+      setStatus(result.execution==='degraded'?'Limited response · model unavailable':'Ready');
       updateIntelligenceFlow('complete',result);
       if(target.spoken||target.mode==='voice')speak(result.reply);
     }catch(error){
       if(target?.message?.state==='pending'){
-        target.message.state=error.terminal?'failed':'unconfirmed';
+        target.message.state=error.execution==='cancelled'?'cancelled':error.terminal?'failed':'unconfirmed';
         if(error.terminal)retryTarget=null;
         saveHistory();refreshConversation();
       }
@@ -1256,7 +1267,27 @@ const SaarthiApp = (() => {
   });
   $('#privateSignIn')?.addEventListener('click',()=>$('#sessionDialog')?.showModal());
   $('#closeSessionDialog')?.addEventListener('click',()=>$('#sessionDialog')?.close());
-  $('#cancelTurn')?.addEventListener('click',()=>activeController?.abort('cancel'));
+  $('#cancelTurn')?.addEventListener('click',async()=>{
+    const target=retryTarget;
+    const controller=activeController;
+    if(!target||!controller)return;
+    controller.abort('cancel');
+    try{
+      const response=await fetch(apiUrl('/api/turns/'+target.turnId+'/cancel'),{
+        method:'POST',redirect:'error',signal:AbortSignal.timeout(5000)
+      });
+      if(!response.ok)throw new Error('Cancellation could not be confirmed. Check the turn status.');
+      if(retryTarget===target){
+        target.message.state='cancelled';
+        saveHistory();refreshConversation();
+        showComposerError('This turn was cancelled.');
+        retryTarget=null;
+        $('#retryTurn').hidden=true;
+      }
+    }catch(error){
+      if(retryTarget===target)showComposerError(error.message);
+    }
+  });
   $('#retryTurn')?.addEventListener('click',()=>submit({retry:true}));
   $('#sessionForm')?.addEventListener('submit',async event=>{
     event.preventDefault();

@@ -26,7 +26,10 @@ async def begin(owner, thread, turn, message, fingerprint, limit):
 
 
 async def finish(owner, turn, state, result):
-    turns[(owner, turn)].update(state=state, result=dict(result))
+    row = turns.get((owner, turn))
+    if not row or row["state"] != "pending":
+        return False
+    row.update(state=state, result=dict(result))
     return True
 
 
@@ -38,6 +41,8 @@ async def recent(owner, thread):
 async def worker(payload, budget):
     await asyncio.sleep(0.12)
     message = payload["message"]
+    if message == "fixture-cancel":
+        await asyncio.sleep(10)
     if message == "fixture-deadline":
         raise TimeoutError
     if message == "fixture-code":
@@ -53,6 +58,11 @@ async def worker(payload, budget):
 runtime.store.check_scope = scope
 runtime.store.begin_turn = begin
 runtime.store.recent_turns = recent
+async def turn_result(owner, turn):
+    return turns.get((owner, turn))
+
+
 runtime.store.finish_turn = finish
+runtime.store.turn_result = turn_result
 runtime.run_turn = worker
 app = runtime.app

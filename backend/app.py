@@ -452,11 +452,42 @@ async def wait_for_disconnect(request: Request) -> None:
         await asyncio.sleep(0.15)
 
 
+async def wait_for_durable_cancellation(owner: str, turn: str) -> None:
+    while True:
+        await asyncio.sleep(1)
+        try:
+            async with asyncio.timeout(1.5):
+                row = await store.turn_result(owner, turn)
+        except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError):
+            continue
+        if row is None or row["state"] == "cancelled":
+            return
+
+
+@app.post("/api/turns/{turn_id}/cancel")
+async def cancel_turn(request: Request, turn_id: UUID):
+    scope = await scoped_store(request)
+    turn = str(turn_id)
+    terminal = {**failure("cancelled", "This turn was cancelled."), "turn_id": turn}
+    try:
+        async with asyncio.timeout(2.5):
+            if await store.finish_turn(scope.owner, turn, "cancelled", terminal):
+                return {"ok": True, "execution": "cancelled"}
+            row = await store.turn_result(scope.owner, turn)
+    except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError):
+        return api_error(503, "storage_unavailable", "Cancellation could not be confirmed.")
+    if row and row["state"] == "cancelled":
+        return {"ok": True, "execution": "cancelled"}
+    return api_error(409, "turn_unavailable", "The turn is unavailable or already finished.")
+
+
 async def _execute_command_bounded(request: Request, payload: CommandRequest):
     started = request.state.started_at
     scope = request.state.scope
     context = bound_context(payload.context)
     await scoped_store(request)
+    if payload.mode in {"remember", "task", "tasks", "remind", "workflow", "workflows"}:
+        return failure("action_unavailable", "This command is disabled until its storage or scheduler is verified. Standard chat remains available.")
     if payload.engine == "hermes" and context["attachments"]:
         raise HTTPException(400, "Hermes attachments are unavailable. Select standard chat to send files.")
     if payload.assistant == "research":
@@ -487,7 +518,7 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
     result = failure("runtime_failed", "The chat runtime could not complete. Start a new turn to try again.")
     state = "failed"
     diagnostic = {"intake_and_reservation": round((time.monotonic() - started) * 1000, 2)}
-    worker = disconnect = None
+    worker = disconnect = durable_cancel = None
     try:
         try:
             async with asyncio.timeout(2.5):
@@ -510,8 +541,12 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
                     "message": payload.message, "mode": payload.mode, "assistant": payload.assistant, "context": context,
                 }, budget))
             disconnect = asyncio.create_task(wait_for_disconnect(request))
-            finished, _ = await asyncio.wait({worker, disconnect}, return_when=asyncio.FIRST_COMPLETED)
-            if disconnect in finished:
+            durable_cancel = asyncio.create_task(wait_for_durable_cancellation(scope.owner, turn))
+            finished, _ = await asyncio.wait({worker, disconnect, durable_cancel}, return_when=asyncio.FIRST_COMPLETED)
+            if durable_cancel in finished:
+                result = failure("cancelled", "This turn was cancelled.")
+                state = "cancelled"
+            elif disconnect in finished:
                 result = failure("cancelled", "The client disconnected.")
                 state = "cancelled"
             else:
@@ -528,7 +563,7 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
         state = "cancelled"
         raise
     finally:
-        for task in (worker, disconnect):
+        for task in (worker, disconnect, durable_cancel):
             if task is not None:
                 task.cancel()
                 with suppress(asyncio.CancelledError, Exception):
@@ -540,8 +575,12 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
             persistence_started = time.monotonic()
             async with asyncio.timeout(PERSISTENCE_RESERVE - 0.25):
                 recorded = await store.finish_turn(scope.owner, turn, state, result)
-            if not recorded:
-                result = {**failure("storage_conflict", "This turn is no longer pending. Reopen history to check its status."), **identity}
+                if not recorded:
+                    terminal = await store.turn_result(scope.owner, turn)
+                    if terminal and terminal["result"]:
+                        result = {**terminal["result"], **identity}
+                    else:
+                        result = {**failure("storage_conflict", "This turn is no longer pending. Reopen history to check its status."), **identity}
         except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError):
             result = {**failure("storage_unavailable", "Could not confirm the result was saved. Retry this same turn."), **identity}
         logger.info("turn_finished", extra={"turn_id": turn, "status": result.get("execution"),

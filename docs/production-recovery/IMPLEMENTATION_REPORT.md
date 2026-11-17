@@ -24,7 +24,7 @@ Recovery started from `main` at `dd495d06fed0e3374659177e311794ee780559c6`. The 
 | Voice | Browser recognition and synthesis remain in the composer. Permission errors are surfaced. A physical microphone permission and recovery run remains open. |
 | Retrieval and remote MCP tools | Candidate reports disabled and refuses requests for these integrations. Deterministic date, time, conversion and calculation remain available. |
 | Standalone memory | Disabled. Durable conversation context and local backup are provided independently. |
-| Automation, tasks, reminders and workflows | Existing routing remains. Delivery, scheduling, and restart persistence have no live evidence. A notification permission control only requests browser permission. |
+| Automation, tasks, reminders and workflows | Explicit saved-fact writes, task, reminder and workflow commands are disabled until scheduler/storage validation. The notification permission action requests browser permission. |
 | Settings, control surfaces and work-product page | Existing controls remain. Work-product requests now use the private same-origin API. Some controls retain informational status only. Separate backend health reports integration availability. |
 | Mobile navigation | Existing UI retained with PR #23 clearance and new composer status controls. Chromium mobile emulation and physical Android are tracked separately. |
 | Hermes | Server path and controlled response fixtures are implemented. The selector stays hidden in the unconfigured preview. Live gateway mode, outages across restarts and tool containment are independently gated. |

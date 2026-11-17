@@ -54,6 +54,7 @@ test('timeout recovers, attachments and code reach the original UI',async({page}
   await expect(send(page)).toBeEnabled();
   const attachment=page.locator('#saarthiFileInput');
   await attachment.setInputFiles({name:'numbers.csv',mimeType:'text/csv',buffer:Buffer.from('name,count\nA,2')});
+  await expect(page.locator('[data-remove-attachment]').first()).toBeVisible();
   await input(page).fill('fixture-file:include');
   await send(page).click();
   await expect(replies(page).last()).toContainText('Included numbers.csv');
@@ -104,4 +105,21 @@ test('a backup restores into an empty browser profile',async({page,browser},test
   }finally{
     await fresh.close();
   }
+});
+
+
+test('cancellation recovers the composer and does not commit an assistant reply',async({page})=>{
+  const errors=await start(page);
+  await input(page).fill('fixture-cancel');
+  const sent=page.waitForRequest(request=>request.method()==='POST'&&request.url().endsWith('/api/command'));
+  await send(page).click();
+  await sent;
+  await page.waitForTimeout(350);
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(page.locator('#composerError')).toContainText('This turn was cancelled.');
+  await expect(send(page)).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Check or retry turn'})).toBeHidden();
+  await expect(userMessages(page)).toHaveCount(1);
+  await expect(replies(page)).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
