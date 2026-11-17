@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from .deployment import hosted, setting
+from .passwords import valid_hash, verify_password
 
 COOKIE = "saarthi_owner"
 TTL = 3600
@@ -53,7 +54,10 @@ class Scope:
         if environment != "local" and not re.fullmatch(r"[a-f0-9]{40}", commit):
             return None
         owner = setting("OWNER_ID")
-        password = setting("OWNER_PASSWORD")
+        password_hash = setting("OWNER_PASSWORD_HASH")
+        if password_hash and not valid_hash(password_hash):
+            return None
+        password = password_hash or setting("OWNER_PASSWORD")
         signing_key = setting("SESSION_KEY")
         if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", owner) or len(password) < 24 or len(signing_key) < 32:
             return None
@@ -62,6 +66,8 @@ class Scope:
         return cls(environment, origin, commit, owner, password, signing_key, turns)
 
     def verify_password(self, password: str) -> bool:
+        if valid_hash(self.password):
+            return verify_password(password, self.password)
         return hmac.compare_digest(password.encode(), self.password.encode())
 
     def _signature(self, data: str) -> str:

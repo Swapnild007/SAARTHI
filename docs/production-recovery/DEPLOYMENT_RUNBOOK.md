@@ -42,3 +42,19 @@ For optional Hermes use the scope-prefixed `HERMES_ENABLED`, `HERMES_VALIDATED_S
 [Vercel WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting) · [OpenRouter key limits](https://github.com/OpenRouterTeam/docs/blob/main/api_reference/limits.mdx)
 
 If GitHub does not register the branch-only workflow for manual dispatch, run `python scripts/candidate_smoke.py` from the exact branch SHA in a trusted runner with the same workflow environment variables injected by its secret manager.
+
+## Owner password setup and recovery
+
+The dialog expects a password chosen by the Vercel project owner. No initial password is assigned. The checked deployment had only production model variables and no owner credentials.
+
+For Preview sign-in the exact variables are `SAARTHI_ENV=preview`, `SAARTHI_ORIGIN`, `SAARTHI_PREVIEW_OWNER_ID`, `SAARTHI_PREVIEW_OWNER_PASSWORD_HASH` and `SAARTHI_PREVIEW_SESSION_KEY`. The commit comes from Vercel. Legacy `SAARTHI_PREVIEW_OWNER_PASSWORD` remains supported for migration. A configured hash takes precedence, and a malformed hash disables authentication. The environment-specific prefix is STAGING for staging. Supabase scope and durable login limiting must also be configured before hosted sign-in can complete.
+
+On Android Chrome, open Vercel Dashboard → saarthi → Settings → Environment Variables. Select Preview and branch `codex/saarthi-production-recovery`. Set the environment and exact origin. Use a stable OWNER_ID to retain conversation ownership. Set a generated SESSION_KEY of at least 32 characters.
+
+To choose the password without transmitting it to chat, open a private GitHub Codespace for this repository in Android Chrome. Check out the recovery branch. Run `pip install -r requirements.txt`, then `python -m scripts.setup_owner`. Select setup, enter a temporary Vercel API token with access to the project in the hidden prompt, project ID and team ID, and your own password twice. The helper derives a salted scrypt hash and writes only branch-specific Preview settings through Vercel's authenticated API. It prints no password, token, hash or signing key. Revoke the temporary Vercel token afterward. Redeploy the Preview branch, open its exact URL, select Private sign-in and enter the password you chose.
+
+For forgotten passwords or rotation, run the same helper with rotate. Access to the Vercel account authorizes recovery. Rotation changes the password hash and session key while preserving OWNER_ID and saved conversations. Redeploy to activate. Prior cookies fail on the new deployment. Retire older accessible preview builds or protect them with Vercel Deployment Protection since their old secrets remain in those build snapshots.
+
+Sessions use an HttpOnly, SameSite Strict cookie, Secure on HTTPS, with a one-hour expiration. Reload retains a valid cookie. Closing and reopening Chrome within that hour can retain sign-in. After expiry enter your chosen password again and restore cloud history. Missing owner configuration now produces a setup explanation in the dialog. No unauthenticated public password-claim endpoint exists.
+
+Owner setup does not provision model credentials or a database. Live chat acceptance remains blocked until those resources are connected. Verify sign-in, send one real-provider message, reload and restore the thread before claiming operational access.

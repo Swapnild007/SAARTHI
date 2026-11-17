@@ -10,6 +10,9 @@ os.environ.update({
     "SAARTHI_SESSION_KEY": "browser-fixture-only-signing-material",
     "SAARTHI_DAILY_TURNS": "1000",
 })
+from backend.passwords import hash_password
+os.environ["SAARTHI_OWNER_PASSWORD_HASH"] = hash_password("browser-fixture-password-1234")
+
 turns: dict = {}
 
 

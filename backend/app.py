@@ -197,7 +197,7 @@ async def login(request: Request, payload: LoginRequest):
             return api_error(503, "login_unavailable", "Sign-in is temporarily unavailable.")
         if not allowed:
             return api_error(429, "rate_limited", "Too many sign-in attempts. Wait one minute.")
-    if not scope.verify_password(payload.password):
+    if not await asyncio.to_thread(scope.verify_password, payload.password):
         return api_error(401, "authentication_failed", "Sign-in failed.")
     response = JSONResponse({"ok": True})
     response.set_cookie(COOKIE, scope.issue(), max_age=TTL, httponly=True,
@@ -210,6 +210,11 @@ def logout():
     response = JSONResponse({"ok": True})
     response.delete_cookie(COOKIE, path="/")
     return response
+
+
+@app.get("/api/session")
+def session_status(request: Request):
+    return {"ok": True, "authenticated": True, "expires_in_max_seconds": TTL}
 
 
 @app.get("/api/health")
@@ -229,6 +234,7 @@ def health():
     return {
         "ok": scope is not None and (not hosted() or not problems),
         "configuration_issues": problems,
+        "owner_configured": scope is not None,
         "service": "saarthi-api",
         "environment": scope.environment if scope else (os.getenv("VERCEL_ENV") or "unconfigured"),
         "commit": (scope.commit or build_commit()) if scope else build_commit(),

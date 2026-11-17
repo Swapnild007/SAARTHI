@@ -1265,7 +1265,16 @@ const SaarthiApp = (() => {
     event.preventDefault();
     submit();
   });
-  $('#privateSignIn')?.addEventListener('click',()=>$('#sessionDialog')?.showModal());
+  $('#privateSignIn')?.addEventListener('click',async()=>{
+    $('#sessionDialog')?.showModal();
+    try{
+      const response=await fetch(apiUrl('/api/health'),{signal:AbortSignal.timeout(5000)});
+      const data=await response.json();
+      if(data.owner_configured===false){
+        $('#ownerSetupStatus').textContent='Owner sign-in has not been configured. The Vercel project owner must complete setup in the deployment settings. No password has been assigned automatically.';
+      }
+    }catch{showComposerError('Could not check owner setup. Check your connection.','sessionError');}
+  });
   $('#closeSessionDialog')?.addEventListener('click',()=>$('#sessionDialog')?.close());
   $('#cancelTurn')?.addEventListener('click',async()=>{
     const target=retryTarget;
@@ -1307,6 +1316,8 @@ const SaarthiApp = (() => {
     }catch(error){showComposerError(error.message,'sessionError');}
     finally{password.value='';submitButton.disabled=false;}
   });
+  fetch(apiUrl('/api/session'),{redirect:'error',signal:AbortSignal.timeout(5000)})
+    .then(response=>{if(response.ok)setStatus('Signed in');}).catch(()=>{});
   fetch(apiUrl('/api/health'),{redirect:'error',signal:AbortSignal.timeout(5000)}).then(response=>response.json())
     .then(data=>{const selector=$('#chatEngine');if(selector&&data.hermes?.enabled)selector.hidden=false;}).catch(()=>{});
   $('#voiceCommand')?.addEventListener('click',event=>{event.preventDefault();voice();});

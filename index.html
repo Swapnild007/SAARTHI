@@ -140,7 +140,8 @@
   </div>
   <dialog id="sessionDialog">
     <form id="sessionForm">
-      <label for="ownerPassword">Private deployment password</label>
+      <label for="ownerPassword">Your SAARTHI owner password</label>
+      <p id="ownerSetupStatus" role="status">Use the password you created through the deployment owner setup. If you have never set one, complete the Vercel setup first.</p>
       <input id="ownerPassword" type="password" autocomplete="current-password" required>
       <button type="submit">Sign in</button>
       <button id="closeSessionDialog" type="button">Close</button>

@@ -146,3 +146,22 @@ test('Android-profile touch, orientation and denied voice preserve the composer'
   await expect(replies(page).last()).toContainText('touch landscape');
   expect(errors).toEqual([]);
 });
+
+test('owner signs in through the dialog and remains signed in after reload',async({page})=>{
+  const errors=await start(page);
+  await page.context().clearCookies();
+  await page.getByRole('button',{name:'Private sign-in',exact:true}).click();
+  await page.locator('#ownerPassword').fill('incorrect-password');
+  await page.locator('#sessionForm button[type=submit]').click();
+  await expect(page.locator('#sessionError')).toContainText('Sign-in failed');
+  await page.locator('#ownerPassword').fill('browser-fixture-password-1234');
+  await page.locator('#sessionForm button[type=submit]').click();
+  await expect(page.locator('#sessionDialog')).not.toBeVisible();
+  await page.reload();
+  const status=await page.request.get('/api/session');
+  expect(status.ok()).toBeTruthy();
+  await input(page).fill('authenticated owner turn');
+  await send(page).click();
+  await expect(replies(page).last()).toContainText('authenticated owner turn');
+  expect(errors).toEqual([]);
+});
