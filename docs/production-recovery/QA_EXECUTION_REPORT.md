@@ -22,3 +22,11 @@ Open validation includes complete hosted cloud lifecycle, cross-device restore a
 ## Owner setup correction
 
 The owner password dialog previously appeared on deployments without an owner credential. Vercel's environment metadata confirmed no owner variables. New setup uses a Vercel-authenticated helper and a salted scrypt hash. Password recovery preserves owner identity and rotates the session key. Python tests verify hash matching, bad password rejection, reload session checks, expiry, old-session rejection after rotation, malformed configuration and Vercel authorization. The local full Python suite passed 165 tests. The local browser test could not launch either Playwright's absent bundled browser or system Chromium (socket permission denied). CI must execute the added dialog sign-in and reload scenario before browser verification can be claimed. Live chat remains blocked by unconfigured owner, provider and database settings.
+
+## Mobile-only onboarding validation
+
+The local Python suite passed 170 tests. The disk-backed PostgreSQL suite passed three scenarios, including owner authorization expiry, consumption, replay rejection, recovery and permissions. Four targeted wizard browser cases passed across desktop Chromium and the Pixel 7 profile, covering first-time setup, denied management access, password creation, sign-out, reload, chat submission through the fixture, history reopening, recovery and unavailable connections.
+
+An initial browser run hit the shared test server's login throttle across independent scenarios. The fixture now resets its in-process rate bucket at each test boundary. Production limits remain unchanged. The SQL tests verify durable admission and login controls separately.
+
+These browser tests use synthetic management authorization, persistence and model replies. They do not qualify as live owner setup, actual model inference, hosted history, or physical Android evidence. The complete regression workflow runs on each pushed recovery commit and supplies the final PR evidence.

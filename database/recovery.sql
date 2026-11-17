@@ -176,3 +176,60 @@ end
 $$;
 revoke all on function public.saarthi_claim_login(text) from public, anon, authenticated;
 grant execute on function public.saarthi_claim_login(text) to service_role;
+
+-- Database-backed owner onboarding. Only a deployment management authorization
+-- can issue a grant. A password change consumes it and invalidates other grants.
+create table if not exists public.saarthi_owner_credentials (
+  owner text primary key,
+  password_hash text not null,
+  updated_at timestamptz not null default now()
+);
+create table if not exists public.saarthi_owner_grants (
+  token_hash text primary key,
+  owner text not null,
+  prior_hash text not null,
+  expires_at timestamptz not null default now()+interval '10 minutes'
+);
+alter table public.saarthi_owner_credentials enable row level security;
+alter table public.saarthi_owner_grants enable row level security;
+revoke all on public.saarthi_owner_credentials,public.saarthi_owner_grants from public,anon,authenticated;
+grant select,insert,update on public.saarthi_owner_credentials to service_role;
+grant select,insert,delete on public.saarthi_owner_grants to service_role;
+
+create or replace function public.saarthi_issue_owner_grant(
+  p_owner text,p_token_hash text,p_intent text,p_legacy_hash text
+) returns boolean language plpgsql set search_path=pg_catalog,public as $$
+declare prior text;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_owner,0));
+  select password_hash into prior from public.saarthi_owner_credentials where owner=p_owner;
+  prior := coalesce(prior,p_legacy_hash,'');
+  if p_intent not in ('setup','recover') or (p_intent='setup' and prior<>'') then return false; end if;
+  delete from public.saarthi_owner_grants where owner=p_owner;
+  insert into public.saarthi_owner_grants(token_hash,owner,prior_hash) values(p_token_hash,p_owner,prior);
+  return true;
+end
+$$;
+
+create or replace function public.saarthi_complete_owner_setup(
+  p_owner text,p_token_hash text,p_password_hash text,p_legacy_hash text
+) returns boolean language plpgsql set search_path=pg_catalog,public as $$
+declare prior text; authorized public.saarthi_owner_grants%rowtype;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_owner,0));
+  select * into authorized from public.saarthi_owner_grants
+    where owner=p_owner and token_hash=p_token_hash and expires_at>now();
+  if not found then return false; end if;
+  select password_hash into prior from public.saarthi_owner_credentials where owner=p_owner;
+  if coalesce(prior,p_legacy_hash,'')<>authorized.prior_hash then return false; end if;
+  if p_password_hash !~ '^scrypt-v1\$[a-f0-9]{32}\$[a-f0-9]{64}$' then return false; end if;
+  insert into public.saarthi_owner_credentials(owner,password_hash) values(p_owner,p_password_hash)
+    on conflict(owner) do update set password_hash=excluded.password_hash,updated_at=now();
+  delete from public.saarthi_owner_grants where owner=p_owner;
+  return true;
+end
+$$;
+revoke all on function public.saarthi_issue_owner_grant(text,text,text,text),
+  public.saarthi_complete_owner_setup(text,text,text,text) from public,anon,authenticated;
+grant execute on function public.saarthi_issue_owner_grant(text,text,text,text),
+  public.saarthi_complete_owner_setup(text,text,text,text) to service_role;

@@ -32,3 +32,9 @@ Recovery started from `main` at `dd495d06fed0e3374659177e311794ee780559c6`. The 
 Older messages that were discarded by the old 20-message transcript cap or never written by the inline composer are unavailable through browser backup. Histories still present on an older origin must be exported there before retiring that origin.
 
 Mission 2 added explicit hosted credential scopes, per-owner spend admission and reported-cost recording, durable sign-in limits, live smoke response provenance, and rollback compatibility checks. Hosted standard inference accepts only routes whose upstream key ceiling can be checked. The local OpenAI-compatible route remains available for development. The physical Android checklist and exact staging settings are in the deployment runbook.
+
+## Mobile onboarding
+
+SAARTHI now contains a mobile setup dialog with connection checks, deployment-owner verification, password creation, sign-out and recovery. Owner credentials live in the existing private conversation database when database authentication is enabled. Management verification proves Preview-branch write access against a pinned Vercel project and issues a ten-minute authorization. Password creation consumes that authorization atomically, closes initial setup, and signs the owner in immediately.
+
+The connected Vercel API prepared the recovery branch's Preview settings, including a generated session key. Supabase is available as a plugin but is not connected. Only production-scoped model settings exist. No production credential was copied into Preview and no paid resource was provisioned. Live inference and cloud history remain blocked by those account connections.

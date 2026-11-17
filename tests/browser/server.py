@@ -69,3 +69,59 @@ runtime.store.finish_turn = finish
 runtime.store.turn_result = turn_result
 runtime.run_turn = worker
 app = runtime.app
+
+
+# This module is only the isolated browser-test app, never the deployed entrypoint.
+import hashlib
+from fastapi import Request
+
+os.environ["SAARTHI_OWNER_AUTH_STORE"] = "database"
+initial_password = hash_password("browser-fixture-password-1234")
+os.environ.pop("SAARTHI_OWNER_PASSWORD", None)
+os.environ.pop("SAARTHI_OWNER_PASSWORD_HASH", None)
+owner_state = {"credential": initial_password, "grant": None}
+
+
+async def owner_password(owner):
+    return owner_state["credential"]
+
+
+async def claim_login(owner):
+    return True
+
+
+async def management(token):
+    return token == "browser-management-fixture"
+
+
+async def issue_grant(owner, digest, intent, legacy):
+    if intent == "setup" and owner_state["credential"]:
+        return False
+    owner_state["grant"] = digest
+    return True
+
+
+async def complete_setup(owner, digest, encoded, legacy):
+    if owner_state["grant"] != digest:
+        return False
+    owner_state.update(credential=encoded, grant=None)
+    return True
+
+
+@app.post("/fixture/clear-owner")
+async def clear_owner():
+    owner_state.update(credential=None, grant=None)
+    return {"ok": True}
+
+
+runtime.store.owner_password = owner_password
+runtime.store.claim_login = claim_login
+runtime.store.issue_owner_grant = issue_grant
+runtime.store.complete_owner_setup = complete_setup
+runtime.verify_deployment_access = management
+
+
+@app.post("/fixture/reset-rate")
+async def reset_rate():
+    runtime._rate_buckets.clear()
+    return {"ok": True}

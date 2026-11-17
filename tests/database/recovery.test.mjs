@@ -96,3 +96,38 @@ test('spending reservations survive replay and deletion and distinguish daily fr
     await db.close();
   }
 });
+
+test('owner grants expire, are consumed once and close first setup',async()=>{
+  const db=new PGlite();
+  const owner='onboarding-owner';
+  const first='scrypt-v1$'+'a'.repeat(32)+'$'+'b'.repeat(64);
+  const second='scrypt-v1$'+'c'.repeat(32)+'$'+'d'.repeat(64);
+  const issue=(digest,intent='setup')=>db.query(
+    "select saarthi_issue_owner_grant($1,$2,$3,'') as ok",[owner,digest,intent],
+  ).then(r=>r.rows[0].ok);
+  const finish=(digest,password)=>db.query(
+    "select saarthi_complete_owner_setup($1,$2,$3,'') as ok",[owner,digest,password],
+  ).then(r=>r.rows[0].ok);
+  try{
+    await db.exec('create role anon; create role authenticated; create role service_role bypassrls');
+    await db.exec(schema);
+    await db.exec(schema);
+    await db.exec('set role service_role');
+    assert.equal(await finish('no-grant',first),false);
+    assert.equal(await issue('one-time'),true);
+    assert.equal(await finish('wrong',first),false);
+    assert.equal(await finish('one-time','malformed'),false);
+    assert.equal(await finish('one-time',first),true);
+    assert.equal(await finish('one-time',second),false);
+    assert.equal(await issue('new-setup'),false);
+    assert.equal(await issue('recovery','recover'),true);
+    assert.equal(await finish('recovery',second),true);
+    assert.equal((await db.query('select password_hash from saarthi_owner_credentials where owner=$1',[owner])).rows[0].password_hash,second);
+    assert.equal(await issue('expired','recover'),true);
+    await db.exec("reset role; update saarthi_owner_grants set expires_at=now()-interval '1 second'; set role service_role");
+    assert.equal(await finish('expired',first),false);
+    await db.exec('set role authenticated');
+    await assert.rejects(issue('unauthorized'),/permission denied/);
+    await assert.rejects(db.query('select * from saarthi_owner_credentials'),/permission denied/);
+  }finally{await db.close();}
+});

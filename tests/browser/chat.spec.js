@@ -12,6 +12,7 @@ async function start(page){
     if(new URL(route.request().url()).origin!=='http://127.0.0.1:8765')return route.abort();
     return route.continue();
   });
+  await page.request.post('/fixture/reset-rate');
   await page.goto('/');
   await expect(page.locator('body')).not.toHaveClass(/splash-active/,{timeout:10000});
   const signIn=await page.request.post('/api/session/login',{data:{password:'browser-fixture-password-1234'}});
@@ -164,4 +165,62 @@ test('owner signs in through the dialog and remains signed in after reload',asyn
   await send(page).click();
   await expect(replies(page).last()).toContainText('authenticated owner turn');
   expect(errors).toEqual([]);
+});
+
+test('mobile wizard creates and recovers owner access without a terminal',async({page})=>{
+  const errors=await start(page);
+  await page.request.post('/fixture/clear-owner');
+  await page.context().clearCookies();
+  const password='browser-fixture-password-1234';
+  const open=async()=>{
+    await page.getByRole('button',{name:'Private sign-in',exact:true}).click();
+    await page.getByRole('button',{name:'Set up / recover account'}).click();
+    await expect(page.locator('#wizardVerify')).toBeVisible();
+  };
+  const choosePassword=async()=>{
+    await page.locator('#wizardNewPassword').fill(password);
+    await page.locator('#wizardRepeatPassword').fill(password);
+    await page.getByRole('button',{name:'Save password and sign in'}).click();
+    await expect(page.locator('#wizardStatus')).toContainText('signed in');
+    await page.getByRole('button',{name:'Return to assistant'}).click();
+  };
+  await open();
+  await page.locator('#wizardToken').fill('wrong');
+  await page.getByRole('button',{name:'Verify ownership'}).click();
+  await expect(page.locator('#wizardError')).toContainText('did not authorize');
+  await page.locator('#wizardToken').fill('browser-management-fixture');
+  await page.getByRole('button',{name:'Verify ownership'}).click();
+  await expect(page.locator('#wizardPassword')).toBeVisible();
+  await expect(page.locator('#wizardToken')).toHaveValue('');
+  await choosePassword();
+  await input(page).fill('wizard-created conversation');
+  await send(page).click();
+  await expect(replies(page).last()).toContainText('wizard-created conversation');
+  await page.reload();
+  expect((await page.request.get('/api/session')).ok()).toBeTruthy();
+  await page.getByRole('button',{name:'Conversation history',exact:true}).click();
+  await page.locator('#mobileHistory').getByRole('button',{name:/wizard-created conversation/}).click();
+  await expect(replies(page).last()).toContainText('wizard-created conversation');
+  await page.getByRole('button',{name:'Private sign-in',exact:true}).click();
+  await page.getByRole('button',{name:'Sign out',exact:true}).click();
+  expect((await page.request.get('/api/session')).status()).toBe(401);
+  await open();
+  await expect(page.locator('#wizardIntent')).toHaveValue('recover');
+  await page.locator('#wizardToken').fill('browser-management-fixture');
+  await page.getByRole('button',{name:'Verify ownership'}).click();
+  await choosePassword();
+  expect((await page.request.get('/api/session')).ok()).toBeTruthy();
+  expect(errors).toEqual([]);
+});
+
+test('mobile wizard explains missing service connections',async({page})=>{
+  await start(page);
+  await page.route('**/api/onboarding',route=>route.fulfill({json:{
+    ok:false,stage:'connection_required',message:'The conversation database is not connected yet.'
+  }}));
+  await page.getByRole('button',{name:'Private sign-in',exact:true}).click();
+  await page.getByRole('button',{name:'Set up / recover account'}).click();
+  await expect(page.locator('#wizardConnections')).toBeVisible();
+  await expect(page.locator('#wizardVerify')).toBeHidden();
+  await expect(page.locator('#wizardStatus')).toContainText('not connected');
 });

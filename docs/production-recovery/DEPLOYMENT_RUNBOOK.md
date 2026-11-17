@@ -43,18 +43,33 @@ For optional Hermes use the scope-prefixed `HERMES_ENABLED`, `HERMES_VALIDATED_S
 
 If GitHub does not register the branch-only workflow for manual dispatch, run `python scripts/candidate_smoke.py` from the exact branch SHA in a trusted runner with the same workflow environment variables injected by its secret manager.
 
-## Owner password setup and recovery
+## Mobile owner setup and recovery
 
-The dialog expects a password chosen by the Vercel project owner. No initial password is assigned. The checked deployment had only production model variables and no owner credentials.
+The primary setup is inside SAARTHI. The previous terminal helper is a legacy maintenance tool and is unnecessary for mobile onboarding.
 
-For Preview sign-in the exact variables are `SAARTHI_ENV=preview`, `SAARTHI_ORIGIN`, `SAARTHI_PREVIEW_OWNER_ID`, `SAARTHI_PREVIEW_OWNER_PASSWORD_HASH` and `SAARTHI_PREVIEW_SESSION_KEY`. The commit comes from Vercel. Legacy `SAARTHI_PREVIEW_OWNER_PASSWORD` remains supported for migration. A configured hash takes precedence, and a malformed hash disables authentication. The environment-specific prefix is STAGING for staging. Supabase scope and durable login limiting must also be configured before hosted sign-in can complete.
+1. Open the approved Preview URL in Android Chrome, select **Private sign-in**, then **Set up / recover account**.
+2. If the wizard says the conversation database is disconnected, connect the Supabase plugin in ChatGPT and authorize an isolated SAARTHI project. Activation can apply the repository migration through that authorized connection. The app cannot provision or migrate an account that is not connected.
+3. When connections are ready, use the wizard's **Open Vercel tokens** link. Sign in to the Vercel account that can manage SAARTHI. Create a temporary access token for the project team with the shortest available expiry. Return to SAARTHI and paste it in the password-style field, then select **Verify ownership**.
+4. The server checks management write permission through a temporary Preview-branch environment record and removes it. It stores a ten-minute, one-use setup authorization in the existing private database. The Vercel token is not persisted. Revoke it in Vercel after verification.
+5. Create and repeat your own password in the app. It is hashed on the server and saved atomically with consumption of the setup authorization. You are signed in immediately. No restart or password-hash copy is required.
+6. For a forgotten password, reopen the same wizard and choose **Recover or change password**. Repeat management verification. Saving a replacement password invalidates earlier sessions in builds using database authentication and preserves the owner identity and conversations.
+7. Use **Sign out** in the sign-in dialog to remove the browser session. Valid sessions survive reload for up to one hour. Reauthenticate after expiry and restore the cloud conversation history.
 
-On Android Chrome, open Vercel Dashboard → saarthi → Settings → Environment Variables. Select Preview and branch `codex/saarthi-production-recovery`. Set the environment and exact origin. Use a stable OWNER_ID to retain conversation ownership. Set a generated SESSION_KEY of at least 32 characters.
+First-time setup closes when the credential exists. A new first-time grant is refused. Recovery always requires fresh deployment-management verification. Expired or consumed grants cannot set a password.
 
-To choose the password without transmitting it to chat, open a private GitHub Codespace for this repository in Android Chrome. Check out the recovery branch. Run `pip install -r requirements.txt`, then `python -m scripts.setup_owner`. Select setup, enter a temporary Vercel API token with access to the project in the hidden prompt, project ID and team ID, and your own password twice. The helper derives a salted scrypt hash and writes only branch-specific Preview settings through Vercel's authenticated API. It prints no password, token, hash or signing key. Revoke the temporary Vercel token afterward. Redeploy the Preview branch, open its exact URL, select Private sign-in and enter the password you chose.
+### Automated deployment preparation
 
-For forgotten passwords or rotation, run the same helper with rotate. Access to the Vercel account authorizes recovery. Rotation changes the password hash and session key while preserving OWNER_ID and saved conversations. Redeploy to activate. Prior cookies fail on the new deployment. Retire older accessible preview builds or protect them with Vercel Deployment Protection since their old secrets remain in those build snapshots.
+The recovery branch's Preview environment was prepared through the connected Vercel API with a generated session key, stable owner ID, database authentication mode, and pinned project and team identifiers. Preview origin derives from Vercel's current deployment URL when no explicit origin is set. No owner needs to edit those values. The configured keys are recorded here for maintainers, outside the product flow.
 
-Sessions use an HttpOnly, SameSite Strict cookie, Secure on HTTPS, with a one-hour expiration. Reload retains a valid cookie. Closing and reopening Chrome within that hour can retain sign-in. After expiry enter your chosen password again and restore cloud history. Missing owner configuration now produces a setup explanation in the dialog. No unauthenticated public password-claim endpoint exists.
+- `SAARTHI_ENV=preview`
+- `SAARTHI_PREVIEW_OWNER_AUTH_STORE=database`
+- `SAARTHI_PREVIEW_OWNER_ID`
+- `SAARTHI_PREVIEW_SESSION_KEY`
+- `SAARTHI_PREVIEW_DEPLOYMENT_PROJECT_ID`
+- `SAARTHI_PREVIEW_DEPLOYMENT_TEAM_ID`
 
-Owner setup does not provision model credentials or a database. Live chat acceptance remains blocked until those resources are connected. Verify sign-in, send one real-provider message, reload and restore the thread before claiming operational access.
+The existing Supabase project must receive `database/recovery.sql`, including owner credentials and one-time grants. That script adds tables and functions without deleting saved conversations. Store credentials remain exclusively server-side. The authenticated Supabase connector can perform this migration after the owner connects the account and authorizes the isolated project.
+
+Model credentials, a verified spending ceiling, and the isolated database are still required for actual AI chat. Use authorized connectors or the hosting secret manager to configure those resources. Neither the wizard nor a passing fixture test certifies live inference.
+
+Old deployments retain their own build configuration. Protect or retire old previews during recovery rollout. Scope-prefixed Vercel settings, the private database marker, and provider admission limits remain enforced.

@@ -1271,10 +1271,12 @@ const SaarthiApp = (() => {
       const response=await fetch(apiUrl('/api/health'),{signal:AbortSignal.timeout(5000)});
       const data=await response.json();
       if(data.owner_configured===false){
-        $('#ownerSetupStatus').textContent='Owner sign-in has not been configured. The Vercel project owner must complete setup in the deployment settings. No password has been assigned automatically.';
+        $('#ownerSetupStatus').textContent='Owner sign-in has not been configured. Choose Set up / recover account to start the mobile setup.';
       }
     }catch{showComposerError('Could not check owner setup. Check your connection.','sessionError');}
   });
+  window.addEventListener('saarthi-owner-signed-in',()=>setStatus('Signed in'));
+  window.addEventListener('saarthi-owner-signed-out',()=>setStatus('Sign in to continue'));
   $('#closeSessionDialog')?.addEventListener('click',()=>$('#sessionDialog')?.close());
   $('#cancelTurn')?.addEventListener('click',async()=>{
     const target=retryTarget;

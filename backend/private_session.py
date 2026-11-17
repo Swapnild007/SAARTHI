@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 from .deployment import hosted, setting
 from .passwords import valid_hash, verify_password
+from .onboarding import database_auth
 
 COOKIE = "saarthi_owner"
 TTL = 3600
@@ -38,6 +39,8 @@ class Scope:
         if platform and environment != platform and not (platform == "preview" and environment == "staging"):
             return None
         origin = os.getenv("SAARTHI_ORIGIN", "").rstrip("/")
+        if not origin and platform == "preview" and re.fullmatch(r"[A-Za-z0-9.-]+\.vercel\.app", os.getenv("VERCEL_URL", "")):
+            origin = "https://" + os.environ["VERCEL_URL"]
         try:
             parsed = urlsplit(origin)
             if not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
@@ -59,13 +62,15 @@ class Scope:
             return None
         password = password_hash or setting("OWNER_PASSWORD")
         signing_key = setting("SESSION_KEY")
-        if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", owner) or len(password) < 24 or len(signing_key) < 32:
+        if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", owner) or ((bool(password) and len(password) < 24) or (not password and not database_auth())) or len(signing_key) < 32:
             return None
         if not 1 <= turns <= 1000:
             return None
         return cls(environment, origin, commit, owner, password, signing_key, turns)
 
     def verify_password(self, password: str) -> bool:
+        if not self.password:
+            return False
         if valid_hash(self.password):
             return verify_password(password, self.password)
         return hmac.compare_digest(password.encode(), self.password.encode())
@@ -75,10 +80,14 @@ class Scope:
         return hmac.new(self.signing_key.encode(), bound.encode(), hashlib.sha256).hexdigest()
 
     def issue(self) -> str:
+        if not self.password:
+            raise RuntimeError("Owner setup is incomplete")
         value = f"{int(time.time()) + TTL}.{secrets.token_hex(16)}"
         return f"{value}.{self._signature(value)}"
 
     def authenticated(self, token: str) -> bool:
+        if not self.password:
+            return False
         if not re.fullmatch(r"\d{1,12}\.[a-f0-9]{32}\.[a-f0-9]{64}", token):
             return False
         value, signature = token.rsplit(".", 1)

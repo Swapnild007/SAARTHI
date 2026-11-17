@@ -27,6 +27,10 @@ from .execution import run_turn
 from .deployment import SpendLimits, build_commit, hosted, setting
 from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from . import hermes_bridge
+from dataclasses import replace
+import secrets
+from .passwords import hash_password, valid_hash
+from .onboarding import GRANT_COOKIE, GRANT_TTL, database_auth, verify_deployment_access, authorization_digest
 from .private_session import COOKIE, TTL, Scope
 from pydantic import BaseModel, Field
 
@@ -52,18 +56,30 @@ _rate_buckets: dict[str, deque[float]] = defaultdict(deque)
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
     request.state.started_at = time.monotonic()
-    if request.url.path.startswith("/api/") and request.url.path != "/api/health":
+    if request.url.path.startswith("/api/") and request.url.path not in {"/api/health", "/api/onboarding"}:
         scope = Scope.read()
         if scope is None or str(request.base_url).rstrip("/") != scope.origin:
             return api_error(503, "configuration_unavailable", "This deployment is not configured for private chat.")
         if request.method not in {"GET", "HEAD"}:
             if request.headers.get("origin", scope.origin) != scope.origin:
                 return api_error(403, "origin_denied", "This origin is not permitted.")
+        onboarding = request.url.path in {"/api/onboarding/verify", "/api/onboarding/password"}
+        if database_auth():
+            try:
+                async with asyncio.timeout(2.5):
+                    await store.check_scope(scope.environment)
+                    credential = await store.owner_password(scope.owner)
+                if credential:
+                    if not valid_hash(credential):
+                        return api_error(503, "owner_unavailable", "Owner sign-in is temporarily unavailable.")
+                    scope = replace(scope, password=credential)
+            except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError, KeyError):
+                return api_error(503, "onboarding_unavailable", "Owner setup needs the connected conversation database.")
         login = request.url.path == "/api/session/login"
-        if not login and not scope.authenticated(request.cookies.get(COOKIE, "")):
+        if not login and not onboarding and not scope.authenticated(request.cookies.get(COOKIE, "")):
             return api_error(401, "authentication_required", "Sign in to continue.")
         if request.method not in {"GET", "HEAD"}:
-            maximum = 2_500_000 if not login else 4096
+            maximum = 4096 if login or onboarding else 2_500_000
             chunks = []
             size = 0
             try:
@@ -76,12 +92,12 @@ async def security_middleware(request: Request, call_next):
             except (TimeoutError, ClientDisconnect):
                 return api_error(408, "request_interrupted", "The request body did not arrive in time.")
             request._body = b"".join(chunks)  # BaseHTTPMiddleware forwards this cached body.
-        client_id = "login" if login else scope.owner
+        client_id = "login" if login or onboarding else scope.owner
         bucket = _rate_buckets[client_id]
         now = time.monotonic()
         while bucket and bucket[0] <= now - 60:
             bucket.popleft()
-        if len(bucket) >= (min(10, _RATE_LIMIT) if login else _RATE_LIMIT):
+        if len(bucket) >= (min(10, _RATE_LIMIT) if login or onboarding else _RATE_LIMIT):
             response = api_error(429, "rate_limited", "Too many requests. Wait one minute and try again.")
             response.headers["Retry-After"] = "60"
             return response
@@ -185,9 +201,91 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=512)
 
 
+class OwnerVerification(BaseModel):
+    management_token: str = Field(min_length=1, max_length=2048)
+    intent: Literal["setup", "recover"] = "setup"
+
+
+class OwnerPassword(BaseModel):
+    password: str = Field(min_length=24, max_length=512)
+
+
+@app.get("/api/onboarding")
+async def onboarding_status():
+    scope = Scope.read()
+    if scope and not database_auth() and scope.password:
+        return {"ok": True, "stage": "sign_in", "message": "Sign in with your existing owner password."}
+    if scope is None or not database_auth():
+        return {"ok": False, "stage": "connection_required",
+                "message": "Connect the conversation database and deployment access to activate owner setup."}
+    try:
+        async with asyncio.timeout(2.5):
+            await store.check_scope(scope.environment)
+            credential = await store.owner_password(scope.owner)
+        configured = bool(credential or bool(scope.password))
+        return {"ok": True, "stage": "sign_in" if configured else "verify_owner",
+                "message": "Sign in or verify deployment ownership to recover access." if configured
+                           else "Verify Vercel project access, then create your password."}
+    except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError, KeyError):
+        return {"ok": False, "stage": "connection_required",
+                "message": "The conversation database is not connected yet. Connect Supabase to finish activation."}
+
+
+@app.post("/api/onboarding/verify")
+async def onboarding_verify(request: Request, payload: OwnerVerification):
+    if not database_auth():
+        return api_error(503, "setup_unavailable", "Browser owner setup is not activated.")
+    scope = request.state.scope
+    if payload.intent == "setup" and bool(scope.password):
+        return api_error(409, "already_initialized", "Owner setup is complete. Use account recovery.")
+    try:
+        async with asyncio.timeout(18):
+            if not await store.claim_login(scope.owner):
+                return api_error(429, "rate_limited", "Wait one minute before verifying again.")
+            if not await verify_deployment_access(payload.management_token):
+                return api_error(403, "management_denied", "Vercel did not authorize management access to this project.")
+            token = secrets.token_urlsafe(32)
+            legacy = hashlib.sha256(scope.password.encode()).hexdigest() if scope.password else ""
+            issued = await store.issue_owner_grant(scope.owner, authorization_digest(scope.environment, scope.origin, token),
+                                                   payload.intent, legacy)
+        if not issued:
+            return api_error(409, "setup_changed", "Owner setup changed. Start verification again.")
+    except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError, KeyError):
+        return api_error(503, "verification_unavailable", "Ownership verification could not finish. Retry shortly.")
+    response = JSONResponse({"ok": True, "expires_in_seconds": GRANT_TTL})
+    response.set_cookie(GRANT_COOKIE, token, max_age=GRANT_TTL, httponly=True,
+                        secure=scope.origin.startswith("https:"), samesite="strict", path="/api/onboarding")
+    return response
+
+
+@app.post("/api/onboarding/password")
+async def onboarding_password(request: Request, payload: OwnerPassword):
+    scope = request.state.scope
+    token = request.cookies.get(GRANT_COOKIE, "")
+    if not database_auth() or not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+        return api_error(403, "setup_authorization_required", "Verify deployment ownership before choosing a password.")
+    try:
+        encoded = await asyncio.to_thread(hash_password, payload.password)
+        legacy = hashlib.sha256(scope.password.encode()).hexdigest() if scope.password else ""
+        async with asyncio.timeout(2.5):
+            saved = await store.complete_owner_setup(scope.owner, authorization_digest(scope.environment, scope.origin, token),
+                                                     encoded, legacy)
+        if not saved:
+            return api_error(403, "setup_expired", "Setup authorization expired or was already used. Verify again.")
+    except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError):
+        return api_error(503, "setup_unavailable", "Password could not be saved. Start verification again.")
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(GRANT_COOKIE, path="/api/onboarding")
+    response.set_cookie(COOKIE, replace(scope, password=encoded).issue(), max_age=TTL, httponly=True,
+                        secure=scope.origin.startswith("https:"), samesite="strict", path="/")
+    return response
+
+
 @app.post("/api/session/login")
 async def login(request: Request, payload: LoginRequest):
     scope = request.state.scope
+    if not scope.password:
+        return api_error(409, "owner_setup_required", "Create your owner password first.")
     if hosted():
         await scoped_store(request)
         try:
@@ -218,13 +316,24 @@ def session_status(request: Request):
 
 
 @app.get("/api/health")
-def health():
+async def health():
     scope = Scope.read()
+    owner_ready = bool(scope and scope.password)
+    if scope and database_auth():
+        try:
+            async with asyncio.timeout(2.5):
+                await store.check_scope(scope.environment)
+                credential = await store.owner_password(scope.owner)
+            owner_ready = bool(credential and valid_hash(credential) or scope.password)
+        except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError, KeyError):
+            owner_ready = False
     provider_ready = engine.cloud.configured
     spend_ready = SpendLimits.read() is not None
     problems = []
     if scope is None:
         problems.append("private_scope_unconfigured")
+    elif not owner_ready:
+        problems.append("owner_setup_required")
     if not store.configured:
         problems.append("persistence_unconfigured")
     if not provider_ready:
@@ -234,7 +343,7 @@ def health():
     return {
         "ok": scope is not None and (not hosted() or not problems),
         "configuration_issues": problems,
-        "owner_configured": scope is not None,
+        "owner_configured": owner_ready,
         "service": "saarthi-api",
         "environment": scope.environment if scope else (os.getenv("VERCEL_ENV") or "unconfigured"),
         "commit": (scope.commit or build_commit()) if scope else build_commit(),

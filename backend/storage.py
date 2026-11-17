@@ -160,6 +160,22 @@ class CloudStore:
         if rows != [{"environment": environment}]:
             raise RuntimeError("Conversation storage belongs to another environment")
 
+    async def owner_password(self, owner: str) -> str | None:
+        rows = await self.recovery_request("saarthi_owner_credentials", params={
+            "owner": f"eq.{owner}", "select": "password_hash", "limit": 1,
+        })
+        return rows[0]["password_hash"] if rows else None
+
+    async def issue_owner_grant(self, owner: str, token_hash: str, intent: str, legacy: str) -> bool:
+        return await self.recovery_request("rpc/saarthi_issue_owner_grant", method="POST", payload={
+            "p_owner": owner, "p_token_hash": token_hash, "p_intent": intent, "p_legacy_hash": legacy,
+        }) is True
+
+    async def complete_owner_setup(self, owner: str, token_hash: str, password_hash: str, legacy: str) -> bool:
+        return await self.recovery_request("rpc/saarthi_complete_owner_setup", method="POST", payload={
+            "p_owner": owner, "p_token_hash": token_hash, "p_password_hash": password_hash, "p_legacy_hash": legacy,
+        }) is True
+
     async def begin_turn(self, owner: str, thread: str, turn: str, message: str, fingerprint: str, limit: int) -> dict:
         return await self.recovery_request("rpc/saarthi_begin_turn", method="POST", payload={
             "p_owner": owner, "p_conversation": thread, "p_turn": turn,

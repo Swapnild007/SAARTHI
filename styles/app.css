@@ -459,3 +459,12 @@ body.chat-active .assistant-response{display:block!important}
   #composerError,#historyStorageError{position:fixed;left:12px;right:12px;bottom:calc(max(9px,env(safe-area-inset-bottom,0px)) + 92px);z-index:101;margin:0}
   #composerError:not([hidden]) + #historyStorageError:not([hidden]){transform:translateY(-100%)}
 }
+
+#ownerWizard{width:min(480px,92vw);max-height:85dvh;overflow:auto;border:1px solid #a5bbc5;border-radius:16px;padding:22px;color:var(--ink);background:#fff}
+#ownerWizard::backdrop{background:rgba(13,35,44,.55)}
+#ownerWizard form{display:grid;gap:12px}
+#ownerWizard form[hidden],#ownerWizard [hidden]{display:none}
+#ownerWizard input,#ownerWizard select{width:100%;min-height:44px;font:inherit;font-size:16px;border:1px solid #8fa8b3;border-radius:8px;padding:9px}
+#ownerWizard button{min-height:44px;margin:8px 0;padding:9px 12px;border:1px solid #8fa8b3;border-radius:8px;background:#eff7fa;color:var(--ink);font:inherit}
+#ownerWizard p{line-height:1.55;font-size:14px;margin:12px 0}
+#wizardError{color:#762e0a;background:#fff3e6;border-radius:8px;padding:10px}
