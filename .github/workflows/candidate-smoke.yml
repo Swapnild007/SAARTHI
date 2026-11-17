@@ -1,0 +1,42 @@
+name: Private candidate smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_url:
+        description: Private preview or staging origin
+        required: true
+      candidate_environment:
+        description: Candidate environment
+        type: choice
+        options: [preview, staging]
+        required: true
+      expected_provider:
+        description: Expected live model provider
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: saarthi-private-validation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install -r requirements.txt
+      - name: Verify private deployment
+        env:
+          SAARTHI_CANDIDATE_URL: ${{ inputs.candidate_url }}
+          SAARTHI_CANDIDATE_ENV: ${{ inputs.candidate_environment }}
+          SAARTHI_CANDIDATE_SHA: ${{ github.sha }}
+          SAARTHI_EXPECTED_PROVIDER: ${{ inputs.expected_provider }}
+          SAARTHI_CANDIDATE_PASSWORD: ${{ secrets.SAARTHI_CANDIDATE_PASSWORD }}
+          SAARTHI_APPROVED_URL: ${{ vars.SAARTHI_APPROVED_URL }}
+        run: |
+          test -n "$SAARTHI_APPROVED_URL"
+          test "$SAARTHI_CANDIDATE_URL" = "$SAARTHI_APPROVED_URL"
+          python scripts/candidate_smoke.py

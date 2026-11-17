@@ -1,0 +1,58 @@
+"""Isolated HTTP fixture for browser regression, with no external credentials."""
+import asyncio
+import os
+
+from backend import app as runtime
+
+os.environ.update({
+    "SAARTHI_ENV": "local", "SAARTHI_ORIGIN": "http://127.0.0.1:8765",
+    "SAARTHI_OWNER_ID": "browser-fixture", "SAARTHI_OWNER_PASSWORD": "browser-fixture-password-1234",
+    "SAARTHI_SESSION_KEY": "browser-fixture-only-signing-material",
+    "SAARTHI_DAILY_TURNS": "1000",
+})
+turns: dict = {}
+
+
+async def scope(environment):
+    assert environment == "local"
+
+
+async def begin(owner, thread, turn, message, fingerprint, limit):
+    row = turns.get((owner, turn))
+    if row:
+        return {"decision": row["state"], "result": row.get("result")}
+    turns[(owner, turn)] = {"thread": thread, "state": "pending", "message": message}
+    return {"decision": "started"}
+
+
+async def finish(owner, turn, state, result):
+    turns[(owner, turn)].update(state=state, result=dict(result))
+    return True
+
+
+async def recent(owner, thread):
+    return [row for (uid, _), row in reversed(list(turns.items()))
+            if uid == owner and row["thread"] == thread and row["state"] == "completed"][:10]
+
+
+async def worker(payload, budget):
+    await asyncio.sleep(0.12)
+    message = payload["message"]
+    if message == "fixture-deadline":
+        raise TimeoutError
+    if message == "fixture-code":
+        reply = "```python\nprint('saarthi')\n```"
+    elif message.startswith("fixture-file:"):
+        reply = "Included " + ", ".join(item["name"] for item in payload["context"]["attachments"])
+    else:
+        reply = "Reply to " + message
+    return {"ok": True, "reply": reply, "execution": "completed",
+            "provider": "browser-fixture", "verification": {"verified": False}}
+
+
+runtime.store.check_scope = scope
+runtime.store.begin_turn = begin
+runtime.store.recent_turns = recent
+runtime.store.finish_turn = finish
+runtime.run_turn = worker
+app = runtime.app

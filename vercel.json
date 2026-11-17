@@ -1,12 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "build": {
-    "env": {
-      "PYTHON_VERSION": "3.14"
-    }
-  },
   "functions": {
-    "backend/app.py": {
+    "app.py": {
       "maxDuration": 30
     }
   }
