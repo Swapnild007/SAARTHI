@@ -96,7 +96,7 @@ def test_free_request_disallows_paid_routing_and_checks_response(monkeypatch, bo
     finally:
         execution.timings.reset(token)
     assert captured[0]["model"] == "openrouter/free"
-    assert captured[0]["provider"] == {"max_price": {"prompt": 0, "completion": 0}, "allow_fallbacks": False}
+    assert captured[0]["provider"] == {"max_price": {"prompt": 0, "completion": 0}, "allow_fallbacks": True}
     assert not {"models", "plugins", "tools"} & captured[0].keys()
 
 
@@ -155,3 +155,30 @@ def test_invalid_provider_logging_is_redacted(private_deployment, monkeypatch, c
     assert result["configuration"]["validation_errors"][0]["rule"] == "invalid_json"
     assert "private-secret" not in str(result) + caplog.text
     assert not turns and not calls
+
+
+@pytest.mark.parametrize(("message", "scope", "snippet"), [
+    ("Rate limit exceeded: free-models-per-day", "daily", "daily request allowance"),
+    ("Rate limit exceeded: free-models-per-minute", "minute", "Wait a minute"),
+    ("This provider is temporarily rate limited upstream", "upstream", "Wait a minute"),
+])
+def test_real_gateway_rate_rejections_are_categorized_without_exposing_body(monkeypatch, message, scope, snippet):
+    from io import BytesIO
+    from urllib.error import HTTPError
+    from backend.engine import SaarthiEngine
+    configure(monkeypatch, [route()])
+    token = execution.timings.set({})
+    try:
+        engine = SaarthiEngine()
+
+        def reject(*args, **kwargs):
+            data = json.dumps({"error": {"message": message}, "user_id": "private-account-id"}).encode()
+            raise HTTPError("https://openrouter.ai/api/v1/chat/completions", 429, "limited", {}, BytesIO(data))
+
+        monkeypatch.setattr(engine.cloud, "_request", reject)
+        result = engine.run(message="Write one brief greeting.")
+        assert not result["ok"] and result["error_code"] == "provider_rate_limited"
+        assert result["rate_limit_scope"] == scope and snippet in result["reply"]
+        assert "private-account-id" not in str(result)
+    finally:
+        execution.timings.reset(token)

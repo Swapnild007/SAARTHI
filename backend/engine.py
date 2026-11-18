@@ -514,6 +514,24 @@ def analyze_attachments_for_data(attachments: list[dict[str, Any]]) -> dict[str,
     return {"datasets": datasets, "dataset_count": len(datasets)}
 
 
+def classify_rate_limit(error: HTTPError) -> str:
+    """Extract only a fixed quota category from an upstream rejection."""
+    if error.fp is None:
+        return "unknown"
+    try:
+        payload = json.loads(error.read(16_384))
+        message = str(payload.get("error", {}).get("message", "")).lower()
+    except (ValueError, OSError, AttributeError, TypeError):
+        return "unknown"
+    if "per-day" in message or "per day" in message or "daily" in message:
+        return "daily"
+    if "per-minute" in message or "per minute" in message:
+        return "minute"
+    if "upstream" in message or "provider" in message:
+        return "upstream"
+    return "unknown"
+
+
 class NoProviderRedirect(HTTPRedirectHandler):
     """Keep authorization headers on the configured provider origin."""
 
@@ -594,7 +612,7 @@ class OpenAICompatibleProvider(LLMProvider):
             payload = {"model": route["model"], "messages": messages, "temperature": 0.3,
                        "usage": {"include": True}}
             if free_route(route):
-                payload["provider"] = {"max_price": {"prompt": 0, "completion": 0}, "allow_fallbacks": False}
+                payload["provider"] = {"max_price": {"prompt": 0, "completion": 0}, "allow_fallbacks": True}
             if mcp_tools and tool_round == 0:
                 payload["tools"] = mcp_tools
                 payload["tool_choice"] = "auto"
@@ -854,7 +872,10 @@ class OpenAICompatibleProvider(LLMProvider):
                 return reply, usage
             except Exception as exc:
                 code = "rate_limited" if isinstance(exc, HTTPError) and exc.code == 429 else "timeout" if isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError) else "unavailable"
-                failures.append({"route": route.get("name", "unknown"), "error": code})
+                entry = {"route": route.get("name", "unknown"), "error": code}
+                if isinstance(exc, HTTPError) and exc.code == 429:
+                    entry["limit_scope"] = classify_rate_limit(exc)
+                failures.append(entry)
         self.last_failures = failures
         detail = "; ".join(
             f"{item.get('route', 'unknown')}: {item.get('error', 'failed')}"
@@ -1265,8 +1286,15 @@ class SaarthiEngine:
                     frozenset({"rate_limited"}): "provider_rate_limited",
                     frozenset({"timeout"}): "provider_timeout",
                 }.get(frozenset(errors), "provider_unavailable")
+                limit_scope = next((item.get("limit_scope", "unknown") for item in self.cloud.last_failures
+                                    if item["error"] == "rate_limited"), None)
+                reply = "The model could not complete your request. Start a new turn to try again."
+                if code == "provider_rate_limited":
+                    reply = ("The free model provider's daily request allowance is exhausted. Try again after its daily reset."
+                             if limit_scope == "daily" and free_only_routes(self.cloud.routes)
+                             else "The model provider is rate limited. Wait a minute, then send a new turn.")
                 return {"ok": False, "run_id": run_id, "provider": "unavailable", "error_code": code,
-                        "execution": code, "reply": "The model could not complete your request. Start a new turn to try again.",
+                        "execution": code, "reply": reply, "rate_limit_scope": limit_scope,
                         "verification": {"verified": False}}
             provider_name = "deterministic-fallback"
             reply = fallback_response(message, intent, tool_results, assistant_id)

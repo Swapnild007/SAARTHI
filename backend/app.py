@@ -763,7 +763,7 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
             result = {**failure("storage_unavailable", "Could not confirm the result was saved. Retry this same turn."), **identity}
         logger.info("turn_finished %s", {
             "turn_id": turn, "status": result.get("execution"), "provider": result.get("provider"),
-            "served_model": result.get("served_model"),
+            "served_model": result.get("served_model"), "rate_limit_scope": result.get("rate_limit_scope"),
             "timings_ms": {**diagnostic, "persistence": round((time.monotonic() - persistence_started) * 1000, 2)},
         })
     return result
