@@ -1034,7 +1034,9 @@ const SaarthiApp = (() => {
       if(response.status===503)throw new Error('Private chat is unavailable. Ask the owner to check this deployment’s configuration and cloud storage.');
       if(response.status===429)throw new Error('Request limit reached. Wait and try again.');
       if(!response.ok)throw new Error('Chat request failed (HTTP '+response.status+'). Try again.');
-      const result=await response.json();
+      let result;
+      try{result=await response.json();}
+      catch{throw new Error('The model service returned an unreadable response. Check this turn before retrying.');}
       if(!result.ok){
         const error=new Error(result.reply||'Chat could not complete.');
         error.execution=result.execution;

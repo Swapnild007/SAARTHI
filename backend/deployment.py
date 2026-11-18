@@ -36,34 +36,84 @@ def https_endpoint(value: str) -> bool:
         return False
 
 
-def configured_routes() -> list[dict[str, str]]:
+OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1"
+MODEL_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}"
+
+
+def free_route(route: dict[str, str]) -> bool:
+    model = route.get("model", "")
+    return (route.get("url", "").rstrip("/") == OPENROUTER_ENDPOINT
+            and (model == "openrouter/free" or "/" in model and model.endswith(":free")))
+
+
+def free_only_routes(routes: list[dict[str, str]]) -> bool:
+    return bool(routes) and all(free_route(route) for route in routes)
+
+
+def route_configuration() -> tuple[list[dict[str, str]], list[dict]]:
+    """Validate routes and return fixed rule names, never input values."""
     raw = setting("LLM_ROUTES_JSON")
     if raw:
         try:
             routes = json.loads(raw)
         except ValueError:
-            return []
+            return [], [{"rule": "invalid_json"}]
+        # A single route object is equivalent to a one-element route list.
+        if isinstance(routes, dict):
+            routes = [routes]
         if not isinstance(routes, list) or not 1 <= len(routes) <= 2:
-            return []
+            return [], [{"rule": "route_count_or_type"}]
     elif not hosted():
         routes = [{
             "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
-            "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
+            "url": os.getenv("SAARTHI_LLM_API_URL", OPENROUTER_ENDPOINT),
             "key": setting("LLM_API_KEY"),
             "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
         }]
     else:
-        return []
-    required = {"name", "url", "key", "model"}
-    if any(not isinstance(route, dict) or not all(
-        isinstance(route.get(field), str) and route[field].strip() for field in required
-    ) or not https_endpoint(route["url"]) for route in routes):
-        return []
-    if hosted() and any(route["url"].rstrip("/") != "https://openrouter.ai/api/v1" for route in routes):
-        return []
-    if len({route["name"] for route in routes}) != len(routes):
-        return []
-    return [{field: route[field].strip() for field in required} for route in routes]
+        return [], [{"rule": "scoped_routes_missing"}]
+
+    errors = []
+    normalized = []
+    for index, route in enumerate(routes):
+        if not isinstance(route, dict):
+            errors.append({"rule": "route_not_object", "route": index})
+            continue
+        if set(route) - {"name", "url", "key", "model"}:
+            errors.append({"rule": "unsupported_route_fields", "route": index})
+        for field in ("url", "key", "model"):
+            if not isinstance(route.get(field), str) or not route[field].strip():
+                errors.append({"rule": "missing_or_invalid_field", "route": index, "field": field})
+        if "name" in route and (not isinstance(route["name"], str) or not route["name"].strip()):
+            errors.append({"rule": "missing_or_invalid_field", "route": index, "field": "name"})
+        if any(error.get("route") == index for error in errors):
+            continue
+        candidate = {field: route[field].strip() for field in ("url", "key", "model")}
+        candidate["name"] = route.get("name", f"route-{index + 1}").strip()
+        candidate["url"] = candidate["url"].rstrip("/")
+        if not https_endpoint(candidate["url"]) or (hosted() and candidate["url"] != OPENROUTER_ENDPOINT):
+            errors.append({"rule": "endpoint_not_allowed", "route": index, "field": "url"})
+        if not re.fullmatch(MODEL_PATTERN, candidate["model"]):
+            errors.append({"rule": "invalid_model_identifier", "route": index, "field": "model"})
+        normalized.append(candidate)
+    if errors:
+        return [], errors
+    if len({route["name"] for route in normalized}) != len(normalized):
+        return [], [{"rule": "duplicate_route_names"}]
+    if any(free_route(route) for route in normalized) and not free_only_routes(normalized):
+        return [], [{"rule": "paid_fallback_for_free_route"}]
+    return normalized, []
+
+
+def configured_routes() -> list[dict[str, str]]:
+    return route_configuration()[0]
+
+
+def route_diagnostics() -> dict:
+    routes, errors = route_configuration()
+    return {"configured": bool(routes), "route_count": len(routes), "validation_errors": errors,
+            "policy": "free_only" if free_only_routes(routes) else "budgeted" if routes else "unavailable"}
+
 
 
 def storage_endpoint() -> tuple[str, str]:

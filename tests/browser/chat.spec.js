@@ -224,3 +224,35 @@ test('mobile wizard explains missing service connections',async({page})=>{
   await expect(page.locator('#wizardVerify')).toBeHidden();
   await expect(page.locator('#wizardStatus')).toContainText('not connected');
 });
+
+test('Send Enter and voice surface provider errors and release the composer',async({page})=>{
+  await page.addInitScript(()=>{
+    window.SpeechRecognition=class {
+      start(){queueMicrotask(()=>this.onresult({results:[[{transcript:'voice provider failure'}]]}));}
+    };
+  });
+  const errors=await start(page);
+  let count=0;
+  await page.route('**/api/command',route=>{
+    count++;
+    return route.fulfill({json:{
+      ok:false,error_code:'provider_unavailable',execution:'provider_unavailable',
+      reply:'The model service is temporarily unavailable. Try again shortly.'
+    }});
+  });
+  await input(page).fill('click failure');
+  await send(page).click();
+  await expect(page.locator('#composerError')).toContainText('model service is temporarily unavailable');
+  await expect(send(page)).toBeEnabled();
+  await input(page).fill('enter failure');
+  await input(page).press('Enter');
+  await expect(userMessages(page)).toHaveCount(2);
+  await expect(send(page)).toBeEnabled();
+  await page.locator('#voiceCommand').click();
+  await expect(userMessages(page)).toHaveCount(3);
+  await expect(send(page)).toBeEnabled();
+  await expect(page.locator('#composerError')).toContainText('model service is temporarily unavailable');
+  expect(count).toBe(3);
+  await expect(replies(page)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

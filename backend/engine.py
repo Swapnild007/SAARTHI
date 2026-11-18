@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from .deployment import SpendLimits, configured_routes, hosted, upstream_key_ceiling
+from .deployment import SpendLimits, configured_routes, hosted, upstream_key_ceiling, free_route, free_only_routes
 
 import ast
 import json
+from decimal import Decimal, InvalidOperation
 import math
 import operator
 import os
@@ -535,19 +536,23 @@ class OpenAICompatibleProvider(LLMProvider):
         # Vercel allows 30 seconds for this function. Keep each provider attempt
         # bounded so a slow primary still leaves time for the second route.
         try:
-            configured_timeout = float(os.getenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "10"))
+            configured_timeout = float(os.getenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "14" if free_only_routes(routes) else "10"))
         except (TypeError, ValueError):
             configured_timeout = 10.0
-        self.request_timeout = min(7.0 if timings.get() is not None else 12.0, max(3.0, configured_timeout))
+        worker_limit = 14.0 if free_only_routes(routes) and len(routes) == 1 else 7.0
+        self.request_timeout = min(worker_limit if timings.get() is not None else 12.0, max(3.0, configured_timeout))
         self.last_route = routes[0].get("name", "unknown") if routes else "unavailable"
         self.last_failures: list[dict[str, str]] = []
         self.response_source = "upstream"
+        self.last_model = None
 
     @property
     def configured(self) -> bool:
         return bool(self.routes and any(r.get("url") and r.get("key") and r.get("model") for r in self.routes))
 
     def _check_hosted_key_budget(self, route: dict[str, str], opener) -> None:
+        if free_route(route):
+            return
         limits = SpendLimits.read()
         if not limits or route["url"].rstrip("/") != "https://openrouter.ai/api/v1":
             raise ValueError("provider does not expose a supported lifetime key ceiling")
@@ -588,6 +593,8 @@ class OpenAICompatibleProvider(LLMProvider):
         for tool_round in range(2):
             payload = {"model": route["model"], "messages": messages, "temperature": 0.3,
                        "usage": {"include": True}}
+            if free_route(route):
+                payload["provider"] = {"max_price": {"prompt": 0, "completion": 0}, "allow_fallbacks": False}
             if mcp_tools and tool_round == 0:
                 payload["tools"] = mcp_tools
                 payload["tool_choice"] = "auto"
@@ -604,7 +611,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 target = urlsplit(route["url"])
                 if target.scheme != "https" or not target.hostname or target.username or target.password or target.query or target.fragment:
                     raise ValueError("provider endpoint is invalid")
-                payload["max_tokens"] = 3000
+                payload["max_tokens"] = 1024 if free_route(route) else 3000
                 request.data = json.dumps(payload).encode()
                 open_request = build_opener(NoProviderRedirect()).open
                 if hosted():
@@ -617,8 +624,24 @@ class OpenAICompatibleProvider(LLMProvider):
                 else:
                     raw = response.read()
                 body = json.loads(raw.decode("utf-8"))
-            choice = body.get("choices", [{}])[0].get("message", {}) if isinstance(body, dict) else {}
-            usage = body.get("usage") if isinstance(body, dict) else None
+            choices = body.get("choices") if isinstance(body, dict) else None
+            if (not isinstance(body, dict) or body.get("error") or not isinstance(choices, list)
+                    or not choices or not isinstance(choices[0], dict)
+                    or not isinstance(choices[0].get("message"), dict)):
+                raise ValueError("provider response contract failed")
+            choice = choices[0]["message"]
+            usage = body.get("usage")
+            if free_route(route) and isinstance(usage, dict) and usage.get("cost") is not None:
+                try:
+                    cost = Decimal(str(usage["cost"]))
+                except InvalidOperation:
+                    raise ValueError("invalid free route cost") from None
+                if not cost.is_finite() or cost != 0:
+                    raise ValueError("free route reported a nonzero or invalid cost")
+            if choices[0].get("finish_reason") in {"error", "content_filter"}:
+                raise ValueError("provider response did not complete")
+            actual_model = body.get("model")
+            self.last_model = actual_model if isinstance(actual_model, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}", actual_model) else None
             tool_calls = choice.get("tool_calls") if isinstance(choice, dict) else None
             if not tool_calls or tool_round > 0 or not callable(call_tool):
                 reply = choice.get("content") if isinstance(choice, dict) else ""
@@ -1276,6 +1299,7 @@ class SaarthiEngine:
             "route": self.cloud.last_route if self.cloud.configured else None,
             "failover": self.cloud.last_failures if self.cloud.configured else [],
             "usage": usage,
+            "served_model": self.cloud.last_model if provider_name == self.cloud.name else None,
             "response_source": self.cloud.response_source if provider_name == self.cloud.name else "deterministic",
             "execution": "degraded" if provider is None and timings.get() is not None else "completed",
             "tool_results": tool_results,

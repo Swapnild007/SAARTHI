@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import ClientDisconnect
 from .execution import run_turn
-from .deployment import SpendLimits, build_commit, hosted, setting
+from .deployment import SpendLimits, build_commit, hosted, setting, route_diagnostics, free_only_routes
 from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from . import hermes_bridge
 from dataclasses import replace
@@ -328,7 +328,8 @@ async def health():
         except (TimeoutError, RuntimeError, httpx.HTTPError, ValueError, KeyError):
             owner_ready = False
     provider_ready = engine.cloud.configured
-    spend_ready = SpendLimits.read() is not None
+    provider_configuration = route_diagnostics()
+    spend_ready = free_only_routes(engine.cloud.routes) or SpendLimits.read() is not None
     problems = []
     if scope is None:
         problems.append("private_scope_unconfigured")
@@ -349,6 +350,7 @@ async def health():
         "commit": (scope.commit or build_commit()) if scope else build_commit(),
         "python": platform.python_version(),
         "provider_configured": engine.cloud.configured,
+        "provider_configuration": provider_configuration,
         "persistence": store_status(store),
         "rag": __rag_status(),
         "mcp": __mcp_status(),
@@ -657,9 +659,14 @@ async def _execute_command_bounded(request: Request, payload: CommandRequest):
         if payload.engine == "hermes" and not hermes_bridge.configuration(scope):
             return {**failure("hermes_disabled", "Hermes is disabled. Select standard SAARTHI chat."), **identity}
         if payload.engine == "default" and not engine.cloud.configured:
-            return {**failure("provider_unconfigured", "No model provider is configured for this deployment."), **identity}
-        spend = SpendLimits.read("HERMES" if payload.engine == "hermes" else "LLM")
-        if spend is None:
+            diagnostics = route_diagnostics()
+            logger.warning("provider_configuration_rejected %s", diagnostics)
+            rules = ", ".join(error["rule"] for error in diagnostics["validation_errors"])
+            return {**failure("provider_unconfigured", "Model configuration is invalid (" + rules + ")."),
+                    **identity, "configuration": diagnostics}
+        free_chat = payload.engine == "default" and free_only_routes(engine.cloud.routes)
+        spend = None if free_chat else SpendLimits.read("HERMES" if payload.engine == "hermes" else "LLM")
+        if not free_chat and spend is None:
             return {**failure("budget_unconfigured", "Provider spending controls are unavailable."), **identity}
     try:
         async with asyncio.timeout(2.5):
