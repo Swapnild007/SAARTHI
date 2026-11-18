@@ -41,7 +41,7 @@ def test_configuration_diagnostics_are_exact_and_redacted(monkeypatch, value, ru
 def test_free_configuration_is_valid_without_paid_settings(monkeypatch):
     configure(monkeypatch, route())
     assert deployment.route_diagnostics() == {
-        "configured": True, "route_count": 1, "validation_errors": [], "policy": "free_only",
+        "configured": True, "route_count": 1, "validation_errors": [], "policy": "free_only", "document_format": "json",
     }
     assert deployment.free_only_routes(deployment.configured_routes())
     assert deployment.SpendLimits.read() is None
@@ -118,3 +118,27 @@ def test_free_chat_retains_auth_persistence_and_retry(private_deployment, monkey
     assert client.post("/api/command", json=payload).json() == first
     assert len(turns) == len(calls) == 1
     assert next(iter(turns.values()))["state"] == "completed"
+
+
+@pytest.mark.parametrize(("wrap", "format_name"), [
+    (lambda value: "SAARTHI_PREVIEW_LLM_ROUTES_JSON='" + value + "'", "quoted_json"),
+    (lambda value: chr(96)*3 + "json\n" + value + "\n" + chr(96)*3, "fenced_json"),
+    (lambda value: json.dumps(value), "encoded_json"),
+])
+def test_copy_paste_wrappers_still_require_validated_inner_json(monkeypatch, wrap, format_name):
+    monkeypatch.setenv("SAARTHI_ENV", "preview")
+    monkeypatch.setenv("SAARTHI_PREVIEW_LLM_ROUTES_JSON", wrap(json.dumps([route()])))
+    report = deployment.route_diagnostics()
+    assert report["configured"] and report["document_format"] == format_name
+    monkeypatch.setenv("SAARTHI_PREVIEW_LLM_ROUTES_JSON", wrap("{broken"))
+    assert deployment.route_diagnostics()["validation_errors"][0]["rule"] == "invalid_json"
+
+
+def test_complete_key_only_is_restricted_to_the_free_router(monkeypatch):
+    monkeypatch.setenv("SAARTHI_ENV", "preview")
+    monkeypatch.setenv("SAARTHI_PREVIEW_LLM_ROUTES_JSON", "sk-or-v1-" + "a" * 64)
+    routes = deployment.configured_routes()
+    assert routes[0]["model"] == "openrouter/free" and deployment.free_only_routes(routes)
+    assert deployment.route_diagnostics()["document_format"] == "free_key_only"
+    monkeypatch.setenv("SAARTHI_PREVIEW_LLM_ROUTES_JSON", '{"key":"sk-or-v1-' + 'a' * 64)
+    assert deployment.configured_routes() == []

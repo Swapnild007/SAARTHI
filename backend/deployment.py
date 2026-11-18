@@ -50,14 +50,41 @@ def free_only_routes(routes: list[dict[str, str]]) -> bool:
     return bool(routes) and all(free_route(route) for route in routes)
 
 
+def parse_route_document(raw: str) -> tuple[object, str, list[dict]]:
+    """Accept defined copy/paste wrappers, with strict JSON inside each wrapper."""
+    value = raw.strip()
+    document_format = "json"
+    assignment = re.match(r"^(?:export\s+)?SAARTHI_(?:(?:PREVIEW|STAGING)_)?LLM_ROUTES_JSON\s*=\s*", value)
+    if assignment:
+        value = value[assignment.end():].strip()
+        document_format = "environment_assignment"
+    fence = chr(96) * 3
+    if value.startswith(fence + "json\n") and value.endswith("\n" + fence):
+        value = value[len(fence + "json\n"):-len("\n" + fence)].strip()
+        document_format = "fenced_json"
+    if value.startswith("'") and value.endswith("'"):
+        value = value[1:-1]
+        document_format = "quoted_json"
+    if re.fullmatch(r"sk-or-v1-[a-fA-F0-9]{64}", value):
+        return [{"url": OPENROUTER_ENDPOINT, "key": value, "model": "openrouter/free"}], "free_key_only", []
+    try:
+        document = json.loads(value)
+        if isinstance(document, str):
+            document = json.loads(document)
+            document_format = "encoded_json"
+        return document, document_format, []
+    except json.JSONDecodeError as error:
+        return None, document_format, [{"rule": "invalid_json", "line": error.lineno,
+                                       "column": error.colno, "position": error.pos}]
+
+
 def route_configuration() -> tuple[list[dict[str, str]], list[dict]]:
     """Validate routes and return fixed rule names, never input values."""
     raw = setting("LLM_ROUTES_JSON")
     if raw:
-        try:
-            routes = json.loads(raw)
-        except ValueError:
-            return [], [{"rule": "invalid_json"}]
+        routes, _, parse_errors = parse_route_document(raw)
+        if parse_errors:
+            return [], parse_errors
         # A single route object is equivalent to a one-element route list.
         if isinstance(routes, dict):
             routes = [routes]
@@ -111,7 +138,9 @@ def configured_routes() -> list[dict[str, str]]:
 
 def route_diagnostics() -> dict:
     routes, errors = route_configuration()
+    _, document_format, _ = parse_route_document(setting("LLM_ROUTES_JSON")) if setting("LLM_ROUTES_JSON") else (None, "absent", [])
     return {"configured": bool(routes), "route_count": len(routes), "validation_errors": errors,
+            "document_format": document_format,
             "policy": "free_only" if free_only_routes(routes) else "budgeted" if routes else "unavailable"}
 
 
