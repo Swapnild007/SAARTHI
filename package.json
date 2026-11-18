@@ -1,0 +1,11 @@
+{
+  "name": "saarthi-recovery-checks",
+  "private": true,
+  "scripts": {
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16",
+    "@playwright/test": "1.62.1"
+  }
+}

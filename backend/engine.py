@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from .deployment import SpendLimits, configured_routes, hosted, upstream_key_ceiling, free_route, free_only_routes
+
 import ast
 import json
+from decimal import Decimal, InvalidOperation
 import math
 import operator
 import os
@@ -18,7 +21,10 @@ from .analysis_engine import analyze_text
 from .research import research
 from .work_product import build_work_product
 from .verification import verify_run
-from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+from .execution import stage, timings
 
 
 def _requested_chart_type(message: str) -> str | None:
@@ -508,6 +514,31 @@ def analyze_attachments_for_data(attachments: list[dict[str, Any]]) -> dict[str,
     return {"datasets": datasets, "dataset_count": len(datasets)}
 
 
+def classify_rate_limit(error: HTTPError) -> str:
+    """Extract only a fixed quota category from an upstream rejection."""
+    if error.fp is None:
+        return "unknown"
+    try:
+        payload = json.loads(error.read(16_384))
+        message = str(payload.get("error", {}).get("message", "")).lower()
+    except (ValueError, OSError, AttributeError, TypeError):
+        return "unknown"
+    if "per-day" in message or "per day" in message or "daily" in message:
+        return "daily"
+    if "per-minute" in message or "per minute" in message:
+        return "minute"
+    if "upstream" in message or "provider" in message:
+        return "upstream"
+    return "unknown"
+
+
+class NoProviderRedirect(HTTPRedirectHandler):
+    """Keep authorization headers on the configured provider origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class OpenAICompatibleProvider(LLMProvider):
     """OpenAI-compatible gateway with ordered routes and automatic failover.
 
@@ -518,36 +549,38 @@ class OpenAICompatibleProvider(LLMProvider):
     name = "ai-gateway"
 
     def __init__(self) -> None:
-        raw = os.getenv("SAARTHI_LLM_ROUTES_JSON", "").strip()
-        routes: list[dict[str, str]] = []
-        if raw:
-            try:
-                parsed = json.loads(raw)
-                if isinstance(parsed, list):
-                    routes = [r for r in parsed if isinstance(r, dict) and r.get("key") and r.get("url") and r.get("model")]
-            except json.JSONDecodeError:
-                routes = []
-        if not routes:
-            routes = [{
-                "name": os.getenv("SAARTHI_LLM_PROVIDER_NAME", "OpenRouter"),
-                "url": os.getenv("SAARTHI_LLM_API_URL", "https://openrouter.ai/api/v1"),
-                "key": os.getenv("SAARTHI_LLM_API_KEY", ""),
-                "model": os.getenv("SAARTHI_LLM_MODEL", "openrouter/free"),
-            }]
+        routes = configured_routes()
         self.routes = routes
         # Vercel allows 30 seconds for this function. Keep each provider attempt
         # bounded so a slow primary still leaves time for the second route.
         try:
-            configured_timeout = float(os.getenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "10"))
+            configured_timeout = float(os.getenv("SAARTHI_LLM_REQUEST_TIMEOUT_SECONDS", "14" if free_only_routes(routes) else "10"))
         except (TypeError, ValueError):
             configured_timeout = 10.0
-        self.request_timeout = min(12.0, max(3.0, configured_timeout))
+        worker_limit = 14.0 if free_only_routes(routes) and len(routes) == 1 else 7.0
+        self.request_timeout = min(worker_limit if timings.get() is not None else 12.0, max(3.0, configured_timeout))
         self.last_route = routes[0].get("name", "unknown") if routes else "unavailable"
         self.last_failures: list[dict[str, str]] = []
+        self.response_source = "upstream"
+        self.last_model = None
 
     @property
     def configured(self) -> bool:
         return bool(self.routes and any(r.get("url") and r.get("key") and r.get("model") for r in self.routes))
+
+    def _check_hosted_key_budget(self, route: dict[str, str], opener) -> None:
+        if free_route(route):
+            return
+        limits = SpendLimits.read()
+        if not limits or route["url"].rstrip("/") != "https://openrouter.ai/api/v1":
+            raise ValueError("provider does not expose a supported lifetime key ceiling")
+        request = Request("https://openrouter.ai/api/v1/key", headers={
+            "Authorization": f"Bearer {route['key']}", "Accept": "application/json",
+        })
+        with opener(request, timeout=2.0) as response:
+            data = json.loads(response.read(32_768)).get("data")
+        if not upstream_key_ceiling(data, limits.daily // len(self.routes)):
+            raise ValueError("provider key budget is unavailable or exceeds its allowed share")
 
     def _request(self, route: dict[str, str], *, message: str, system: str, context: dict[str, Any], assistant: str) -> tuple[str, dict[str, Any] | None]:
         inspected = inspect_attachments(context.get("attachments") if isinstance(context, dict) else [])
@@ -569,7 +602,8 @@ class OpenAICompatibleProvider(LLMProvider):
         mcp_tools = []
         try:
             from .mcp_runtime import openai_tool_definitions, call_tool
-            mcp_tools = openai_tool_definitions()
+            if timings.get() is None:
+                mcp_tools = openai_tool_definitions()
         except Exception:
             call_tool = None
 
@@ -577,6 +611,8 @@ class OpenAICompatibleProvider(LLMProvider):
         for tool_round in range(2):
             payload = {"model": route["model"], "messages": messages, "temperature": 0.3,
                        "usage": {"include": True}}
+            if free_route(route):
+                payload["provider"] = {"max_price": {"prompt": 0, "completion": 0}, "allow_fallbacks": True}
             if mcp_tools and tool_round == 0:
                 payload["tools"] = mcp_tools
                 payload["tool_choice"] = "auto"
@@ -588,15 +624,51 @@ class OpenAICompatibleProvider(LLMProvider):
                 method="POST",
             )
             timeout = min(self.request_timeout, 6.0) if mcp_tools else self.request_timeout
-            with urlopen(request, timeout=timeout) as response:
-                body = json.loads(response.read().decode("utf-8"))
-            choice = body.get("choices", [{}])[0].get("message", {}) if isinstance(body, dict) else {}
-            usage = body.get("usage") if isinstance(body, dict) else None
+            open_request = urlopen
+            if timings.get() is not None:
+                target = urlsplit(route["url"])
+                if target.scheme != "https" or not target.hostname or target.username or target.password or target.query or target.fragment:
+                    raise ValueError("provider endpoint is invalid")
+                payload["max_tokens"] = 1024 if free_route(route) else 3000
+                request.data = json.dumps(payload).encode()
+                open_request = build_opener(NoProviderRedirect()).open
+                if hosted():
+                    self._check_hosted_key_budget(route, open_request)
+            with open_request(request, timeout=timeout) as response:
+                if timings.get() is not None:
+                    raw = response.read(2_000_001)
+                    if len(raw) > 2_000_000:
+                        raise ValueError("provider response too large")
+                else:
+                    raw = response.read()
+                body = json.loads(raw.decode("utf-8"))
+            choices = body.get("choices") if isinstance(body, dict) else None
+            if (not isinstance(body, dict) or body.get("error") or not isinstance(choices, list)
+                    or not choices or not isinstance(choices[0], dict)
+                    or not isinstance(choices[0].get("message"), dict)):
+                raise ValueError("provider response contract failed")
+            choice = choices[0]["message"]
+            usage = body.get("usage")
+            if free_route(route) and isinstance(usage, dict) and usage.get("cost") is not None:
+                try:
+                    cost = Decimal(str(usage["cost"]))
+                except InvalidOperation:
+                    raise ValueError("invalid free route cost") from None
+                if not cost.is_finite() or cost != 0:
+                    raise ValueError("free route reported a nonzero or invalid cost")
+            if choices[0].get("finish_reason") in {"error", "content_filter"}:
+                raise ValueError("provider response did not complete")
+            actual_model = body.get("model")
+            self.last_model = actual_model if isinstance(actual_model, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}", actual_model) else None
             tool_calls = choice.get("tool_calls") if isinstance(choice, dict) else None
             if not tool_calls or tool_round > 0 or not callable(call_tool):
                 reply = choice.get("content") if isinstance(choice, dict) else ""
                 if isinstance(reply, list):
                     reply = "".join(str(part.get("text", "")) for part in reply if isinstance(part, dict))
+                if timings.get() is not None and (
+                    not isinstance(reply, str) or tool_calls or choice.get("function_call")
+                ):
+                    raise ValueError("provider returned an unsupported response")
                 self.last_route = route.get("name", route.get("model", "unknown"))
                 return str(reply or "").strip(), usage if isinstance(usage, dict) else None
 
@@ -627,7 +699,7 @@ class OpenAICompatibleProvider(LLMProvider):
         # Retrieval failures degrade gracefully and never block ordinary chat.
         try:
             from .rag import context_for_query
-            if not context.get("knowledge_evidence"):
+            if timings.get() is None and not context.get("knowledge_evidence"):
                 evidence = context_for_query(message, limit=5)
                 if evidence:
                     context["knowledge_evidence"] = evidence
@@ -757,13 +829,18 @@ class OpenAICompatibleProvider(LLMProvider):
                     "If evidence is irrelevant or insufficient, say so instead of inventing support."
                 )
         failures: list[dict[str, str]] = []
+        self.response_source = "upstream"
         for route in self.routes[:2]:
             try:
-                reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
+                with stage(f"provider_attempt_{len(failures) + 1}"):
+                    reply, usage = self._request(route, message=message, system=system, context=context, assistant=assistant)
+                if not reply:
+                    raise ValueError("empty provider response")
                 chart_type = _requested_chart_type(message) if active_assistant == "data_analyst" else None
                 sample_requested = bool(re.search(r"\b(sample|synthetic|example|demo)\b", message, re.IGNORECASE))
                 dashboard_requested = bool(re.search(r"\b(kpi|dashboard)\b", message, re.IGNORECASE))
                 if active_assistant == "data_analyst" and sample_requested and dashboard_requested and not context.get("attachments"):
+                    self.response_source = "local_visualization"
                     specs = _sample_kpi_dashboard()
                     kpi_table = (
                         "| KPI | Value | Target | Variance |\n"
@@ -781,6 +858,7 @@ class OpenAICompatibleProvider(LLMProvider):
                         + "".join("\n\n<saarthi-chart>" + json.dumps(spec, separators=(",", ":")) + "</saarthi-chart>" for spec in specs)
                     )
                 elif chart_type and sample_requested and not context.get("attachments"):
+                    self.response_source = "local_visualization"
                     spec = _sample_chart_spec(chart_type)
                     intro = {
                         "pie": "Here is a sample distribution using synthetic data.",
@@ -793,7 +871,11 @@ class OpenAICompatibleProvider(LLMProvider):
                 self.last_failures = failures
                 return reply, usage
             except Exception as exc:
-                failures.append({"route": route.get("name", route.get("model", "unknown")), "error": str(exc)[:240]})
+                code = "rate_limited" if isinstance(exc, HTTPError) and exc.code == 429 else "timeout" if isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError) else "unavailable"
+                entry = {"route": route.get("name", "unknown"), "error": code}
+                if isinstance(exc, HTTPError) and exc.code == 429:
+                    entry["limit_scope"] = classify_rate_limit(exc)
+                failures.append(entry)
         self.last_failures = failures
         detail = "; ".join(
             f"{item.get('route', 'unknown')}: {item.get('error', 'failed')}"
@@ -1013,16 +1095,18 @@ class SaarthiEngine:
         assistant_id = str(assistant or "saarthi").lower()
         if assistant_id not in ASSISTANT_PROFILES:
             assistant_id = "saarthi"
-        intent = classify(message, mode)
-        plan = build_plan(intent)
-        orchestration = build_orchestration(assistant_id, intent, message, ctx)
+        with stage("routing"):
+            intent = classify(message, mode)
+            plan = build_plan(intent)
+            orchestration = build_orchestration(assistant_id, intent, message, ctx)
         internal_specialist = str(orchestration.get("internal_specialist") or "").strip().lower()
         execution_assistant = internal_specialist if assistant_id == "saarthi" and internal_specialist in ASSISTANT_PROFILES else assistant_id
         if execution_assistant == "data_analyst":
             plan = [PlanStep("profile", "Profile supplied data"), PlanStep("validate", "Validate data quality"), PlanStep("analyze", "Calculate and analyze"), PlanStep("visualize", "Create requested visualization"), PlanStep("respond", "Explain findings")]
         tool_results: dict[str, Any] = {}
         if execution_assistant == "data_analyst":
-            inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
+            with stage("attachment_inspection"):
+                inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             tool_results["data.profile"] = analyze_attachments_for_data(inspected)
             datasets = tool_results["data.profile"].get("datasets", [])
             if datasets:
@@ -1050,7 +1134,8 @@ class SaarthiEngine:
                     tool_results["data.charts"] = recommend_visuals(dataset["columns"], dataset["rows"])
 
         if execution_assistant == "analyze":
-            inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
+            with stage("attachment_inspection"):
+                inspected = inspect_attachments(ctx.get("attachments") if isinstance(ctx, dict) else [])
             texts = []
             for item in inspected:
                 if isinstance(item, dict) and item.get("text"):
@@ -1195,6 +1280,22 @@ class SaarthiEngine:
             else:
                 reply = fallback_response(message, intent, tool_results, assistant_id)
         except Exception as exc:
+            if timings.get() is not None:
+                errors = {entry["error"] for entry in self.cloud.last_failures}
+                code = {
+                    frozenset({"rate_limited"}): "provider_rate_limited",
+                    frozenset({"timeout"}): "provider_timeout",
+                }.get(frozenset(errors), "provider_unavailable")
+                limit_scope = next((item.get("limit_scope", "unknown") for item in self.cloud.last_failures
+                                    if item["error"] == "rate_limited"), None)
+                reply = "The model could not complete your request. Start a new turn to try again."
+                if code == "provider_rate_limited":
+                    reply = ("The free model provider's daily request allowance is exhausted. Try again after its daily reset."
+                             if limit_scope == "daily" and free_only_routes(self.cloud.routes)
+                             else "The model provider is rate limited. Wait a minute, then send a new turn.")
+                return {"ok": False, "run_id": run_id, "provider": "unavailable", "error_code": code,
+                        "execution": code, "reply": reply, "rate_limit_scope": limit_scope,
+                        "verification": {"verified": False}}
             provider_name = "deterministic-fallback"
             reply = fallback_response(message, intent, tool_results, assistant_id)
             if intent.name == "chat":
@@ -1226,7 +1327,9 @@ class SaarthiEngine:
             "route": self.cloud.last_route if self.cloud.configured else None,
             "failover": self.cloud.last_failures if self.cloud.configured else [],
             "usage": usage,
-            "execution": "completed",
+            "served_model": self.cloud.last_model if provider_name == self.cloud.name else None,
+            "response_source": self.cloud.response_source if provider_name == self.cloud.name else "deterministic",
+            "execution": "degraded" if provider is None and timings.get() is not None else "completed",
             "tool_results": tool_results,
             "verification": {**verify_run(objective=message, reply=reply, tool_results=tool_results, execution="completed", provider=provider_name), "data_analysis": execution_assistant == "data_analyst", "calculation_source": "server-side attachment profile" if execution_assistant == "data_analyst" else None},
             "work_product": build_work_product(

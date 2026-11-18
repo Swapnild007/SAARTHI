@@ -23,12 +23,17 @@ def test_public_url_allows_standard_public_http_ports(monkeypatch):
     assert _public_url("https://example.com:443")
 
 
-def test_production_api_hardening_is_configured():
-    source = (ROOT / "backend" / "app.py").read_text(encoding="utf-8")
-    assert 'allow_origins=ALLOWED_ORIGINS' in source
-    assert 'allow_methods=["GET", "POST", "OPTIONS"]' in source
-    assert 'X-Content-Type-Options' in source
-    assert 'X-Frame-Options' in source
-    assert 'Strict-Transport-Security' in source
-    assert 'Cache-Control", "no-store"' in source
-    assert 'SAARTHI_RATE_LIMIT_PER_MINUTE' in source
+def test_served_composer_has_security_headers():
+    from fastapi.testclient import TestClient
+    from backend.app import app
+
+    client = TestClient(app, base_url="https://testserver")
+    for path in ("/", "/command-center.html"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
+        assert response.headers["X-Frame-Options"] == "DENY"
+        assert "max-age=31536000" in response.headers["Strict-Transport-Security"]
+        policy = response.headers["Content-Security-Policy"]
+        assert "script-src 'self';" in policy and ".vercel.app" not in policy
+        assert "<script>" not in response.text

@@ -1,6 +1,1 @@
-{
-  "api_base_url": "https://saarthi-swapneeldalvi3-1192.vercel.app",
-  "fallback_api_base_urls": [],
-  "environment": "cloud",
-  "version": 7
-}
+{"routing":"same-origin","configuration":"server","static_chat_enabled":false}
