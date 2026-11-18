@@ -203,6 +203,7 @@ test('mobile wizard creates and recovers owner access without a terminal',async(
   await expect(replies(page).last()).toContainText('wizard-created conversation');
   await page.getByRole('button',{name:'Private sign-in',exact:true}).click();
   await page.getByRole('button',{name:'Sign out',exact:true}).click();
+  await expect(page.locator('#sessionDialog')).not.toBeVisible();
   expect((await page.request.get('/api/session')).status()).toBe(401);
   await open();
   await expect(page.locator('#wizardIntent')).toHaveValue('recover');

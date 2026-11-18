@@ -38,3 +38,13 @@ Mission 2 added explicit hosted credential scopes, per-owner spend admission and
 SAARTHI now contains a mobile setup dialog with connection checks, deployment-owner verification, password creation, sign-out and recovery. Owner credentials live in the existing private conversation database when database authentication is enabled. Management verification proves Preview-branch write access against a pinned Vercel project and issues a ten-minute authorization. Password creation consumes that authorization atomically, closes initial setup, and signs the owner in immediately.
 
 The connected Vercel API prepared the recovery branch's Preview settings, including a generated session key. Supabase is available as a plugin but is not connected. Only production-scoped model settings exist. No production credential was copied into Preview and no paid resource was provisioned. Live inference and cloud history remain blocked by those account connections.
+
+## Free-provider recovery
+
+The active Preview's sensitive route variable contained a complete OpenRouter API key by itself. The previous loader accepted only a JSON list and returned an empty list without a diagnostic on parse failure. That produced the user-visible provider-unconfigured error before model execution. The paid-key lifetime-cap check would also have rejected a free route later in execution.
+
+The loader now accepts a complete key only as a documented shorthand for the fixed OpenRouter endpoint and `openrouter/free`. It never extracts a key from a broken JSON document. Valid single-route objects and precisely bounded copy/paste wrappers are normalized, then pass the same endpoint, model, field and fallback checks. Diagnostics report fixed validation-rule names, field names and JSON error positions. They contain no route values or credentials.
+
+For free-only routes, the durable daily turn quota applies without a paid-spend reservation. Requests specify zero input/output provider pricing, omit paid plugins and paid model fallbacks, and reject nonzero or invalid returned cost. Mixed free/paid routes are invalid. Paid-only configurations retain database spend admission and upstream key-cap verification. A single free route has a 14-second provider attempt budget within the existing overall deadline.
+
+The actual authenticated Preview test completed three generated replies with successful recall across turns, an idempotent replay, and six messages restored through pagination in a fresh diagnostic session. All three replies reported zero cost. The verification session was issued through authorized management access for five minutes, using the existing owner credential hash. The owner's password and existing sessions were not changed. Only the synthetic test thread was deleted.

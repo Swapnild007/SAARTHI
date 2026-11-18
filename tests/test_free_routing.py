@@ -142,3 +142,16 @@ def test_complete_key_only_is_restricted_to_the_free_router(monkeypatch):
     assert deployment.route_diagnostics()["document_format"] == "free_key_only"
     monkeypatch.setenv("SAARTHI_PREVIEW_LLM_ROUTES_JSON", '{"key":"sk-or-v1-' + 'a' * 64)
     assert deployment.configured_routes() == []
+
+
+def test_invalid_provider_logging_is_redacted(private_deployment, monkeypatch, caplog):
+    client, turns, calls = private_deployment
+    login(client)
+    monkeypatch.setenv("SAARTHI_LLM_ROUTES_JSON", '{"key":"private-secret-that-must-not-leak"')
+    monkeypatch.setattr(runtime.engine, "cloud", OpenAICompatibleProvider())
+    monkeypatch.setattr(runtime, "hosted", lambda: True)
+    result = client.post("/api/command", json={"message": "Do not execute"}).json()
+    assert result["error_code"] == "provider_unconfigured"
+    assert result["configuration"]["validation_errors"][0]["rule"] == "invalid_json"
+    assert "private-secret" not in str(result) + caplog.text
+    assert not turns and not calls

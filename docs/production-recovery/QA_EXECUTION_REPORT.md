@@ -30,3 +30,11 @@ The local Python suite passed 170 tests. The disk-backed PostgreSQL suite passed
 An initial browser run hit the shared test server's login throttle across independent scenarios. The fixture now resets its in-process rate bucket at each test boundary. Production limits remain unchanged. The SQL tests verify durable admission and login controls separately.
 
 These browser tests use synthetic management authorization, persistence and model replies. They do not qualify as live owner setup, actual model inference, hosted history, or physical Android evidence. The complete regression workflow runs on each pushed recovery commit and supplies the final PR evidence.
+
+## Live free-provider evidence
+
+[FREE_PROVIDER_LIVE_EVIDENCE.json](FREE_PROVIDER_LIVE_EVIDENCE.json) records three actual OpenRouter replies on the recovery Preview. The responses came from three free models selected by `openrouter/free`. The second response recalled the synthetic marker and the third used the same marker in a sentence. Returned cost was zero for all three calls. Round-trip wall times were 14.34, 6.16 and 5.08 seconds in this single run.
+
+Authenticated session access returned 200. Anonymous conversation access returned 401. Replaying the final turn returned the saved response. A fresh authenticated client read three saved turns, six transcript messages, in paginated order. Synthetic cleanup returned 200. Tests used a five-minute management-authorized diagnostic session and did not require or reset the owner's password. They verify actual authenticated inference and persistence, while a physical Android session remains a separate check.
+
+The initial runtime log query exceeded Hobby retention. A deployment-scoped 15-minute query succeeded and showed the active authenticated requests reading Supabase and, after the fix, reserving and completing turns. Structured terminal logging now includes the turn ID, status, served model and stage times without prompts, replies or API keys.

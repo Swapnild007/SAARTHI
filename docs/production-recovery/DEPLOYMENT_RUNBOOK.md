@@ -73,3 +73,15 @@ The existing Supabase project must receive `database/recovery.sql`, including ow
 Model credentials, a verified spending ceiling, and the isolated database are still required for actual AI chat. Use authorized connectors or the hosting secret manager to configure those resources. Neither the wizard nor a passing fixture test certifies live inference.
 
 Old deployments retain their own build configuration. Protect or retire old previews during recovery rollout. Scope-prefixed Vercel settings, the private database marker, and provider admission limits remain enforced.
+
+## OpenRouter free routing
+
+The recovery Preview accepts the existing complete OpenRouter key in its sensitive route setting as a free-only shorthand. No owner-side technical configuration is needed for this corrected deployment. The canonical JSON format also remains supported.
+
+A free route uses exactly `https://openrouter.ai/api/v1` and either `openrouter/free` or a named `:free` variant. Free-only requests apply zero-price provider constraints. No paid fallback model or paid plugin is supplied. Daily owner turn quotas remain durable. A paid-only route still requires the existing spend reservation and verified upstream key ceiling.
+
+The public health response exposes `provider_configuration` with a route count, document format, policy and redacted validation rules. Invalid JSON, missing fields, an incorrect endpoint, invalid model syntax and mixed free/paid fallback are explicit failures. Server logs include only those fixed rule names and safe terminal diagnostics.
+
+Open the current verified Preview URL and sign in with the existing owner password. Cloud conversations retain the same owner identity. Old immutable deployment URLs still run their own source revision and can continue to show the old error.
+
+[OpenRouter free router](https://openrouter.ai/docs/guides/routing/routers/free-router) · [Provider price constraints](https://openrouter.ai/docs/guides/routing/provider-selection)
